@@ -1,0 +1,16 @@
+# Reverse proxy with automatic HTTPS (Let's Encrypt).
+# KFIRE_DOMAIN is injected by docker-compose from .env.
+
+{$KFIRE_DOMAIN} {
+	encode zstd gzip
+
+	# WebSocket and REST share the same upstream; Caddy proxies WS natively.
+	reverse_proxy server:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

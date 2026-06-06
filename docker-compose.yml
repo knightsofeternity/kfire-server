@@ -1,0 +1,74 @@
+name: kfire
+
+services:
+  server:
+    build: .
+    image: ghcr.io/knightsofeternity/kfire-server:latest
+    restart: unless-stopped
+    environment:
+      KFIRE_LISTEN_ADDR: ":8080"
+      KFIRE_DATABASE_URL: postgres://kfire:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/kfire?sslmode=disable
+      KFIRE_REDIS_URL: redis://redis:6379/0
+      KFIRE_JWT_SECRET: ${KFIRE_JWT_SECRET:?set in .env}
+      KFIRE_MASTER_KEY: ${KFIRE_MASTER_KEY:?set in .env}
+      KFIRE_PUBLIC_URL: https://${KFIRE_DOMAIN:?set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kfire
+      POSTGRES_USER: kfire
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kfire -d kfire"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      KFIRE_DOMAIN: ${KFIRE_DOMAIN:?set in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [server]
+    networks: [internal]
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
