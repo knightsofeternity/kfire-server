@@ -4,6 +4,7 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/gofiber/contrib/websocket"
 
 	"github.com/knightsofeternity/kfire-server/internal/auth"
+	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
 const (
@@ -21,6 +23,8 @@ const (
 	// livenessTimeout closes connections silent for too long (heartbeat
 	// is expected every 30s; 90s = 3 missed beats).
 	livenessTimeout = 90 * time.Second
+	// dbTimeout bounds the store calls made from connection handlers.
+	dbTimeout = 5 * time.Second
 	// protocolVersion is the only protocol revision this server speaks.
 	protocolVersion = 1
 )
@@ -45,28 +49,59 @@ type helloPayload struct {
 	Client          string `json:"client"`
 }
 
+type gameEventPayload struct {
+	GameSlug string `json:"game_slug"`
+}
+
 // client is one WebSocket connection.
 type client struct {
 	conn          *websocket.Conn
 	send          chan []byte
 	authenticated atomic.Bool
 	userID        string
+	username      string
 }
 
-// Hub fans presence events out to every connected client of the org.
+// onlineState tracks a connected user (potentially several connections).
+type onlineState struct {
+	conns    int
+	since    time.Time
+	username string
+}
+
+// Hub fans presence events out to every connected client of the org and
+// keeps the in-memory online state.
 //
-// TODO(mvp): back the hub with Redis pub/sub so multiple server replicas share
-// presence state; for now everything is in-process.
+// TODO(mvp): back the hub with Redis pub/sub so multiple server replicas
+// share presence state; for now everything is in-process.
 type Hub struct {
 	jwtSecret []byte
+	store     *store.Store
 	mu        sync.RWMutex
 	clients   map[*client]struct{}
+	online    map[string]*onlineState // by user ID
 }
 
 // NewHub creates an empty hub. jwtSecret verifies the access tokens presented
-// in `hello` handshakes.
-func NewHub(jwtSecret []byte) *Hub {
-	return &Hub{jwtSecret: jwtSecret, clients: make(map[*client]struct{})}
+// in `hello` handshakes; st persists sessions and resolves games.
+func NewHub(jwtSecret []byte, st *store.Store) *Hub {
+	return &Hub{
+		jwtSecret: jwtSecret,
+		store:     st,
+		clients:   make(map[*client]struct{}),
+		online:    make(map[string]*onlineState),
+	}
+}
+
+// OnlineSince returns the connection time of an online user, or nil.
+func (h *Hub) OnlineSince(userID string) *time.Time {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if st, ok := h.online[userID]; ok {
+		t := st.since
+		return &t
+	}
+	return nil
 }
 
 // Broadcast sends an envelope to every authenticated client.
@@ -119,13 +154,83 @@ func (h *Hub) register(c *client) {
 func (h *Hub) unregister(c *client) {
 	h.mu.Lock()
 	delete(h.clients, c)
+	wasLastConn := false
+	if c.authenticated.Load() {
+		if st, ok := h.online[c.userID]; ok {
+			st.conns--
+			if st.conns <= 0 {
+				delete(h.online, c.userID)
+				wasLastConn = true
+			}
+		}
+	}
 	h.mu.Unlock()
 	close(c.send)
-	if c.authenticated.Load() {
-		slog.Info("ws: client disconnected", "user_id", c.userID)
-		// TODO(mvp): mark the user offline, close their open client-sourced
-		// sessions, and broadcast a presence_update.
+
+	if !c.authenticated.Load() {
+		return
 	}
+	slog.Info("ws: client disconnected", "user_id", c.userID)
+
+	if wasLastConn {
+		// The user is gone: their locally-detected games are over.
+		ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+		defer cancel()
+		if n, err := h.store.EndClientSessions(ctx, c.userID); err != nil {
+			slog.Error("ws: end client sessions", "user_id", c.userID, "err", err)
+		} else if n > 0 {
+			slog.Info("ws: closed open sessions on disconnect", "user_id", c.userID, "count", n)
+		}
+		h.broadcastPresence(ctx, c.userID, c.username)
+	}
+}
+
+// connect marks an authenticated user online. Reports whether this is their
+// first concurrent connection.
+func (h *Hub) connect(c *client) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	st, ok := h.online[c.userID]
+	if !ok {
+		h.online[c.userID] = &onlineState{conns: 1, since: time.Now().UTC(), username: c.username}
+		return true
+	}
+	st.conns++
+	return false
+}
+
+// broadcastPresence recomputes a user's presence and broadcasts it.
+func (h *Hub) broadcastPresence(ctx context.Context, userID, username string) {
+	entry := map[string]any{
+		"user_id":  userID,
+		"username": username,
+		"status":   "offline",
+		"game":     nil,
+	}
+
+	if since := h.OnlineSince(userID); since != nil {
+		entry["status"] = "online"
+		entry["since"] = since
+
+		sess, err := h.store.LatestOpenSession(ctx, userID)
+		if err != nil {
+			slog.Error("ws: latest open session", "user_id", userID, "err", err)
+		} else if sess != nil {
+			entry["status"] = "in_game"
+			entry["since"] = sess.StartedAt
+			entry["game"] = gameJSON(sess.Game)
+		}
+	}
+
+	h.Broadcast("presence_update", entry)
+}
+
+func gameJSON(g store.Game) map[string]any {
+	m := map[string]any{"id": g.ID, "name": g.Name, "slug": g.Slug}
+	if g.IconURL != nil {
+		m["icon_url"] = *g.IconURL
+	}
+	return m
 }
 
 func (c *client) writeLoop() {
@@ -161,9 +266,10 @@ func (c *client) readLoop(h *Hub) {
 		_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))
 
 		switch env.Type {
-		case "game_started", "game_stopped":
-			// TODO(mvp): persist the session and broadcast presence_update.
-			slog.Info("ws: presence event (stub)", "type", env.Type, "user_id", c.userID)
+		case "game_started":
+			c.handleGameEvent(h, env, true)
+		case "game_stopped":
+			c.handleGameEvent(h, env, false)
 		case "heartbeat":
 			// Deadline already refreshed above.
 		default:
@@ -196,18 +302,73 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 		return
 	}
 
-	c.userID = claims.UserID
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	u, err := h.store.GetUserByID(ctx, claims.UserID)
+	if err != nil || u.BannedAt != nil {
+		c.closeWithError(closeAuthFailed, "auth_failed", "account unavailable")
+		return
+	}
+
+	c.userID = u.ID
+	c.username = u.Username
 	c.authenticated.Store(true)
+	firstConn := h.connect(c)
 	_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))
+
+	// A session survived a brief disconnect when the user is already in game.
+	sess, err := h.store.LatestOpenSession(ctx, u.ID)
+	if err != nil {
+		slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
+	}
 
 	c.sendEnvelope("hello_ack", map[string]any{
 		"protocol_version":           protocolVersion,
 		"heartbeat_interval_seconds": 30,
-		// TODO(mvp): true when an open session survived a reconnect.
-		"session_resumed": false,
+		"session_resumed":            sess != nil,
 	})
-	slog.Info("ws: client authenticated", "user_id", c.userID, "client", p.Client)
-	// TODO(mvp): mark the user online and broadcast a presence_update.
+	slog.Info("ws: client authenticated", "user_id", u.ID, "username", u.Username, "client", p.Client)
+
+	if firstConn {
+		h.broadcastPresence(ctx, u.ID, u.Username)
+	}
+}
+
+// handleGameEvent persists a game_started/game_stopped event and broadcasts
+// the resulting presence.
+func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
+	var p gameEventPayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil || p.GameSlug == "" {
+		c.sendError("unknown_game", "missing game_slug", false)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	game, err := h.store.GetGameBySlug(ctx, p.GameSlug)
+	if err != nil {
+		c.sendError("unknown_game", "game slug not in the catalog: "+p.GameSlug, false)
+		return
+	}
+
+	var changed bool
+	if started {
+		changed, err = h.store.StartSession(ctx, c.userID, game.ID, "client")
+	} else {
+		changed, err = h.store.EndSession(ctx, c.userID, game.ID)
+	}
+	if err != nil {
+		slog.Error("ws: persist game event", "user_id", c.userID, "slug", p.GameSlug, "err", err)
+		return
+	}
+
+	if changed {
+		slog.Info("ws: game event", "user_id", c.userID, "username", c.username,
+			"slug", game.Slug, "started", started)
+		h.broadcastPresence(ctx, c.userID, c.username)
+	}
 }
 
 // sendEnvelope queues a typed message for this client.
@@ -225,6 +386,11 @@ func (c *client) sendEnvelope(typ string, payload any) {
 	case c.send <- msg:
 	default:
 	}
+}
+
+// sendError sends a non-fatal protocol error notice.
+func (c *client) sendError(code, message string, fatal bool) {
+	c.sendEnvelope("error", map[string]any{"code": code, "message": message, "fatal": fatal})
 }
 
 // closeWithError sends a fatal protocol error then closes the connection with

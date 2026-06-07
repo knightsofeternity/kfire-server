@@ -26,6 +26,14 @@ func (h *handlers) requireAuth(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+// requireAdmin allows only admin accounts. Mount after requireAuth.
+func (h *handlers) requireAdmin(c *fiber.Ctx) error {
+	if mustClaims(c).Role != "admin" {
+		return errorJSON(c, fiber.StatusForbidden, "forbidden", "admin role required")
+	}
+	return c.Next()
+}
+
 // mustClaims returns the claims set by requireAuth. Only call it from
 // handlers mounted behind that middleware.
 func mustClaims(c *fiber.Ctx) auth.Claims {

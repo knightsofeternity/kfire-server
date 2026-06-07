@@ -5,11 +5,13 @@ gaming presence tracker inspired by Xfire. One server instance = one organizatio
 (clan, guild, team): see in real time who is playing what among your members, with
 session history and statistics.
 
-> **Status: auth implemented.** Registration, login (Argon2id + JWT),
-> device-bound refresh token rotation, logout, `/users/me`, rate limiting and
-> the WebSocket `hello` handshake all work against the contract defined in
+> **Status: auth + presence implemented.** Registration, login (Argon2id +
+> JWT), device-bound refresh token rotation, real-time presence over
+> WebSocket (`game_started`/`game_stopped` → `presence_update` broadcasts),
+> persisted game sessions with history pagination, and a ~10k games catalog
+> seeded from Discord's public detectable-applications list. Everything
+> follows the contract defined in
 > [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol).
-> Presence and session endpoints still return `501 Not Implemented`.
 
 ## Stack
 

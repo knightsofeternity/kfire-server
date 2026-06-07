@@ -19,6 +19,7 @@ import (
 type handlers struct {
 	cfg   *config.Config
 	store *store.Store
+	hub   *ws.Hub
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -28,7 +29,7 @@ func errorJSON(c *fiber.Ctx, status int, code, message string) error {
 
 // Register mounts every route on the Fiber app.
 func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) {
-	h := &handlers{cfg: cfg, store: st}
+	h := &handlers{cfg: cfg, store: st, hub: hub}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -51,9 +52,12 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) 
 	authGroup.Post("/logout", h.requireAuth, h.logout)
 
 	v1.Get("/users/me", h.requireAuth, h.me)
-	// TODO(mvp): live presence snapshot + paginated session history.
-	v1.Get("/presence", h.requireAuth, notImplemented)
-	v1.Get("/sessions", h.requireAuth, notImplemented)
+	v1.Get("/games", h.requireAuth, h.listGames)
+	v1.Get("/presence", h.requireAuth, h.presence)
+	v1.Get("/sessions", h.requireAuth, h.sessions)
+
+	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
+	admin.Post("/games/sync", h.syncGames)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).
