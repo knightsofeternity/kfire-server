@@ -22,18 +22,25 @@ type Config struct {
 	MasterKey string
 	// PublicURL is the externally visible base URL (used in OAuth callbacks).
 	PublicURL string
+	// OrgName names the instance's organization, created on first boot.
+	OrgName string
+	// OpenRegistration allows anyone to register. When false, registration
+	// is closed once the first (admin) account exists — invites are TODO.
+	OpenRegistration bool
 }
 
 // Load reads configuration from the environment. Required variables that are
 // missing produce an error so misconfiguration fails fast at startup.
 func Load() (*Config, error) {
 	cfg := &Config{
-		ListenAddr:  getEnv("KFIRE_LISTEN_ADDR", ":8080"),
-		DatabaseURL: os.Getenv("KFIRE_DATABASE_URL"),
-		RedisURL:    getEnv("KFIRE_REDIS_URL", "redis://localhost:6379/0"),
-		JWTSecret:   os.Getenv("KFIRE_JWT_SECRET"),
-		MasterKey:   os.Getenv("KFIRE_MASTER_KEY"),
-		PublicURL:   getEnv("KFIRE_PUBLIC_URL", "http://localhost:8080"),
+		ListenAddr:       getEnv("KFIRE_LISTEN_ADDR", ":8080"),
+		DatabaseURL:      os.Getenv("KFIRE_DATABASE_URL"),
+		RedisURL:         getEnv("KFIRE_REDIS_URL", "redis://localhost:6379/0"),
+		JWTSecret:        os.Getenv("KFIRE_JWT_SECRET"),
+		MasterKey:        os.Getenv("KFIRE_MASTER_KEY"),
+		PublicURL:        getEnv("KFIRE_PUBLIC_URL", "http://localhost:8080"),
+		OrgName:          getEnv("KFIRE_ORG_NAME", "My Organization"),
+		OpenRegistration: getEnv("KFIRE_OPEN_REGISTRATION", "true") == "true",
 	}
 
 	for name, val := range map[string]string{

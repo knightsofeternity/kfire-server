@@ -5,9 +5,11 @@ gaming presence tracker inspired by Xfire. One server instance = one organizatio
 (clan, guild, team): see in real time who is playing what among your members, with
 session history and statistics.
 
-> **Status: early scaffold.** The API surface is defined in
-> [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol); most
-> endpoints currently return `501 Not Implemented`.
+> **Status: auth implemented.** Registration, login (Argon2id + JWT),
+> device-bound refresh token rotation, logout, `/users/me`, rate limiting and
+> the WebSocket `hello` handshake all work against the contract defined in
+> [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol).
+> Presence and session endpoints still return `501 Not Implemented`.
 
 ## Stack
 
@@ -45,8 +47,12 @@ go run ./cmd/kfire-server
 curl localhost:8080/healthz
 ```
 
-Migrations live in [`migrations/`](./migrations) (plain SQL, applied in order —
-runner integration is TODO).
+Migrations live in [`migrations/`](./migrations) (plain SQL, embedded in the
+binary and applied automatically at startup).
+
+The first registered account becomes the instance **admin**. Set
+`KFIRE_OPEN_REGISTRATION=false` to close registration after that
+(invite system is TODO).
 
 ## Project layout
 
