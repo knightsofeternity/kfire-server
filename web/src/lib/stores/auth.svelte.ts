@@ -39,6 +39,20 @@ function createAuth() {
 		return res.ok ? res.json() : null;
 	}
 
+	async function register(username: string, email: string, password: string): Promise<void> {
+		const res = await fetch('/api/v1/auth/register', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ username, email, password })
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({ message: 'registration failed' }));
+			throw new Error(err.message ?? 'registration failed');
+		}
+		// Registration doesn't return tokens; sign in right away.
+		await login(username, password);
+	}
+
 	async function login(username: string, password: string): Promise<void> {
 		const res = await fetch('/api/v1/auth/login', {
 			method: 'POST',
@@ -107,11 +121,12 @@ function createAuth() {
 		update((s) => ({ ...s, user }));
 	}
 
-	return { subscribe, login, logout, refresh, init, setUser };
+	return { subscribe, login, register, logout, refresh, init, setUser };
 }
 
 export const auth: Readable<AuthState> & {
 	login(username: string, password: string): Promise<void>;
+	register(username: string, email: string, password: string): Promise<void>;
 	logout(): Promise<void>;
 	refresh(): Promise<boolean>;
 	init(): Promise<void>;
