@@ -1,12 +1,22 @@
 <script lang="ts">
 	import { auth } from '$lib/stores/auth.svelte';
+	import { passwordStrength } from '$lib/password';
 
 	let mode = $state<'login' | 'register'>('login');
-	let username = $state('');
+	let displayName = $state('');
 	let email = $state('');
 	let password = $state('');
 	let error = $state('');
 	let busy = $state(false);
+
+	let strength = $derived(passwordStrength(password));
+	const barColors = [
+		'bg-red-500',
+		'bg-red-500',
+		'bg-yellow-500',
+		'bg-lime-500',
+		'bg-[var(--color-online)]'
+	];
 
 	function toggle() {
 		mode = mode === 'login' ? 'register' : 'login';
@@ -19,9 +29,10 @@
 		busy = true;
 		try {
 			if (mode === 'register') {
-				await auth.register(username, email, password);
+				await auth.register(displayName, email, password);
 			} else {
-				await auth.login(username, password);
+				// The login endpoint accepts the email as the identifier.
+				await auth.login(email, password);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'something went wrong';
@@ -44,29 +55,31 @@
 			onsubmit={submit}
 			class="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
 		>
-			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Username
-				<input
-					type="text"
-					bind:value={username}
-					autocomplete="username"
-					required
-					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
-				/>
-			</label>
-
 			{#if mode === 'register'}
 				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-					Email
+					Display name
 					<input
-						type="email"
-						bind:value={email}
-						autocomplete="email"
+						type="text"
+						bind:value={displayName}
+						autocomplete="nickname"
 						required
+						minlength={3}
+						maxlength={32}
 						class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 					/>
 				</label>
 			{/if}
+
+			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+				Email
+				<input
+					type="email"
+					bind:value={email}
+					autocomplete={mode === 'register' ? 'email' : 'username'}
+					required
+					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+				/>
+			</label>
 
 			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
 				Password
@@ -78,10 +91,24 @@
 					minlength={mode === 'register' ? 12 : undefined}
 					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 				/>
-				{#if mode === 'register'}
-					<span class="text-[var(--color-muted)]">At least 12 characters.</span>
-				{/if}
 			</label>
+
+			{#if mode === 'register' && password}
+				<div class="-mt-2 flex flex-col gap-1">
+					<div class="flex gap-1">
+						{#each [0, 1, 2, 3] as i (i)}
+							<span
+								class="h-1 flex-1 rounded-full {strength.score > i
+									? barColors[strength.score]
+									: 'bg-[var(--color-border)]'}"
+							></span>
+						{/each}
+					</div>
+					<span class="text-xs text-[var(--color-muted)]">
+						{strength.label} · at least 12 characters; a passphrase works great
+					</span>
+				</div>
+			{/if}
 
 			{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
