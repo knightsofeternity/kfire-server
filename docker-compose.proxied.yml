@@ -28,6 +28,8 @@ services:
       # Must match the public URL the proxy serves (used for Steam OpenID realm).
       KFIRE_PUBLIC_URL: https://${KFIRE_DOMAIN:?set in .env}
       KFIRE_STEAM_API_KEY: ${KFIRE_STEAM_API_KEY:-}
+      KFIRE_ORG_NAME: ${KFIRE_ORG_NAME:-My Organization}
+      KFIRE_OPEN_REGISTRATION: ${KFIRE_OPEN_REGISTRATION:-true}
     depends_on:
       postgres:
         condition: service_healthy
