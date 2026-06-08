@@ -103,6 +103,22 @@ func notImplemented(c *fiber.Ctx) error {
 // client-side router handles deep links. API and WebSocket paths are skipped.
 // Mount this AFTER api.Register so real routes take precedence.
 func MountSPA(app *fiber.App, dist fs.FS) {
+	// Cache headers: content-hashed assets are immutable and safe to cache
+	// forever; the entry HTML must never be cached (a new build changes which
+	// hashed assets it references). A reverse proxy/CDN should honour these.
+	app.Use(func(c *fiber.Ctx) error {
+		p := c.Path()
+		switch {
+		case strings.HasPrefix(p, "/api/"), strings.HasPrefix(p, "/ws"), p == "/healthz":
+			// not ours
+		case strings.HasPrefix(p, "/_app/immutable/"):
+			c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
+		default:
+			c.Set(fiber.HeaderCacheControl, "no-cache")
+		}
+		return c.Next()
+	})
+
 	app.Use(filesystem.New(filesystem.Config{
 		Root:         http.FS(dist),
 		Index:        "index.html",
