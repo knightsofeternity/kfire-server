@@ -35,6 +35,24 @@ docker compose up -d
 Caddy obtains a Let's Encrypt certificate for `KFIRE_DOMAIN` automatically —
 ports 80/443 must be reachable and the domain must resolve to your host.
 
+### Behind an existing reverse proxy
+
+If the host already runs a reverse proxy (or has no public IP and sits behind
+one — e.g. a Traefik gateway), skip the bundled Caddy and let the existing
+proxy terminate TLS:
+
+```bash
+cp .env.example .env          # secrets + KFIRE_DOMAIN + (optional) KFIRE_STEAM_API_KEY
+docker compose -f docker-compose.proxied.yml up -d --build
+```
+
+This publishes the server on an internal port (`8090` by default) instead of
+80/443. Point the proxy at it — a ready-to-edit Traefik file-provider route is
+in [`deploy/traefik/kfire.yml`](./deploy/traefik). The server handles the API,
+WebSocket and SPA on that single port, and most proxies pass WebSocket through
+transparently. `KFIRE_PUBLIC_URL` must equal the public HTTPS URL the proxy
+serves (it is the Steam OpenID realm).
+
 ## Local development
 
 Requires Go ≥ 1.23 and Docker (for Postgres/Redis).

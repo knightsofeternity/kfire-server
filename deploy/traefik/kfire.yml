@@ -1,0 +1,28 @@
+# Traefik file-provider route for KFIRE, to drop on the reverse-proxy host
+# (e.g. the Gate's /srv/traefik/config/). Mirrors the existing
+# knights-of-eternity.yml: external host -> wordpress-1 private IP + port.
+#
+# Adjust:
+#   - the upstream URL to the host:port where docker-compose.proxied.yml
+#     publishes the server (default 172.31.3.32:8090)
+#   - certResolver to the name used on your Traefik (the Gate uses the
+#     Cloudflare DNS-challenge resolver)
+#
+# Traefik proxies WebSocket transparently, so /ws needs no special config.
+
+http:
+  routers:
+    kfire:
+      rule: "Host(`kfire.guilde-ke.fr`)"
+      entryPoints:
+        - websecure
+      service: kfire
+      tls:
+        certResolver: cloudflare
+
+  services:
+    kfire:
+      loadBalancer:
+        servers:
+          - url: "http://172.31.3.32:8090"
+        passHostHeader: true
