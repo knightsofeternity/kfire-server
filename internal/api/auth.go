@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 	"regexp"
 	"time"
 
@@ -90,14 +91,29 @@ func (h *handlers) register(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	// First account becomes the instance admin; afterwards registration is
-	// only open when the instance allows it (invites are TODO(mvp)).
+	// Account role + admission rules:
+	//   - the very first account bootstraps the instance admin;
+	//   - a valid invite grants the role it carries (and is consumed);
+	//   - otherwise registration is allowed only when open registration is on.
 	role := "member"
-	if count == 0 {
+	var consumeInvite string
+	switch {
+	case count == 0:
 		role = "admin"
-	} else if !h.cfg.OpenRegistration {
+	case req.InviteCode != "":
+		r, err := h.store.PeekInvite(c.Context(), req.InviteCode)
+		if errors.Is(err, store.ErrNotFound) {
+			return errorJSON(c, fiber.StatusUnprocessableEntity, "invalid_invite",
+				"this invite is invalid, already used, or expired")
+		}
+		if err != nil {
+			return err
+		}
+		role = r
+		consumeInvite = req.InviteCode
+	case !h.cfg.OpenRegistration:
 		return errorJSON(c, fiber.StatusForbidden, "registration_closed",
-			"registration is disabled on this instance")
+			"registration is invite-only — ask an admin for an invite link")
 	}
 
 	hash, err := auth.HashPassword(req.Password)
@@ -116,6 +132,14 @@ func (h *handlers) register(c *fiber.Ctx) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	if consumeInvite != "" {
+		// Best effort: if it was raced to "used" between peek and now, the
+		// account still stands (a duplicate-use is harmless and rare).
+		if err := h.store.MarkInviteUsed(c.Context(), consumeInvite, u.ID); err != nil {
+			slog.Warn("register: invite already consumed", "code", consumeInvite, "err", err)
+		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(userJSON(u, true))

@@ -45,6 +45,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	v1 := app.Group("/api/v1")
 
+	v1.Get("/config", h.publicConfig)
+
 	// Sensitive endpoints: 10 requests/min/IP (login brute force, register spam).
 	authGroup := v1.Group("/auth", limiter.New(limiter.Config{
 		Max:        10,
@@ -75,6 +77,11 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Post("/games/sync", h.syncGames)
+	admin.Get("/members", h.listMembers)
+	admin.Patch("/members/:id", h.patchMember)
+	admin.Get("/invites", h.listInvites)
+	admin.Post("/invites", h.createInvite)
+	admin.Delete("/invites/:code", h.deleteInvite)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).

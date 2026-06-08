@@ -42,6 +42,52 @@ func (s *Store) SetActivityVisible(ctx context.Context, userID string, visible b
 	return err
 }
 
+// ListUsers returns every account, newest first (admin member management).
+func (s *Store) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT `+userColumns+` FROM users ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// SetUserRole changes a user's role.
+func (s *Store) SetUserRole(ctx context.Context, userID, role string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET role = $2 WHERE id = $1`, userID, role)
+	return err
+}
+
+// SetUserBanned bans or unbans a user.
+func (s *Store) SetUserBanned(ctx context.Context, userID string, banned bool) error {
+	if banned {
+		_, err := s.pool.Exec(ctx,
+			`UPDATE users SET banned_at = now() WHERE id = $1 AND banned_at IS NULL`, userID)
+		return err
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE users SET banned_at = NULL WHERE id = $1`, userID)
+	return err
+}
+
+// CountAdmins returns the number of non-banned admins (to prevent removing the
+// last one).
+func (s *Store) CountAdmins(ctx context.Context) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM users WHERE role = 'admin' AND banned_at IS NULL`).Scan(&n)
+	return n, err
+}
+
 // EnsureDefaultOrg returns the instance's organization, creating it on first
 // boot (mono-tenant: one server = one org).
 func (s *Store) EnsureDefaultOrg(ctx context.Context, name string) (string, error) {

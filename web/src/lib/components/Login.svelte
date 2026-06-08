@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { getConfig } from '$lib/api';
 	import { passwordStrength } from '$lib/password';
 
 	let mode = $state<'login' | 'register'>('login');
@@ -9,14 +12,22 @@
 	let error = $state('');
 	let busy = $state(false);
 
+	let inviteCode = $state<string | null>(null);
+	let openRegistration = $state(true);
+
 	let strength = $derived(passwordStrength(password));
-	const barColors = [
-		'bg-red-500',
-		'bg-red-500',
-		'bg-yellow-500',
-		'bg-lime-500',
-		'bg-[var(--color-online)]'
-	];
+	const barColors = ['bg-red-500', 'bg-red-500', 'bg-yellow-500', 'bg-lime-500', 'bg-[var(--color-online)]'];
+
+	// Self-registration is offered when the instance is open, or when the
+	// visitor arrived with an invite link.
+	let canRegister = $derived(openRegistration || !!inviteCode);
+
+	onMount(async () => {
+		inviteCode = page.url.searchParams.get('invite');
+		const cfg = await getConfig();
+		openRegistration = cfg.open_registration;
+		if (inviteCode) mode = 'register';
+	});
 
 	function toggle() {
 		mode = mode === 'login' ? 'register' : 'login';
@@ -29,9 +40,8 @@
 		busy = true;
 		try {
 			if (mode === 'register') {
-				await auth.register(displayName, email, password);
+				await auth.register(displayName, email, password, inviteCode ?? undefined);
 			} else {
-				// The login endpoint accepts the email as the identifier.
 				await auth.login(email, password);
 			}
 		} catch (err) {
@@ -55,6 +65,12 @@
 			onsubmit={submit}
 			class="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
 		>
+			{#if mode === 'register' && inviteCode}
+				<p class="rounded-lg bg-[var(--color-brand)]/10 px-3 py-2 text-xs text-[var(--color-brand)]">
+					You were invited to join. Set your details below.
+				</p>
+			{/if}
+
 			{#if mode === 'register'}
 				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
 					Display name
@@ -121,11 +137,17 @@
 			</button>
 		</form>
 
-		<p class="mt-4 text-center text-sm text-[var(--color-muted)]">
-			{mode === 'login' ? 'No account yet?' : 'Already have an account?'}
-			<button type="button" onclick={toggle} class="text-[var(--color-brand)] hover:underline">
-				{mode === 'login' ? 'Create one' : 'Sign in'}
-			</button>
-		</p>
+		{#if canRegister}
+			<p class="mt-4 text-center text-sm text-[var(--color-muted)]">
+				{mode === 'login' ? 'No account yet?' : 'Already have an account?'}
+				<button type="button" onclick={toggle} class="text-[var(--color-brand)] hover:underline">
+					{mode === 'login' ? 'Create one' : 'Sign in'}
+				</button>
+			</p>
+		{:else if mode === 'login'}
+			<p class="mt-4 text-center text-xs text-[var(--color-muted)]">
+				Registration is invite-only. Ask an admin for an invite link.
+			</p>
+		{/if}
 	</div>
 </div>

@@ -12,11 +12,12 @@
 		auth.init();
 	});
 
-	const navItems = [
+	let navItems = $derived([
 		{ href: '/', label: 'Dashboard' },
 		{ href: '/players', label: 'Players' },
+		...($auth.user?.role === 'admin' ? [{ href: '/admin', label: 'Admin' }] : []),
 		{ href: '/account', label: 'Account' }
-	];
+	]);
 
 	function isActive(href: string): boolean {
 		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);

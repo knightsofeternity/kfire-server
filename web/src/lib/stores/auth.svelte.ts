@@ -39,11 +39,16 @@ function createAuth() {
 		return res.ok ? res.json() : null;
 	}
 
-	async function register(username: string, email: string, password: string): Promise<void> {
+	async function register(
+		username: string,
+		email: string,
+		password: string,
+		inviteCode?: string
+	): Promise<void> {
 		const res = await fetch('/api/v1/auth/register', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ username, email, password })
+			body: JSON.stringify({ username, email, password, invite_code: inviteCode })
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({ message: 'registration failed' }));
@@ -126,7 +131,7 @@ function createAuth() {
 
 export const auth: Readable<AuthState> & {
 	login(username: string, password: string): Promise<void>;
-	register(username: string, email: string, password: string): Promise<void>;
+	register(username: string, email: string, password: string, inviteCode?: string): Promise<void>;
 	logout(): Promise<void>;
 	refresh(): Promise<boolean>;
 	init(): Promise<void>;

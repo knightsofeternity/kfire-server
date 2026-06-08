@@ -59,6 +59,25 @@ export type Achievement = {
 	unlocked_at: string;
 };
 
+export type Member = {
+	id: string;
+	username: string;
+	email: string;
+	role: 'admin' | 'member';
+	banned: boolean;
+	avatar_url?: string;
+	created_at: string;
+};
+
+export type Invite = {
+	code: string;
+	role: 'admin' | 'member';
+	url: string;
+	note?: string;
+	created_at: string;
+	expires_at: string;
+};
+
 export type Profile = {
 	user: User;
 	presence: PresenceEntry;
@@ -143,7 +162,42 @@ export const api = {
 
 	async syncSteam(): Promise<{ games_imported: number; achievements_imported: number }> {
 		return json(await authFetch('/api/v1/connect/steam/sync', { method: 'POST' }));
+	},
+
+	// --- admin ---------------------------------------------------------------
+
+	async getMembers(): Promise<Member[]> {
+		const data = await json<{ members: Member[] }>(await authFetch('/api/v1/admin/members'));
+		return data.members;
+	},
+
+	async patchMember(id: string, body: { role?: string; banned?: boolean }): Promise<void> {
+		await json(
+			await authFetch(`/api/v1/admin/members/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+		);
+	},
+
+	async getInvites(): Promise<Invite[]> {
+		const data = await json<{ invites: Invite[] }>(await authFetch('/api/v1/admin/invites'));
+		return data.invites;
+	},
+
+	async createInvite(body: { note?: string; role?: string }): Promise<Invite> {
+		return json(await authFetch('/api/v1/admin/invites', { method: 'POST', body: JSON.stringify(body) }));
+	},
+
+	async deleteInvite(code: string): Promise<void> {
+		const res = await authFetch(`/api/v1/admin/invites/${encodeURIComponent(code)}`, {
+			method: 'DELETE'
+		});
+		if (!res.ok && res.status !== 404) throw new Error('failed to revoke invite');
 	}
 };
+
+/** Public instance config (no auth) — drives the sign-up UI. */
+export async function getConfig(): Promise<{ open_registration: boolean; org_name: string }> {
+	const res = await fetch('/api/v1/config');
+	return res.ok ? res.json() : { open_registration: true, org_name: 'KFIRE' };
+}
 
 export { ApiError };
