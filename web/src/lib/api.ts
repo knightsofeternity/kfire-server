@@ -195,9 +195,13 @@ export const api = {
 };
 
 /** Public instance config (no auth) — drives the sign-up UI. */
-export async function getConfig(): Promise<{ open_registration: boolean; org_name: string }> {
+export async function getConfig(): Promise<{
+	open_registration: boolean;
+	org_name: string;
+	needs_setup: boolean;
+}> {
 	const res = await fetch('/api/v1/config');
-	return res.ok ? res.json() : { open_registration: true, org_name: 'KFIRE' };
+	return res.ok ? res.json() : { open_registration: true, org_name: 'KFIRE', needs_setup: false };
 }
 
 export { ApiError };

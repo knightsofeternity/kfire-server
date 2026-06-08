@@ -16,9 +16,16 @@ const inviteTTL = 14 * 24 * time.Hour
 
 // GET /api/v1/config  (public) — lets the SPA tailor the sign-up UI.
 func (h *handlers) publicConfig(c *fiber.Ctx) error {
+	count, err := h.store.CountUsers(c.Context())
+	if err != nil {
+		return err
+	}
 	return c.JSON(fiber.Map{
 		"open_registration": h.cfg.OpenRegistration,
 		"org_name":          h.cfg.OrgName,
+		// True only on a brand-new instance: the first account can be created
+		// (it becomes the admin) even when registration is invite-only.
+		"needs_setup": count == 0,
 	})
 }
 

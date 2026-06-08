@@ -14,19 +14,21 @@
 
 	let inviteCode = $state<string | null>(null);
 	let openRegistration = $state(true);
+	let needsSetup = $state(false);
 
 	let strength = $derived(passwordStrength(password));
 	const barColors = ['bg-red-500', 'bg-red-500', 'bg-yellow-500', 'bg-lime-500', 'bg-[var(--color-online)]'];
 
-	// Self-registration is offered when the instance is open, or when the
-	// visitor arrived with an invite link.
-	let canRegister = $derived(openRegistration || !!inviteCode);
+	// Self-registration is offered on a fresh instance (first = admin), when the
+	// instance is open, or when the visitor arrived with an invite link.
+	let canRegister = $derived(needsSetup || openRegistration || !!inviteCode);
 
 	onMount(async () => {
 		inviteCode = page.url.searchParams.get('invite');
 		const cfg = await getConfig();
 		openRegistration = cfg.open_registration;
-		if (inviteCode) mode = 'register';
+		needsSetup = cfg.needs_setup;
+		if (inviteCode || needsSetup) mode = 'register';
 	});
 
 	function toggle() {
@@ -58,7 +60,13 @@
 			KFIRE
 		</h1>
 		<p class="mb-6 text-center text-sm text-[var(--color-muted)]">
-			{mode === 'login' ? 'Sign in to your organization' : 'Create your account'}
+			{#if needsSetup}
+				Welcome — create the first account (it becomes the admin)
+			{:else if mode === 'login'}
+				Sign in to your organization
+			{:else}
+				Create your account
+			{/if}
 		</p>
 
 		<form
