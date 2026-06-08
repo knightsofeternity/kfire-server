@@ -19,6 +19,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/games"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
+	"github.com/knightsofeternity/kfire-server/web"
 )
 
 func main() {
@@ -63,6 +64,14 @@ func main() {
 
 	hub := ws.NewHub([]byte(cfg.JWTSecret), st)
 	api.Register(app, cfg, st, hub)
+
+	// Serve the embedded admin SPA (when built). Mounted last so API and
+	// WebSocket routes take precedence.
+	if dist, ok := web.Dist(); ok {
+		api.MountSPA(app, dist)
+	} else {
+		slog.Warn("admin SPA not built; serving API only (run `pnpm build` in web/)")
+	}
 
 	slog.Info("kfire-server listening", "addr", cfg.ListenAddr)
 	if err := app.Listen(cfg.ListenAddr); err != nil {

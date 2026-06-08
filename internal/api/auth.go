@@ -53,7 +53,9 @@ func userJSON(u store.User, includeEmail bool) fiber.Map {
 		m["avatar_url"] = *u.AvatarURL
 	}
 	if includeEmail {
+		// Private fields, only returned on the owner's own profile.
 		m["email"] = u.Email
+		m["activity_visible"] = u.ActivityVisible
 	}
 	return m
 }

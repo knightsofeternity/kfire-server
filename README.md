@@ -19,7 +19,9 @@ session history and statistics.
 - **PostgreSQL** — durable storage (users, sessions, linked accounts, games)
 - **Redis** — presence state + WebSocket pub/sub
 - **Caddy** — reverse proxy with automatic HTTPS (Let's Encrypt)
-- Admin frontend (SvelteKit + Tailwind, dark gaming theme) — coming in `web/`
+- **Admin web UI** — SvelteKit + Tailwind SPA (dark gaming theme) in `web/`,
+  embedded into the Go binary and served at `/`: live dashboard, player
+  profiles with per-game playtime, account settings (activity privacy toggle)
 
 ## Self-hosting (Docker)
 
@@ -48,6 +50,22 @@ export KFIRE_MASTER_KEY=$(openssl rand -base64 32)
 go run ./cmd/kfire-server
 curl localhost:8080/healthz
 ```
+
+### Admin web UI
+
+The SvelteKit SPA lives in [`web/`](./web) and is embedded into the binary via
+`//go:embed`. For frontend development run it with hot reload against the Go
+server (Vite proxies `/api` and `/ws`):
+
+```bash
+cd web
+pnpm install
+pnpm dev            # http://localhost:5173, proxying to :8080
+```
+
+For a production build (also what Docker does), `pnpm build` writes `web/build`,
+which the next `go build` embeds and serves at `/`. The binary runs API-only if
+the SPA was never built.
 
 Migrations live in [`migrations/`](./migrations) (plain SQL, embedded in the
 binary and applied automatically at startup).

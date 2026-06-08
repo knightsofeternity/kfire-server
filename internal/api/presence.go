@@ -6,30 +6,39 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/knightsofeternity/kfire-server/internal/store"
+	"github.com/knightsofeternity/kfire-server/internal/ws"
 )
 
 // GET /api/v1/presence  (authenticated)
 //
 // Snapshot for initial page load; live updates come from the WebSocket.
+// Members who disabled activity visibility appear capped at "online" to
+// everyone but themselves and admins.
 func (h *handlers) presence(c *fiber.Ctx) error {
 	rows, err := h.store.ListPresence(c.Context())
 	if err != nil {
 		return err
 	}
 
+	claims := mustClaims(c)
 	entries := make([]fiber.Map, 0, len(rows))
 	for _, r := range rows {
+		online := h.hub.OnlineSince(r.UserID)
+		showGame := r.ActivityVisible || r.UserID == claims.UserID || claims.Role == "admin"
+
 		entry := fiber.Map{
 			"user_id":  r.UserID,
 			"username": r.Username,
 			"status":   "offline",
 			"game":     nil,
 		}
-
-		if since := h.hub.OnlineSince(r.UserID); since != nil {
+		if r.AvatarURL != nil {
+			entry["avatar_url"] = *r.AvatarURL
+		}
+		if online != nil {
 			entry["status"] = "online"
-			entry["since"] = since.UTC()
-			if r.Game != nil {
+			entry["since"] = online.UTC()
+			if r.Game != nil && showGame {
 				entry["status"] = "in_game"
 				entry["game"] = presenceGameJSON(*r.Game)
 				if r.StartedAt != nil {
@@ -41,6 +50,45 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"entries": entries})
+}
+
+// userPresence builds a single presence entry for a profile page.
+func (h *handlers) userPresence(c *fiber.Ctx, u store.User, showGame bool) fiber.Map {
+	entry := fiber.Map{
+		"user_id":  u.ID,
+		"username": u.Username,
+		"status":   "offline",
+		"game":     nil,
+	}
+	if u.AvatarURL != nil {
+		entry["avatar_url"] = *u.AvatarURL
+	}
+
+	since := h.hub.OnlineSince(u.ID)
+	if since == nil {
+		return entry
+	}
+	entry["status"] = "online"
+	entry["since"] = since.UTC()
+
+	if showGame {
+		if sess, err := h.store.LatestOpenSession(c.Context(), u.ID); err == nil && sess != nil {
+			entry["status"] = "in_game"
+			entry["game"] = presenceGameJSON(sess.Game)
+			entry["since"] = sess.StartedAt.UTC()
+		}
+	}
+	return entry
+}
+
+// presenceUser converts a store.User to the hub's broadcast input.
+func presenceUser(u store.User) ws.PresenceUser {
+	return ws.PresenceUser{
+		ID:              u.ID,
+		Username:        u.Username,
+		AvatarURL:       u.AvatarURL,
+		ActivityVisible: u.ActivityVisible,
+	}
 }
 
 func presenceGameJSON(g store.Game) fiber.Map {

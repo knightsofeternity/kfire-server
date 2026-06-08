@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+/* Dark gaming theme tokens (refs: Tracker.gg, Exophase). */
+@theme {
+	--color-bg: #0b0e14;
+	--color-surface: #151a23;
+	--color-surface-2: #1c222e;
+	--color-border: #2a3140;
+	--color-muted: #6b7280;
+	--color-text: #e5e7eb;
+	--color-brand: #f97316;
+	--color-brand-bright: #fb923c;
+	--color-online: #22c55e;
+	--color-in-game: #f97316;
+}
+
+html,
+body {
+	background-color: var(--color-bg);
+	color: var(--color-text);
+	font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+* {
+	box-sizing: border-box;
+}

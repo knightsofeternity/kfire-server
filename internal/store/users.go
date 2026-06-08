@@ -11,27 +11,35 @@ import (
 
 // User mirrors a row of the users table.
 type User struct {
-	ID           string
-	OrgID        string
-	Username     string
-	Email        string
-	PasswordHash string
-	Role         string
-	AvatarURL    *string
-	BannedAt     *time.Time
-	CreatedAt    time.Time
+	ID              string
+	OrgID           string
+	Username        string
+	Email           string
+	PasswordHash    string
+	Role            string
+	AvatarURL       *string
+	ActivityVisible bool
+	BannedAt        *time.Time
+	CreatedAt       time.Time
 }
 
-const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, banned_at, created_at`
+const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, activity_visible, banned_at, created_at`
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.OrgID, &u.Username, &u.Email, &u.PasswordHash,
-		&u.Role, &u.AvatarURL, &u.BannedAt, &u.CreatedAt)
+		&u.Role, &u.AvatarURL, &u.ActivityVisible, &u.BannedAt, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
 	return u, err
+}
+
+// SetActivityVisible updates a user's presence privacy toggle.
+func (s *Store) SetActivityVisible(ctx context.Context, userID string, visible bool) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET activity_visible = $2 WHERE id = $1`, userID, visible)
+	return err
 }
 
 // EnsureDefaultOrg returns the instance's organization, creating it on first

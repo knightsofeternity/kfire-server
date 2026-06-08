@@ -4,10 +4,14 @@
 package api
 
 import (
+	"io/fs"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 
 	"github.com/knightsofeternity/kfire-server/internal/config"
@@ -52,6 +56,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) 
 	authGroup.Post("/logout", h.requireAuth, h.logout)
 
 	v1.Get("/users/me", h.requireAuth, h.me)
+	v1.Patch("/users/me", h.requireAuth, h.updateMe)
+	v1.Get("/users/:id", h.requireAuth, h.userProfile)
 	v1.Get("/games", h.requireAuth, h.listGames)
 	v1.Get("/presence", h.requireAuth, h.presence)
 	v1.Get("/sessions", h.requireAuth, h.sessions)
@@ -73,4 +79,19 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) 
 func notImplemented(c *fiber.Ctx) error {
 	return errorJSON(c, fiber.StatusNotImplemented, "not_implemented",
 		"this endpoint is not implemented yet")
+}
+
+// MountSPA serves the embedded admin SPA, falling back to index.html so the
+// client-side router handles deep links. API and WebSocket paths are skipped.
+// Mount this AFTER api.Register so real routes take precedence.
+func MountSPA(app *fiber.App, dist fs.FS) {
+	app.Use(filesystem.New(filesystem.Config{
+		Root:         http.FS(dist),
+		Index:        "index.html",
+		NotFoundFile: "index.html", // SPA deep-link fallback
+		Next: func(c *fiber.Ctx) bool {
+			p := c.Path()
+			return strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/ws") || p == "/healthz"
+		},
+	}))
 }

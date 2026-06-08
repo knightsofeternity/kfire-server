@@ -60,6 +60,29 @@ type client struct {
 	authenticated atomic.Bool
 	userID        string
 	username      string
+	avatarURL     *string
+	// activityVisible is cached from the hello handshake. Toggling it via
+	// the REST API rebroadcasts presence itself, so a stale value here only
+	// affects the next game event, which is acceptable.
+	activityVisible bool
+}
+
+// PresenceUser is the minimal identity the hub needs to build a presence
+// entry. The API layer passes it when a privacy toggle must take effect live.
+type PresenceUser struct {
+	ID              string
+	Username        string
+	AvatarURL       *string
+	ActivityVisible bool
+}
+
+func (c *client) presenceUser() PresenceUser {
+	return PresenceUser{
+		ID:              c.userID,
+		Username:        c.username,
+		AvatarURL:       c.avatarURL,
+		ActivityVisible: c.activityVisible,
+	}
 }
 
 // onlineState tracks a connected user (potentially several connections).
@@ -181,7 +204,7 @@ func (h *Hub) unregister(c *client) {
 		} else if n > 0 {
 			slog.Info("ws: closed open sessions on disconnect", "user_id", c.userID, "count", n)
 		}
-		h.broadcastPresence(ctx, c.userID, c.username)
+		h.BroadcastPresence(ctx, c.presenceUser())
 	}
 }
 
@@ -199,26 +222,33 @@ func (h *Hub) connect(c *client) bool {
 	return false
 }
 
-// broadcastPresence recomputes a user's presence and broadcasts it.
-func (h *Hub) broadcastPresence(ctx context.Context, userID, username string) {
+// BroadcastPresence recomputes a user's presence and broadcasts it to the org.
+// When the user disabled activity visibility, the game is hidden and the
+// status is capped at "online".
+func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 	entry := map[string]any{
-		"user_id":  userID,
-		"username": username,
+		"user_id":  u.ID,
+		"username": u.Username,
 		"status":   "offline",
 		"game":     nil,
 	}
+	if u.AvatarURL != nil {
+		entry["avatar_url"] = *u.AvatarURL
+	}
 
-	if since := h.OnlineSince(userID); since != nil {
+	if since := h.OnlineSince(u.ID); since != nil {
 		entry["status"] = "online"
 		entry["since"] = since
 
-		sess, err := h.store.LatestOpenSession(ctx, userID)
-		if err != nil {
-			slog.Error("ws: latest open session", "user_id", userID, "err", err)
-		} else if sess != nil {
-			entry["status"] = "in_game"
-			entry["since"] = sess.StartedAt
-			entry["game"] = gameJSON(sess.Game)
+		if u.ActivityVisible {
+			sess, err := h.store.LatestOpenSession(ctx, u.ID)
+			if err != nil {
+				slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
+			} else if sess != nil {
+				entry["status"] = "in_game"
+				entry["since"] = sess.StartedAt
+				entry["game"] = gameJSON(sess.Game)
+			}
 		}
 	}
 
@@ -313,6 +343,8 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 
 	c.userID = u.ID
 	c.username = u.Username
+	c.avatarURL = u.AvatarURL
+	c.activityVisible = u.ActivityVisible
 	c.authenticated.Store(true)
 	firstConn := h.connect(c)
 	_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))
@@ -331,7 +363,7 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 	slog.Info("ws: client authenticated", "user_id", u.ID, "username", u.Username, "client", p.Client)
 
 	if firstConn {
-		h.broadcastPresence(ctx, u.ID, u.Username)
+		h.BroadcastPresence(ctx, c.presenceUser())
 	}
 }
 
@@ -367,7 +399,7 @@ func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
 	if changed {
 		slog.Info("ws: game event", "user_id", c.userID, "username", c.username,
 			"slug", game.Slug, "started", started)
-		h.broadcastPresence(ctx, c.userID, c.username)
+		h.BroadcastPresence(ctx, c.presenceUser())
 	}
 }
 

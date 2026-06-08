@@ -90,17 +90,19 @@ func (s *Store) LatestOpenSession(ctx context.Context, userID string) (*Session,
 
 // PresenceRow is one user with their current open session, if any.
 type PresenceRow struct {
-	UserID    string
-	Username  string
-	Game      *Game
-	StartedAt *time.Time
+	UserID          string
+	Username        string
+	AvatarURL       *string
+	ActivityVisible bool
+	Game            *Game
+	StartedAt       *time.Time
 }
 
 // ListPresence returns every user with their most recent open session.
 func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT DISTINCT ON (u.id)
-		       u.id, u.username,
+		       u.id, u.username, u.avatar_url, u.activity_visible,
 		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
 		       s.started_at
 		FROM users u
@@ -125,7 +127,7 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 			iconURL   *string
 			startedAt *time.Time
 		)
-		if err := rows.Scan(&r.UserID, &r.Username,
+		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible,
 			&gameID, &gameName, &gameSlug, &exeNames, &platform, &iconURL,
 			&startedAt); err != nil {
 			return nil, err
@@ -136,6 +138,45 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 			r.StartedAt = startedAt
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// GameStat aggregates a user's playtime for one game.
+type GameStat struct {
+	Game         Game
+	TotalSeconds int64
+	SessionCount int
+	LastPlayedAt time.Time
+}
+
+// UserGameStats returns a user's playtime per game, most played first.
+// Only closed sessions contribute to totals.
+func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT g.id, g.name, g.slug, g.icon_url,
+		       COALESCE(sum(s.duration_seconds), 0)::bigint,
+		       count(*),
+		       max(s.started_at)
+		FROM game_sessions s
+		JOIN games g ON g.id = s.game_id
+		WHERE s.user_id = $1
+		GROUP BY g.id, g.name, g.slug, g.icon_url
+		ORDER BY sum(s.duration_seconds) DESC NULLS LAST, count(*) DESC`,
+		userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []GameStat
+	for rows.Next() {
+		var st GameStat
+		if err := rows.Scan(&st.Game.ID, &st.Game.Name, &st.Game.Slug, &st.Game.IconURL,
+			&st.TotalSeconds, &st.SessionCount, &st.LastPlayedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, st)
 	}
 	return out, rows.Err()
 }

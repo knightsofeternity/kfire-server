@@ -1,0 +1,26 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+# Build output is generated and embedded by the Go server. Keep only the
+# placeholder so `//go:embed all:build` compiles without a prior `pnpm build`.
+/build/*
+!/build/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

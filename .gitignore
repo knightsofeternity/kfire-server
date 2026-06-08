@@ -11,6 +11,14 @@
 *.out
 /vendor/
 
+# Frontend (admin SPA)
+web/node_modules/
+web/.svelte-kit/
+# Embedded build output is generated; keep only the placeholder so `go build`
+# compiles the //go:embed directive without a prior `pnpm build`.
+web/build/*
+!web/build/.gitkeep
+
 # Tooling
 .idea/
 .vscode/
