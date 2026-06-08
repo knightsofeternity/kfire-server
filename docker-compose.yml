@@ -12,6 +12,7 @@ services:
       KFIRE_JWT_SECRET: ${KFIRE_JWT_SECRET:?set in .env}
       KFIRE_MASTER_KEY: ${KFIRE_MASTER_KEY:?set in .env}
       KFIRE_PUBLIC_URL: https://${KFIRE_DOMAIN:?set in .env}
+      KFIRE_STEAM_API_KEY: ${KFIRE_STEAM_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

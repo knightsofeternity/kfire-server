@@ -75,6 +75,27 @@
 		</div>
 	</div>
 
+	{#if profile.connections.length > 0}
+		<div class="mb-6 flex flex-wrap gap-2">
+			{#each profile.connections as conn (conn.provider)}
+				<a
+					href={conn.profile_url ?? '#'}
+					target="_blank"
+					rel="noreferrer"
+					class="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm hover:border-[var(--color-brand)]"
+				>
+					{#if conn.avatar_url}
+						<img src={conn.avatar_url} alt="" class="h-5 w-5 rounded" />
+					{/if}
+					<span class="capitalize">{conn.provider}</span>
+					{#if conn.display_name}
+						<span class="text-[var(--color-muted)]">· {conn.display_name}</span>
+					{/if}
+				</a>
+			{/each}
+		</div>
+	{/if}
+
 	<!-- Hours per game -->
 	<section class="mb-6">
 		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">

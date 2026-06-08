@@ -42,11 +42,21 @@ export type Session = {
 	duration_seconds?: number;
 };
 
+export type Connection = {
+	provider: string;
+	provider_user_id: string;
+	display_name?: string;
+	avatar_url?: string;
+	profile_url?: string;
+	linked_at: string;
+};
+
 export type Profile = {
 	user: User;
 	presence: PresenceEntry;
 	total_seconds: number;
 	game_stats: GameStat[];
+	connections: Connection[];
 };
 
 class ApiError extends Error {
@@ -108,6 +118,17 @@ export const api = {
 		const q = new URLSearchParams({ user_id: userId, limit: '20' });
 		if (cursor) q.set('cursor', cursor);
 		return json(await authFetch(`/api/v1/sessions?${q}`));
+	},
+
+	/** Returns the Steam "Sign in through Steam" URL to navigate to. */
+	async startSteamLink(): Promise<string> {
+		const data = await json<{ url: string }>(await authFetch('/api/v1/connect/steam'));
+		return data.url;
+	},
+
+	async unlinkSteam(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/steam', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
 	}
 };
 

@@ -1,13 +1,41 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api } from '$lib/api';
+	import { api, type Connection } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 
 	let saving = $state(false);
 	let error = $state('');
+	let connections = $state<Connection[]>([]);
+	let steamBusy = $state(false);
 
 	let user = $derived($auth.user);
+	let steam = $derived(connections.find((c) => c.provider === 'steam'));
+
+	// Surface the result of the Steam OpenID redirect (?steam=linked|denied|…).
+	const steamResult = $derived(page.url.searchParams.get('steam'));
+	const steamMessage: Record<string, string> = {
+		linked: 'Steam account linked.',
+		denied: 'Steam sign-in was cancelled or failed.',
+		expired: 'The link request expired, please try again.',
+		conflict: 'That Steam account is already linked to another member.',
+		error: 'The Steam connector is not available.'
+	};
+
+	onMount(loadConnections);
+
+	async function loadConnections() {
+		if (!user) return;
+		try {
+			const profile = await api.getProfile(user.id);
+			connections = profile.connections;
+		} catch {
+			/* non-fatal */
+		}
+	}
 
 	async function toggleActivity() {
 		if (!user) return;
@@ -20,6 +48,26 @@
 			error = e instanceof Error ? e.message : 'failed to update';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function linkSteam() {
+		steamBusy = true;
+		try {
+			window.location.href = await api.startSteamLink();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Steam is not configured on this instance';
+			steamBusy = false;
+		}
+	}
+
+	async function unlinkSteam() {
+		steamBusy = true;
+		try {
+			await api.unlinkSteam();
+			connections = connections.filter((c) => c.provider !== 'steam');
+		} finally {
+			steamBusy = false;
 		}
 	}
 </script>
@@ -72,14 +120,63 @@
 		{#if error}<p class="mt-2 text-sm text-red-500">{error}</p>{/if}
 	</div>
 
-	<!-- Connected accounts (placeholder for the connectors milestone) -->
+	<!-- Connected accounts -->
 	<div class="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
 		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
 			Connected accounts
 		</h2>
-		<p class="text-sm text-[var(--color-muted)]">
-			Linking Steam, Battle.net, Riot and others (for console activity and achievements) is coming
-			soon.
+
+		{#if steamResult}
+			<p
+				class="mb-3 rounded-lg px-3 py-2 text-sm {steamResult === 'linked'
+					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
+					: 'bg-red-500/10 text-red-400'}"
+			>
+				{steamMessage[steamResult] ?? 'Unknown result.'}
+				<button class="ml-2 underline" onclick={() => goto('/account')}>dismiss</button>
+			</p>
+		{/if}
+
+		<!-- Steam -->
+		<div class="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+			<div class="flex items-center gap-3">
+				{#if steam?.avatar_url}
+					<img src={steam.avatar_url} alt="" class="h-9 w-9 rounded" />
+				{:else}
+					<span class="grid h-9 w-9 place-items-center rounded bg-[#1b2838] text-xs font-bold text-[#66c0f4]">St</span>
+				{/if}
+				<div>
+					<p class="font-medium">Steam</p>
+					{#if steam}
+						<p class="text-sm text-[var(--color-muted)]">
+							{steam.display_name ?? steam.provider_user_id}
+						</p>
+					{:else}
+						<p class="text-sm text-[var(--color-muted)]">Not linked</p>
+					{/if}
+				</div>
+			</div>
+			{#if steam}
+				<button
+					onclick={unlinkSteam}
+					disabled={steamBusy}
+					class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+				>
+					Unlink
+				</button>
+			{:else}
+				<button
+					onclick={linkSteam}
+					disabled={steamBusy}
+					class="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+				>
+					{steamBusy ? '…' : 'Link Steam'}
+				</button>
+			{/if}
+		</div>
+
+		<p class="mt-3 text-xs text-[var(--color-muted)]">
+			Battle.net, Riot, Epic, Xbox and PlayStation are coming next.
 		</p>
 	</div>
 

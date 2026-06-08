@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 
 	"github.com/knightsofeternity/kfire-server/internal/config"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
 )
@@ -24,6 +25,7 @@ type handlers struct {
 	cfg   *config.Config
 	store *store.Store
 	hub   *ws.Hub
+	steam *steam.Connector
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -33,7 +35,14 @@ func errorJSON(c *fiber.Ctx, status int, code, message string) error {
 
 // Register mounts every route on the Fiber app.
 func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) {
-	h := &handlers{cfg: cfg, store: st, hub: hub}
+	steamConn := steam.New(cfg.SteamAPIKey)
+	if cfg.SteamLoginBase != "" {
+		steamConn.LoginBase = cfg.SteamLoginBase
+	}
+	if cfg.SteamAPIBase != "" {
+		steamConn.APIBase = cfg.SteamAPIBase
+	}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -61,6 +70,12 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) 
 	v1.Get("/games", h.requireAuth, h.listGames)
 	v1.Get("/presence", h.requireAuth, h.presence)
 	v1.Get("/sessions", h.requireAuth, h.sessions)
+
+	// External account connectors. The OpenID callback is a public browser
+	// redirect; it recovers the user from a signed state instead of a token.
+	v1.Get("/connect/steam", h.requireAuth, h.connectSteamStart)
+	v1.Get("/connect/steam/callback", h.connectSteamCallback)
+	v1.Delete("/connect/steam", h.requireAuth, h.disconnectSteam)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Post("/games/sync", h.syncGames)

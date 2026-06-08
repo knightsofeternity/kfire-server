@@ -27,6 +27,13 @@ type Config struct {
 	// OpenRegistration allows anyone to register. When false, registration
 	// is closed once the first (admin) account exists — invites are TODO.
 	OpenRegistration bool
+	// SteamAPIKey enables the Steam connector (https://steamcommunity.com/dev/apikey).
+	// Empty disables Steam account linking.
+	SteamAPIKey string
+	// SteamLoginBase / SteamAPIBase override the Steam endpoints. Empty uses
+	// the production URLs; set only in tests to point at a fake Steam.
+	SteamLoginBase string
+	SteamAPIBase   string
 }
 
 // Load reads configuration from the environment. Required variables that are
@@ -41,6 +48,9 @@ func Load() (*Config, error) {
 		PublicURL:        getEnv("KFIRE_PUBLIC_URL", "http://localhost:8080"),
 		OrgName:          getEnv("KFIRE_ORG_NAME", "My Organization"),
 		OpenRegistration: getEnv("KFIRE_OPEN_REGISTRATION", "true") == "true",
+		SteamAPIKey:      os.Getenv("KFIRE_STEAM_API_KEY"),
+		SteamLoginBase:   os.Getenv("KFIRE_STEAM_LOGIN_BASE"),
+		SteamAPIBase:     os.Getenv("KFIRE_STEAM_API_BASE"),
 	}
 
 	for name, val := range map[string]string{

@@ -5,13 +5,12 @@ gaming presence tracker inspired by Xfire. One server instance = one organizatio
 (clan, guild, team): see in real time who is playing what among your members, with
 session history and statistics.
 
-> **Status: auth + presence implemented.** Registration, login (Argon2id +
-> JWT), device-bound refresh token rotation, real-time presence over
-> WebSocket (`game_started`/`game_stopped` → `presence_update` broadcasts),
-> persisted game sessions with history pagination, and a ~10k games catalog
-> seeded from Discord's public detectable-applications list. Everything
-> follows the contract defined in
-> [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol).
+> **Status: MVP backend + admin UI.** Auth (Argon2id + JWT, device-bound
+> refresh rotation), real-time presence over WebSocket, persisted sessions
+> with history, a ~10k games catalog seeded from Discord, player profiles with
+> per-game playtime, an activity privacy toggle, the embedded admin web UI,
+> and **Steam account linking** (OpenID + Web API). Everything follows the
+> contract in [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol).
 
 ## Stack
 
@@ -84,6 +83,19 @@ internal/ws/        WebSocket presence hub (contract: kfire-protocol/websocket-e
 migrations/         SQL schema migrations
 deploy/             Caddyfile
 ```
+
+## Connectors
+
+External platform accounts link from the **Account** page. Implemented:
+
+- **Steam** — "Sign in through Steam" (OpenID 2.0) yields the SteamID; the
+  server's Steam Web API key (`KFIRE_STEAM_API_KEY`) resolves the persona and
+  avatar. No per-user secret is stored. Set the key to enable linking; without
+  it the connector returns `501`.
+
+Planned next: Battle.net, Riot, Epic (OAuth2), Xbox (OpenXBL), PlayStation
+(psn-api, best-effort) — plus background polling to import console activity and
+achievements as sessions.
 
 ## Security model
 

@@ -83,10 +83,20 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 	canSeeActivity := isSelf || mustClaims(c).Role == "admin" || u.ActivityVisible
 	presence := h.userPresence(c, u, canSeeActivity)
 
+	linked, err := h.store.ListLinkedAccounts(c.Context(), id)
+	if err != nil {
+		return err
+	}
+	connections := make([]fiber.Map, len(linked))
+	for i, a := range linked {
+		connections[i] = connectionJSON(a)
+	}
+
 	return c.JSON(fiber.Map{
 		"user":          userJSON(u, isSelf),
 		"presence":      presence,
 		"total_seconds": totalSeconds,
 		"game_stats":    gameStats,
+		"connections":   connections,
 	})
 }
