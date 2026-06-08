@@ -1,8 +1,9 @@
 # ---- frontend: build the admin SPA ----
 FROM node:22-alpine AS web
 WORKDIR /web
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
-COPY web/package.json web/pnpm-lock.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/.npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm build
