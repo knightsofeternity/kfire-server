@@ -28,6 +28,20 @@ type detectableApp struct {
 		OS         string `json:"os"`
 		IsLauncher bool   `json:"is_launcher"`
 	} `json:"executables"`
+	ThirdPartySKUs []struct {
+		Distributor string `json:"distributor"`
+		ID          string `json:"id"`
+	} `json:"third_party_skus"`
+}
+
+// steamAppID returns the app's Steam AppID from its third-party SKUs, if any.
+func (a detectableApp) steamAppID() string {
+	for _, sku := range a.ThirdPartySKUs {
+		if sku.Distributor == "steam" && sku.ID != "" {
+			return sku.ID
+		}
+	}
+	return ""
 }
 
 // FetchSeed downloads and normalizes the Discord list into game seeds.
@@ -94,6 +108,7 @@ func normalize(apps []detectableApp) []store.GameSeed {
 			Slug:            Slugify(app.Name),
 			ExecutableNames: exes,
 			IconURL:         iconURL,
+			SteamAppID:      app.steamAppID(),
 		})
 	}
 	return seeds

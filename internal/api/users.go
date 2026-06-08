@@ -92,11 +92,37 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 		connections[i] = connectionJSON(a)
 	}
 
+	achievements, err := h.store.RecentAchievements(c.Context(), id, 24)
+	if err != nil {
+		return err
+	}
+	achievementCount, err := h.store.AchievementCount(c.Context(), id)
+	if err != nil {
+		return err
+	}
+	recentAchievements := make([]fiber.Map, len(achievements))
+	for i, a := range achievements {
+		m := fiber.Map{
+			"game":        presenceGameJSON(a.Game),
+			"api_name":    a.APIName,
+			"unlocked_at": a.UnlockedAt.UTC(),
+		}
+		if a.DisplayName != nil {
+			m["display_name"] = *a.DisplayName
+		}
+		if a.IconURL != nil {
+			m["icon_url"] = *a.IconURL
+		}
+		recentAchievements[i] = m
+	}
+
 	return c.JSON(fiber.Map{
-		"user":          userJSON(u, isSelf),
-		"presence":      presence,
-		"total_seconds": totalSeconds,
-		"game_stats":    gameStats,
-		"connections":   connections,
+		"user":                userJSON(u, isSelf),
+		"presence":            presence,
+		"total_seconds":       totalSeconds,
+		"game_stats":          gameStats,
+		"connections":         connections,
+		"achievement_count":   achievementCount,
+		"recent_achievements": recentAchievements,
 	})
 }

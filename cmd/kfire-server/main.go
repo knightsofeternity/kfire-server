@@ -16,7 +16,9 @@ import (
 
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/games"
+	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
 	"github.com/knightsofeternity/kfire-server/web"
@@ -63,7 +65,23 @@ func main() {
 	app.Use(logger.New())
 
 	hub := ws.NewHub([]byte(cfg.JWTSecret), st)
-	api.Register(app, cfg, st, hub)
+
+	// Steam connector + background library/achievement poller.
+	steamConn := steam.New(cfg.SteamAPIKey)
+	if cfg.SteamLoginBase != "" {
+		steamConn.LoginBase = cfg.SteamLoginBase
+	}
+	if cfg.SteamAPIBase != "" {
+		steamConn.APIBase = cfg.SteamAPIBase
+	}
+	syncer := steamsync.New(st, steamConn)
+	if steamConn.Enabled() {
+		pollCtx, cancelPoll := context.WithCancel(context.Background())
+		defer cancelPoll()
+		go syncer.Run(pollCtx, 6*time.Hour)
+	}
+
+	api.Register(app, cfg, st, hub, steamConn, syncer)
 
 	// Serve the embedded admin SPA (when built). Mounted last so API and
 	// WebSocket routes take precedence.

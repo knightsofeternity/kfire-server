@@ -69,9 +69,17 @@
 				<p class="mt-1 text-sm text-[var(--color-brand)]">Playing {profile.presence.game.name}</p>
 			{/if}
 		</div>
-		<div class="ml-auto text-right">
-			<p class="text-2xl font-bold">{formatDuration(profile.total_seconds)}</p>
-			<p class="text-xs text-[var(--color-muted)]">total tracked</p>
+		<div class="ml-auto flex gap-6 text-right">
+			<div>
+				<p class="text-2xl font-bold">{formatDuration(profile.total_seconds)}</p>
+				<p class="text-xs text-[var(--color-muted)]">total tracked</p>
+			</div>
+			{#if profile.achievement_count > 0}
+				<div>
+					<p class="text-2xl font-bold">{profile.achievement_count}</p>
+					<p class="text-xs text-[var(--color-muted)]">achievements</p>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -125,6 +133,32 @@
 			</div>
 		{/if}
 	</section>
+
+	<!-- Recent achievements -->
+	{#if profile.recent_achievements.length > 0}
+		<section class="mb-6">
+			<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
+				Recent achievements
+			</h2>
+			<div class="grid gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:grid-cols-2">
+				{#each profile.recent_achievements as a (a.game.id + a.api_name)}
+					<div class="flex items-center gap-3">
+						{#if a.icon_url}
+							<img src={a.icon_url} alt="" class="h-8 w-8 shrink-0 rounded" />
+						{:else}
+							<span class="grid h-8 w-8 shrink-0 place-items-center rounded bg-[var(--color-bg)] text-[var(--color-brand)]">★</span>
+						{/if}
+						<div class="min-w-0">
+							<p class="truncate text-sm">{a.display_name ?? a.api_name}</p>
+							<p class="truncate text-xs text-[var(--color-muted)]">
+								{a.game.name} · {timeAgo(a.unlocked_at)}
+							</p>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 
 	<!-- Recent sessions -->
 	<section>

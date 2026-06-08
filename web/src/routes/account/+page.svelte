@@ -11,6 +11,7 @@
 	let error = $state('');
 	let connections = $state<Connection[]>([]);
 	let steamBusy = $state(false);
+	let syncMessage = $state('');
 
 	let user = $derived($auth.user);
 	let steam = $derived(connections.find((c) => c.provider === 'steam'));
@@ -66,6 +67,20 @@
 		try {
 			await api.unlinkSteam();
 			connections = connections.filter((c) => c.provider !== 'steam');
+			syncMessage = '';
+		} finally {
+			steamBusy = false;
+		}
+	}
+
+	async function syncSteam() {
+		steamBusy = true;
+		syncMessage = '';
+		try {
+			const r = await api.syncSteam();
+			syncMessage = `Imported ${r.games_imported} games and ${r.achievements_imported} achievements.`;
+		} catch (e) {
+			syncMessage = e instanceof Error ? e.message : 'sync failed';
 		} finally {
 			steamBusy = false;
 		}
@@ -157,13 +172,22 @@
 				</div>
 			</div>
 			{#if steam}
-				<button
-					onclick={unlinkSteam}
-					disabled={steamBusy}
-					class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
-				>
-					Unlink
-				</button>
+				<div class="flex gap-2">
+					<button
+						onclick={syncSteam}
+						disabled={steamBusy}
+						class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)] disabled:opacity-60"
+					>
+						{steamBusy ? '…' : 'Sync now'}
+					</button>
+					<button
+						onclick={unlinkSteam}
+						disabled={steamBusy}
+						class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					>
+						Unlink
+					</button>
+				</div>
 			{:else}
 				<button
 					onclick={linkSteam}
@@ -174,6 +198,10 @@
 				</button>
 			{/if}
 		</div>
+
+		{#if syncMessage}
+			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
+		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">
 			Battle.net, Riot, Epic, Xbox and PlayStation are coming next.

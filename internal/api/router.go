@@ -16,16 +16,18 @@ import (
 
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
+	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
 )
 
 // handlers carries the dependencies shared by every HTTP handler.
 type handlers struct {
-	cfg   *config.Config
-	store *store.Store
-	hub   *ws.Hub
-	steam *steam.Connector
+	cfg       *config.Config
+	store     *store.Store
+	hub       *ws.Hub
+	steam     *steam.Connector
+	steamSync *steamsync.Syncer
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -34,15 +36,8 @@ func errorJSON(c *fiber.Ctx, status int, code, message string) error {
 }
 
 // Register mounts every route on the Fiber app.
-func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) {
-	steamConn := steam.New(cfg.SteamAPIKey)
-	if cfg.SteamLoginBase != "" {
-		steamConn.LoginBase = cfg.SteamLoginBase
-	}
-	if cfg.SteamAPIBase != "" {
-		steamConn.APIBase = cfg.SteamAPIBase
-	}
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn}
+func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer) {
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -75,6 +70,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub) 
 	// redirect; it recovers the user from a signed state instead of a token.
 	v1.Get("/connect/steam", h.requireAuth, h.connectSteamStart)
 	v1.Get("/connect/steam/callback", h.connectSteamCallback)
+	v1.Post("/connect/steam/sync", h.requireAuth, h.syncSteam)
 	v1.Delete("/connect/steam", h.requireAuth, h.disconnectSteam)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)

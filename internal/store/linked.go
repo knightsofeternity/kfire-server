@@ -58,6 +58,19 @@ func (s *Store) ListLinkedAccounts(ctx context.Context, userID string) ([]Linked
 	return out, rows.Err()
 }
 
+// GetLinkedAccount returns one provider link for a user, or ErrNotFound.
+func (s *Store) GetLinkedAccount(ctx context.Context, userID, provider string) (LinkedAccount, error) {
+	var a LinkedAccount
+	err := s.pool.QueryRow(ctx, `
+		SELECT provider, provider_user_id, display_name, avatar_url, profile_url, created_at
+		FROM linked_accounts WHERE user_id = $1 AND provider = $2`, userID, provider).
+		Scan(&a.Provider, &a.ProviderUserID, &a.DisplayName, &a.AvatarURL, &a.ProfileURL, &a.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return LinkedAccount{}, ErrNotFound
+	}
+	return a, err
+}
+
 // DeleteLinkedAccount unlinks a provider from a user. Returns ErrNotFound when
 // nothing was linked.
 func (s *Store) DeleteLinkedAccount(ctx context.Context, userID, provider string) error {

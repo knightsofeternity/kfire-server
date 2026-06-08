@@ -103,6 +103,32 @@ func (h *handlers) connectSteamCallback(c *fiber.Ctx) error {
 	return c.Redirect("/account?steam=linked")
 }
 
+// POST /api/v1/connect/steam/sync  (authenticated)
+//
+// Imports the caller's Steam library and achievements now, instead of waiting
+// for the background poller.
+func (h *handlers) syncSteam(c *fiber.Ctx) error {
+	if h.steamSync == nil || h.steam == nil || !h.steam.Enabled() {
+		return errorJSON(c, fiber.StatusNotImplemented, "connector_disabled",
+			"the Steam connector is not configured on this instance")
+	}
+	account, err := h.store.GetLinkedAccount(c.Context(), mustClaims(c).UserID, "steam")
+	if errors.Is(err, store.ErrNotFound) {
+		return errorJSON(c, fiber.StatusNotFound, "not_linked", "no Steam account linked")
+	}
+	if err != nil {
+		return err
+	}
+	res, err := h.steamSync.SyncUser(c.Context(), mustClaims(c).UserID, account.ProviderUserID)
+	if err != nil {
+		return errorJSON(c, fiber.StatusBadGateway, "sync_failed", "could not reach Steam")
+	}
+	return c.JSON(fiber.Map{
+		"games_imported":        res.GamesImported,
+		"achievements_imported": res.AchievementsImported,
+	})
+}
+
 // DELETE /api/v1/connect/steam  (authenticated)
 func (h *handlers) disconnectSteam(c *fiber.Ctx) error {
 	err := h.store.DeleteLinkedAccount(c.Context(), mustClaims(c).UserID, "steam")

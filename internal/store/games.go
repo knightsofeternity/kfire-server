@@ -25,6 +25,7 @@ type GameSeed struct {
 	Slug            string
 	ExecutableNames []string
 	IconURL         string
+	SteamAppID      string
 }
 
 // CountGames returns the catalog size.
@@ -114,13 +115,14 @@ func (s *Store) UpsertGames(ctx context.Context, seeds []GameSeed) (int, error) 
 			}
 
 			batch.Queue(`
-				INSERT INTO games (name, slug, executable_names, platform, icon_url, discord_app_id)
-				VALUES ($1, $2, $3, 'pc', NULLIF($4, ''), $5)
+				INSERT INTO games (name, slug, executable_names, platform, icon_url, discord_app_id, steam_app_id)
+				VALUES ($1, $2, $3, 'pc', NULLIF($4, ''), $5, NULLIF($6, ''))
 				ON CONFLICT (discord_app_id) DO UPDATE SET
 					name             = EXCLUDED.name,
 					executable_names = EXCLUDED.executable_names,
-					icon_url         = EXCLUDED.icon_url`,
-				seed.Name, slug, seed.ExecutableNames, seed.IconURL, seed.DiscordAppID)
+					icon_url         = EXCLUDED.icon_url,
+					steam_app_id     = EXCLUDED.steam_app_id`,
+				seed.Name, slug, seed.ExecutableNames, seed.IconURL, seed.DiscordAppID, seed.SteamAppID)
 		}
 
 		if err := s.pool.SendBatch(ctx, batch).Close(); err != nil {

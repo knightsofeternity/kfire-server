@@ -51,12 +51,22 @@ export type Connection = {
 	linked_at: string;
 };
 
+export type Achievement = {
+	game: Game;
+	api_name: string;
+	display_name?: string;
+	icon_url?: string;
+	unlocked_at: string;
+};
+
 export type Profile = {
 	user: User;
 	presence: PresenceEntry;
 	total_seconds: number;
 	game_stats: GameStat[];
 	connections: Connection[];
+	achievement_count: number;
+	recent_achievements: Achievement[];
 };
 
 class ApiError extends Error {
@@ -129,6 +139,10 @@ export const api = {
 	async unlinkSteam(): Promise<void> {
 		const res = await authFetch('/api/v1/connect/steam', { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	async syncSteam(): Promise<{ games_imported: number; achievements_imported: number }> {
+		return json(await authFetch('/api/v1/connect/steam/sync', { method: 'POST' }));
 	}
 };
 

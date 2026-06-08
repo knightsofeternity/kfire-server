@@ -90,12 +90,15 @@ External platform accounts link from the **Account** page. Implemented:
 
 - **Steam** — "Sign in through Steam" (OpenID 2.0) yields the SteamID; the
   server's Steam Web API key (`KFIRE_STEAM_API_KEY`) resolves the persona and
-  avatar. No per-user secret is stored. Set the key to enable linking; without
-  it the connector returns `501`.
+  avatar, and imports the library (lifetime playtime, merged into each profile's
+  per-game stats) and unlocked **achievements** for the most-played games. A
+  background poller refreshes every linked account every 6 h; members can also
+  trigger a sync from their Account page. No per-user secret is stored. Without
+  the key the connector returns `501`.
 
 Planned next: Battle.net, Riot, Epic (OAuth2), Xbox (OpenXBL), PlayStation
-(psn-api, best-effort) — plus background polling to import console activity and
-achievements as sessions.
+(psn-api, best-effort) — those use OAuth2, so their tokens will be encrypted at
+rest with AES-256-GCM (`KFIRE_MASTER_KEY`).
 
 ## Security model
 
