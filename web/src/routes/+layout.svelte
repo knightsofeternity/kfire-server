@@ -5,6 +5,8 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Login from '$lib/components/Login.svelte';
+	import Footer from '$lib/components/Footer.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let { children } = $props();
 
@@ -29,14 +31,14 @@
 	<title>KFIRE</title>
 </svelte:head>
 
-{#if !$auth.ready}
-	<div class="grid min-h-screen place-items-center text-[var(--color-muted)]">Loading…</div>
-{:else if !$auth.user}
-	<Login />
-{:else}
-	<div class="min-h-screen">
+<div class="flex min-h-screen flex-col">
+	{#if !$auth.ready}
+		<div class="grid flex-1 place-items-center text-[var(--color-muted)]">Loading...</div>
+	{:else if !$auth.user}
+		<Login />
+	{:else}
 		<header
-			class="border-b-2 border-[var(--color-brand)]/60 bg-[var(--color-surface)] shadow-[0_8px_24px_-12px_rgba(116,66,206,0.6)]"
+			class="pd-header-shadow border-b-2 border-[var(--color-brand)]/60 bg-[var(--color-surface)]"
 		>
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
 				<div class="flex items-center gap-8">
@@ -66,15 +68,19 @@
 						{/each}
 					</nav>
 				</div>
-				<a href="/account" class="flex items-center gap-2">
-					<span class="text-sm text-[var(--color-muted)]">{$auth.user.username}</span>
-					<Avatar username={$auth.user.username} url={$auth.user.avatar_url} size={32} />
-				</a>
+				<div class="flex items-center gap-3">
+					<ThemeToggle />
+					<a href="/account" class="flex items-center gap-2">
+						<span class="text-sm text-[var(--color-muted)]">{$auth.user.username}</span>
+						<Avatar username={$auth.user.username} url={$auth.user.avatar_url} size={32} />
+					</a>
+				</div>
 			</div>
 		</header>
 
-		<main class="pd-grid-bg mx-auto min-h-[calc(100vh-65px)] max-w-5xl px-4 py-6">
+		<main class="pd-grid-bg mx-auto w-full max-w-5xl flex-1 px-4 py-6">
 			{@render children()}
 		</main>
-	</div>
-{/if}
+	{/if}
+	<Footer />
+</div>

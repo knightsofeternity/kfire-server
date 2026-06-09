@@ -54,13 +54,9 @@
 	}
 </script>
 
-<div class="pd-grid-bg grid min-h-screen place-items-center px-4">
+<div class="pd-grid-bg grid flex-1 place-items-center px-4 py-10">
 	<div class="w-full max-w-sm">
-		<img
-			src="/kfire-logo-640.png"
-			alt="KFIRE"
-			class="mx-auto mb-3 h-32 w-auto drop-shadow-[0_0_24px_rgba(116,66,206,0.55)]"
-		/>
+		<img src="/kfire-logo-640.png" alt="KFIRE" class="pd-logo-glow mx-auto mb-3 h-32 w-auto" />
 		<h1 class="font-display text-center text-3xl font-extrabold tracking-[0.08em] italic">
 			K<span class="text-[var(--color-brand)]">FIRE</span>
 		</h1>
