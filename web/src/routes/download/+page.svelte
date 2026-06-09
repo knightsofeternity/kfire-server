@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { t } from '$lib/i18n';
 
 	const REPO = 'knightsofeternity/kfire-client';
 
@@ -11,7 +12,7 @@
 	let noRelease = $state(false);
 	let os = $state<'windows' | 'macos' | 'linux' | 'unknown'>('unknown');
 
-	const osLabel = { windows: 'Windows', macos: 'macOS', linux: 'Linux', unknown: 'your platform' };
+	const osLabel = { windows: 'Windows', macos: 'macOS', linux: 'Linux', unknown: '' };
 
 	function detectOS(): typeof os {
 		const ua = navigator.userAgent;
@@ -57,31 +58,31 @@
 			<img src="/favicon-96.png" alt="" class="h-16 w-16" />
 		</div>
 		<div>
-			<h1 class="pd-heading text-3xl text-[var(--color-text)]">Get the KFIRE desktop app</h1>
+			<h1 class="pd-heading text-3xl text-[var(--color-text)]">{t('download.title')}</h1>
 			<p class="mt-1 text-sm text-[var(--color-muted)]">
-				Runs in your tray, detects your games and shares your presence.
+				{t('download.subtitle')}
 			</p>
 		</div>
 	</div>
 
 	{#if loading}
-		<p class="font-display text-sm uppercase tracking-widest text-[var(--color-muted)]">Loading latest release...</p>
+		<p class="font-display text-sm uppercase tracking-widest text-[var(--color-muted)]">{t('download.loading')}</p>
 	{:else if noRelease || !release}
 		<div class="pd-card p-6">
-			<p class="font-display font-bold uppercase text-[var(--color-text)]">No build published yet.</p>
+			<p class="font-display font-bold uppercase text-[var(--color-text)]">{t('download.noRelease')}</p>
 			<p class="mt-2 text-sm text-[var(--color-muted)]">
-				The desktop app builds are on the way. Check the
-				<a href="https://github.com/{REPO}/releases" target="_blank" rel="noreferrer" class="text-[var(--color-brand-bright)] hover:underline">releases page</a>
-				or build it from source.
+				{t('download.noReleaseHint')}
+				<a href="https://github.com/{REPO}/releases" target="_blank" rel="noreferrer" class="text-[var(--color-brand-bright)] hover:underline">{t('download.releasesPage')}</a>
+				{t('download.noReleaseOr')}
 			</p>
 		</div>
 	{:else}
 		<!-- Recommended for detected OS -->
 		<div class="pd-card mb-6 p-6">
 			<p class="mb-4 text-sm text-[var(--color-muted)]">
-				Detected: <span class="font-semibold text-[var(--color-text)]">{osLabel[os]}</span>
+				{t('download.detected', { os: os === 'unknown' ? t('download.yourPlatform') : osLabel[os] })}
 				<span class="mx-1 text-[var(--color-border)]">|</span>
-				version <span class="text-[var(--color-brand-bright)]">{release.tag_name}</span>
+				{t('download.version')} <span class="text-[var(--color-brand-bright)]">{release.tag_name}</span>
 			</p>
 			{#if recommended.length > 0}
 				{#each recommended as a (a.name)}
@@ -89,20 +90,20 @@
 						href={a.browser_download_url}
 						class="btn-pd violet mb-2 w-full py-4 text-base"
 					>
-						<span>Download for {osLabel[os]}</span>
+						<span>{t('download.downloadFor', { os: os === 'unknown' ? t('download.yourPlatform') : osLabel[os] })}</span>
 						<span class="ml-auto text-xs font-normal opacity-70">{a.name} - {fmtSize(a.size)}</span>
 					</a>
 				{/each}
 			{:else}
 				<p class="text-sm text-[var(--color-muted)]">
-					No build for {osLabel[os]} in this release - see other platforms below.
+					{t('download.noBuildForOS', { os: os === 'unknown' ? t('download.yourPlatform') : osLabel[os] })}
 				</p>
 			{/if}
 		</div>
 
 		<!-- Other platforms -->
 		{#if others.length > 0}
-			<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">Other platforms</h2>
+			<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">{t('download.otherPlatforms')}</h2>
 			<ul class="pd-card mb-6 divide-y divide-[var(--color-border)] overflow-hidden">
 				{#each others as a (a.name)}
 					<li>
@@ -121,31 +122,28 @@
 
 	<!-- First launch steps -->
 	<div class="pd-card mt-6 p-5">
-		<h2 class="pd-heading mb-3 text-sm text-[var(--color-brand-bright)]">First launch</h2>
+		<h2 class="pd-heading mb-3 text-sm text-[var(--color-brand-bright)]">{t('download.firstLaunch')}</h2>
 		<ol class="ml-4 list-decimal space-y-1 text-sm text-[var(--color-muted)]">
-			<li>Open the app and enter this server's address.</li>
-			<li>It opens your browser to confirm - approve the device here.</li>
-			<li>You're connected. The app lives in your tray.</li>
+			<li>{t('download.step1')}</li>
+			<li>{t('download.step2')}</li>
+			<li>{t('download.step3')}</li>
 		</ol>
 	</div>
 
 	<!-- Security caution callout -->
 	<div class="pd-card mt-4 border-[var(--color-gold)] p-5" style="border-color: color-mix(in srgb, var(--color-gold) 40%, transparent);">
-		<h2 class="pd-heading mb-2 text-sm text-[var(--color-gold)]">Caution - Security warning on first run? It's expected.</h2>
+		<h2 class="pd-heading mb-2 text-sm text-[var(--color-gold)]">{t('download.securityTitle')}</h2>
 		<p class="mb-2 text-sm text-[var(--color-muted)]">
-			KFIRE is open-source and the installers aren't code-signed yet, so your OS may
-			warn that the publisher is "unknown". The app is safe - here's how to proceed:
+			{t('download.securityBody')}
 		</p>
 		<ul class="ml-4 list-disc space-y-1 text-sm text-[var(--color-muted)]">
 			<li>
-				<span class="font-semibold text-[var(--color-text)]">Windows</span> (SmartScreen): click
-				<em>More info</em> then <em>Run anyway</em>.
+				<span class="font-semibold text-[var(--color-text)]">Windows</span> {@html t('download.securityWindows')}
 			</li>
 			<li>
-				<span class="font-semibold text-[var(--color-text)]">macOS</span> (Gatekeeper): right-click the
-				app, choose <em>Open</em>, then <em>Open</em>.
+				<span class="font-semibold text-[var(--color-text)]">macOS</span> {@html t('download.securityMacos')}
 			</li>
-			<li><span class="font-semibold text-[var(--color-text)]">Linux</span>: no warning - just run it.</li>
+			<li><span class="font-semibold text-[var(--color-text)]">Linux</span>: {t('download.securityLinux')}</li>
 		</ul>
 	</div>
 </div>

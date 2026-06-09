@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { api } from '$lib/api';
+	import { t } from '$lib/i18n';
 
 	let code = $state('');
 	let manualCode = $state('');
@@ -31,7 +32,7 @@
 			device = await api.getPairInfo(c.trim().toUpperCase());
 			code = c.trim().toUpperCase();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'invalid code';
+			error = e instanceof Error ? e.message : t('link.errorInvalidCode');
 		} finally {
 			loading = false;
 		}
@@ -44,7 +45,7 @@
 			await api.approvePair(code);
 			approved = true;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'approval failed';
+			error = e instanceof Error ? e.message : t('link.errorApprovalFailed');
 		} finally {
 			busy = false;
 		}
@@ -52,21 +53,21 @@
 </script>
 
 <div class="mx-auto max-w-md px-4 py-10">
-	<h1 class="pd-heading mb-8 text-2xl text-[var(--color-brand-bright)]">Link a device</h1>
+	<h1 class="pd-heading mb-8 text-2xl text-[var(--color-brand-bright)]">{t('link.title')}</h1>
 
 	{#if approved}
 		<div class="pd-card p-6 text-center" style="border-color: color-mix(in srgb, var(--color-online) 40%, transparent);">
-			<p class="pd-heading text-lg text-[var(--color-online)]">Device linked</p>
+			<p class="pd-heading text-lg text-[var(--color-online)]">{t('link.successTitle')}</p>
 			<p class="mt-3 text-sm text-[var(--color-muted)]">
-				You can return to the KFIRE app - it will connect automatically.
+				{t('link.successBody')}
 			</p>
 		</div>
 	{:else if loading}
-		<p class="text-[var(--color-muted)]">Loading...</p>
+		<p class="text-[var(--color-muted)]">{t('common.loading')}</p>
 	{:else if device}
 		<div class="pd-card pd-glow p-6">
 			<p class="mb-2 text-xs uppercase tracking-widest text-[var(--color-muted)]">
-				A device wants to link to your account
+				{t('link.deviceWantsToLink')}
 			</p>
 			<p class="font-display mb-1 text-xl font-bold text-[var(--color-text)]">{device.device_name}</p>
 			<p class="mb-1 text-sm text-[var(--color-muted)]">
@@ -74,7 +75,7 @@
 			</p>
 
 			<div class="my-5 flex flex-col items-center gap-1">
-				<span class="text-xs uppercase tracking-widest text-[var(--color-muted)]">Pairing code</span>
+				<span class="text-xs uppercase tracking-widest text-[var(--color-muted)]">{t('link.pairingCode')}</span>
 				<span
 					class="pd-cut-sm font-display inline-block bg-[var(--color-surface-2)] px-6 py-3 text-3xl font-extrabold italic tracking-[0.25em] text-[var(--color-brand-bright)]"
 				>
@@ -83,13 +84,13 @@
 			</div>
 
 			<p class="mb-5 text-xs text-[var(--color-muted)]">
-				Only approve if you just started linking the KFIRE app on this device.
+				{t('link.approveWarning')}
 			</p>
 
 			{#if error}<p class="mb-3 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
 
 			<button onclick={approve} disabled={busy} class="btn-pd violet w-full">
-				{busy ? 'Linking...' : 'Approve & link this device'}
+				{busy ? t('link.linking') : t('link.approve')}
 			</button>
 		</div>
 	{:else}
@@ -97,7 +98,7 @@
 			{#if error}<p class="mb-3 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
 
 			<label class="flex flex-col gap-2 text-xs uppercase tracking-widest text-[var(--color-muted)]">
-				Enter the code shown in the app
+				{t('link.enterCode')}
 				<input
 					bind:value={manualCode}
 					placeholder="XXXX-XXXX"
@@ -110,7 +111,7 @@
 				disabled={!manualCode}
 				class="btn-pd violet mt-4 w-full"
 			>
-				Continue
+				{t('link.continue')}
 			</button>
 		</div>
 	{/if}

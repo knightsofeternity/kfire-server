@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type Profile, type Session } from '$lib/api';
 	import { formatDuration, timeAgo, formatDate } from '$lib/format';
+	import { t } from '$lib/i18n';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 
@@ -27,7 +28,7 @@
 			sessions = res.sessions;
 			nextCursor = res.next_cursor;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed to load profile';
+			error = e instanceof Error ? e.message : t('profile.loadError');
 		} finally {
 			loading = false;
 		}
@@ -47,7 +48,7 @@
 </script>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading...</p>
+	<p class="text-[var(--color-muted)]">{t('profile.loading')}</p>
 {:else if error}
 	<p class="text-[var(--color-magenta)]">{error}</p>
 {:else if profile}
@@ -65,23 +66,23 @@
 			</div>
 			<div class="mt-1.5 flex items-center gap-3 text-sm text-[var(--color-muted)]">
 				<StatusBadge status={profile.presence.status} />
-				<span>- member since {formatDate(profile.user.created_at)}</span>
+				<span>- {t('profile.memberSince')} {formatDate(profile.user.created_at)}</span>
 			</div>
 			{#if profile.presence.status === 'in_game' && profile.presence.game}
 				<p class="mt-1 font-display text-sm font-bold italic text-[var(--color-brand-bright)]">
-					Playing {profile.presence.game.name}
+					{t('profile.playing')} {profile.presence.game.name}
 				</p>
 			{/if}
 		</div>
 		<div class="ml-auto flex shrink-0 gap-6 text-right">
 			<div>
 				<p class="font-display text-2xl font-bold italic text-[var(--color-brand-bright)]">{formatDuration(profile.total_seconds)}</p>
-				<p class="text-xs uppercase tracking-wider text-[var(--color-muted)]">total tracked</p>
+				<p class="text-xs uppercase tracking-wider text-[var(--color-muted)]">{t('profile.totalTracked')}</p>
 			</div>
 			{#if profile.achievement_count > 0}
 				<div>
 					<p class="font-display text-2xl font-bold italic text-[var(--color-gold)]">{profile.achievement_count}</p>
-					<p class="text-xs uppercase tracking-wider text-[var(--color-muted)]">achievements</p>
+					<p class="text-xs uppercase tracking-wider text-[var(--color-muted)]">{t('profile.achievements', { count: profile.achievement_count })}</p>
 				</div>
 			{/if}
 		</div>
@@ -110,9 +111,9 @@
 
 	<!-- Hours per game -->
 	<section class="mb-6">
-		<h2 class="pd-heading mb-4 text-sm text-[var(--color-brand-bright)]">Hours per game</h2>
+		<h2 class="pd-heading mb-4 text-sm text-[var(--color-brand-bright)]">{t('profile.hoursPerGame')}</h2>
 		{#if profile.game_stats.length === 0}
-			<p class="text-sm text-[var(--color-muted)]">No sessions recorded yet.</p>
+			<p class="text-sm text-[var(--color-muted)]">{t('profile.noSessionsYet')}</p>
 		{:else}
 			<div class="pd-card flex flex-col gap-1 p-4">
 				{#each profile.game_stats.slice(0, 10) as stat, i (stat.game.id)}
@@ -143,7 +144,7 @@
 	<!-- Recent achievements -->
 	{#if profile.recent_achievements.length > 0}
 		<section class="mb-6">
-			<h2 class="pd-heading mb-4 text-sm text-[var(--color-gold)]">Recent achievements</h2>
+			<h2 class="pd-heading mb-4 text-sm text-[var(--color-gold)]">{t('profile.recentAchievements')}</h2>
 			<div class="pd-card grid gap-3 p-4 sm:grid-cols-2">
 				{#each profile.recent_achievements as a (a.game.id + a.api_name)}
 					<div class="flex items-center gap-3 rounded bg-[var(--color-surface-2)] px-3 py-2">
@@ -166,9 +167,9 @@
 
 	<!-- Recent sessions -->
 	<section>
-		<h2 class="pd-heading mb-4 text-sm text-[var(--color-cyan)]">Recent sessions</h2>
+		<h2 class="pd-heading mb-4 text-sm text-[var(--color-cyan)]">{t('profile.recentSessions')}</h2>
 		{#if sessions.length === 0}
-			<p class="text-sm text-[var(--color-muted)]">No sessions yet.</p>
+			<p class="text-sm text-[var(--color-muted)]">{t('profile.noSessions')}</p>
 		{:else}
 			<div class="pd-card overflow-hidden">
 				<ul class="divide-y divide-[var(--color-border)]">
@@ -194,7 +195,7 @@
 					disabled={loadingMore}
 					class="btn-pd btn-pd-ghost mt-3 w-full py-2 text-sm disabled:opacity-60"
 				>
-					{loadingMore ? 'Loading...' : 'Load more'}
+					{loadingMore ? t('profile.loadingMore') : t('profile.loadMore')}
 				</button>
 			{/if}
 		{/if}

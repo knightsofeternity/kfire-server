@@ -7,6 +7,7 @@
 	import { timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { t } from '$lib/i18n';
 
 	let entries = $state<Map<string, PresenceEntry>>(new Map());
 	let wsStatus = $state<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -48,14 +49,14 @@
 
 <div class="mb-5 flex items-center justify-between">
 	<div>
-		<h1 class="pd-heading text-2xl">Dashboard</h1>
+		<h1 class="pd-heading text-2xl">{t('dashboard.title')}</h1>
 		<p class="text-sm text-[var(--color-muted)]">
-			<span style="color: var(--color-in-game);">{playing} playing</span>
+			<span style="color: var(--color-in-game);">{t('dashboard.playing', { count: playing })}</span>
 			&middot;
-			<span style="color: var(--color-online);">{online} online</span>
+			<span style="color: var(--color-online);">{t('dashboard.online', { count: online })}</span>
 		</p>
 	</div>
-	<span class="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]" title="Live connection">
+	<span class="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]" title={t('dashboard.liveConnection')}>
 		<span
 			class="h-2 w-2 rounded-full {wsStatus === 'connected'
 				? 'bg-[var(--color-online)]'
@@ -63,14 +64,14 @@
 					? 'bg-yellow-500'
 					: 'bg-[var(--color-muted)]'}"
 		></span>
-		{wsStatus === 'connected' ? 'Live' : wsStatus}
+		{wsStatus === 'connected' ? t('dashboard.live') : wsStatus === 'connecting' ? t('dashboard.connecting') : t('dashboard.disconnected')}
 	</span>
 </div>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading...</p>
+	<p class="text-[var(--color-muted)]">{t('dashboard.loading')}</p>
 {:else if sorted.length === 0}
-	<p class="text-[var(--color-muted)]">No members yet.</p>
+	<p class="text-[var(--color-muted)]">{t('dashboard.noMembers')}</p>
 {:else}
 	<div class="grid gap-3 sm:grid-cols-2">
 		{#each sorted as entry (entry.user_id)}
@@ -95,10 +96,10 @@
 							<span class="truncate text-sm font-semibold text-[var(--color-brand)]">{entry.game.name}</span>
 						</div>
 						{#if entry.since}
-							<p class="mt-0.5 text-xs text-[var(--color-muted)]">since {timeAgo(entry.since)}</p>
+							<p class="mt-0.5 text-xs text-[var(--color-muted)]">{t('dashboard.since', { time: timeAgo(entry.since) })}</p>
 						{/if}
 					{:else if entry.status === 'online'}
-						<p class="mt-1 text-sm" style="color: var(--color-online);">Online</p>
+						<p class="mt-1 text-sm" style="color: var(--color-online);">{t('dashboard.onlineStatus')}</p>
 					{/if}
 				</div>
 			</a>

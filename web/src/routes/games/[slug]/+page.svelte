@@ -4,6 +4,7 @@
 	import { api, type GameDetail } from '$lib/api';
 	import { formatDuration } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import { t } from '$lib/i18n';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -21,7 +22,7 @@
 		try {
 			detail = await api.getGame(slug);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed to load game';
+			error = e instanceof Error ? e.message : t('game.loadError');
 		} finally {
 			loading = false;
 		}
@@ -29,7 +30,7 @@
 </script>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading...</p>
+	<p class="text-[var(--color-muted)]">{t('game.loading')}</p>
 {:else if error}
 	<p class="text-[var(--color-magenta)]">{error}</p>
 {:else if detail}
@@ -79,11 +80,11 @@
 		<div class="flex gap-8 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-5 py-4">
 			<div>
 				<p class="font-display text-xl font-bold text-[var(--color-brand-bright)]">{formatDuration(detail.total_seconds)}</p>
-				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">Total played in org</p>
+				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">{t('game.totalPlayed')}</p>
 			</div>
 			<div>
 				<p class="font-display text-xl font-bold text-[var(--color-cyan)]">{detail.player_count}</p>
-				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">{detail.player_count === 1 ? 'Player' : 'Players'}</p>
+				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">{t('game.players', { count: detail.player_count })}</p>
 			</div>
 		</div>
 	</div>
@@ -91,10 +92,10 @@
 	<!-- Leaderboard -->
 	<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 		<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
-		Leaderboard
+		{t('game.leaderboard')}
 	</h2>
 	{#if detail.leaderboard.length === 0}
-		<p class="text-sm text-[var(--color-muted)]">Nobody has played this yet.</p>
+		<p class="text-sm text-[var(--color-muted)]">{t('game.noPlayers')}</p>
 	{:else}
 		<ul class="flex flex-col gap-2">
 			{#each detail.leaderboard as e, i (e.user_id)}

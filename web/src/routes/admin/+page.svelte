@@ -5,6 +5,7 @@
 	import { api, type Member, type Invite } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import { t } from '$lib/i18n';
 
 	let members = $state<Member[]>([]);
 	let invites = $state<Invite[]>([]);
@@ -33,7 +34,7 @@
 		try {
 			[members, invites] = await Promise.all([api.getMembers(), api.getInvites()]);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed to load';
+			error = e instanceof Error ? e.message : t('admin.errorLoad');
 		} finally {
 			loading = false;
 		}
@@ -44,7 +45,7 @@
 			await api.patchMember(m.id, { role });
 			await load();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed';
+			error = e instanceof Error ? e.message : t('admin.errorGeneric');
 		}
 	}
 
@@ -53,7 +54,7 @@
 			await api.patchMember(m.id, { banned });
 			await load();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed';
+			error = e instanceof Error ? e.message : t('admin.errorGeneric');
 		}
 	}
 
@@ -66,7 +67,7 @@
 			newRole = 'member';
 			invites = await api.getInvites();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'failed';
+			error = e instanceof Error ? e.message : t('admin.errorGeneric');
 		} finally {
 			creating = false;
 		}
@@ -116,7 +117,7 @@
 			if (a !== 'orange') document.documentElement.dataset.accent = a;
 			else delete document.documentElement.dataset.accent;
 		} catch (e) {
-			brandingMsg = e instanceof Error ? e.message : 'could not save the color';
+			brandingMsg = e instanceof Error ? e.message : t('admin.errorSaveColor');
 		}
 	}
 
@@ -130,7 +131,7 @@
 			hasLogo = true;
 			logoVersion++;
 		} catch (err) {
-			brandingMsg = err instanceof Error ? err.message : 'upload failed';
+			brandingMsg = err instanceof Error ? err.message : t('admin.errorUpload');
 		} finally {
 			input.value = '';
 		}
@@ -143,21 +144,21 @@
 			hasLogo = false;
 			logoVersion++;
 		} catch (e) {
-			brandingMsg = e instanceof Error ? e.message : 'could not remove the logo';
+			brandingMsg = e instanceof Error ? e.message : t('admin.errorRemoveLogo');
 		}
 	}
 </script>
 
-<h1 class="pd-heading mb-6 text-2xl text-[var(--color-brand-bright)]">Admin</h1>
+<h1 class="pd-heading mb-6 text-2xl text-[var(--color-brand-bright)]">{t('admin.title')}</h1>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading...</p>
+	<p class="text-[var(--color-muted)]">{t('admin.loading')}</p>
 {:else}
 	{#if error}<p class="mb-4 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
 
 	<!-- Branding -->
 	<section class="mb-8">
-		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">Branding</h2>
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">{t('admin.brandingHeading')}</h2>
 		<div class="pd-card flex flex-col gap-6 p-4">
 			<div class="flex flex-wrap items-center gap-4">
 				<div
@@ -170,17 +171,17 @@
 							class="h-14 w-14 object-contain"
 						/>
 					{:else}
-						<span class="text-[10px] text-[var(--color-muted)]">No logo</span>
+						<span class="text-[10px] text-[var(--color-muted)]">{t('admin.noLogo')}</span>
 					{/if}
 				</div>
 				<div class="flex flex-col gap-2">
-					<p class="text-sm text-[var(--color-text)]">Clan / team logo</p>
+					<p class="text-sm text-[var(--color-text)]">{t('admin.logoLabel')}</p>
 					<p class="text-xs text-[var(--color-muted)]">
-						PNG or JPEG, up to 2 MB. Shown next to the KFIRE logo in the header.
+						{t('admin.logoHint')}
 					</p>
 					<div class="flex gap-2">
 						<label class="btn-pd violet cursor-pointer">
-							Upload
+							{t('admin.upload')}
 							<input
 								type="file"
 								accept="image/png,image/jpeg"
@@ -189,14 +190,14 @@
 							/>
 						</label>
 						{#if hasLogo}
-							<button class="btn-pd btn-pd-ghost" onclick={removeLogo}>Remove</button>
+							<button class="btn-pd btn-pd-ghost" onclick={removeLogo}>{t('admin.remove')}</button>
 						{/if}
 					</div>
 				</div>
 			</div>
 
 			<div class="flex flex-col gap-2">
-				<p class="text-sm text-[var(--color-text)]">Dominant color</p>
+				<p class="text-sm text-[var(--color-text)]">{t('admin.dominantColor')}</p>
 				<div class="flex flex-wrap gap-2">
 					{#each accents as a (a)}
 						<button
@@ -220,26 +221,26 @@
 	<!-- Invites -->
 	<section class="mb-8">
 		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">
-			Invite a member
+			{t('admin.inviteHeading')}
 		</h2>
 		<div class="pd-card mb-4 flex flex-wrap items-end gap-3 p-4">
 			<label class="flex flex-1 flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Note (optional - who's it for?)
+				{t('admin.noteLabel')}
 				<input
 					type="text"
 					bind:value={newNote}
-					placeholder="e.g. Lancelot"
+					placeholder={t('admin.notePlaceholder')}
 					class="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Role
+				{t('admin.roleLabel')}
 				<select
 					bind:value={newRole}
 					class="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 				>
-					<option value="member">Member</option>
-					<option value="admin">Admin</option>
+					<option value="member">{t('admin.roleMember')}</option>
+					<option value="admin">{t('admin.roleAdmin')}</option>
 				</select>
 			</label>
 			<button
@@ -247,7 +248,7 @@
 				disabled={creating}
 				class="btn-pd violet"
 			>
-				{creating ? '...' : 'Create link'}
+				{creating ? '...' : t('admin.createLink')}
 			</button>
 		</div>
 
@@ -257,7 +258,7 @@
 					<li class="flex items-center gap-3 px-4 py-3">
 						<div class="min-w-0 flex-1">
 							<p class="truncate text-sm">
-								{inv.note ?? 'Invite'}
+								{inv.note ?? t('admin.inviteDefaultNote')}
 								<span class="text-[var(--color-muted)]">- {inv.role}</span>
 							</p>
 							<p class="truncate text-xs text-[var(--color-muted)]">
@@ -268,26 +269,26 @@
 							onclick={() => copy(inv.url, inv.code)}
 							class="btn-pd btn-pd-ghost px-3 py-1.5 text-xs"
 						>
-							{copied === inv.code ? 'Copied!' : 'Copy link'}
+							{copied === inv.code ? t('admin.copied') : t('admin.copyLink')}
 						</button>
 						<button
 							onclick={() => revoke(inv.code)}
 							class="btn-pd magenta px-3 py-1.5 text-xs"
 						>
-							Revoke
+							{t('admin.revoke')}
 						</button>
 					</li>
 				{/each}
 			</ul>
 		{:else}
-			<p class="text-sm text-[var(--color-muted)]">No pending invites.</p>
+			<p class="text-sm text-[var(--color-muted)]">{t('admin.noInvites')}</p>
 		{/if}
 	</section>
 
 	<!-- Members -->
 	<section>
 		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">
-			Members ({members.length})
+			{t('admin.membersHeading', { count: members.length })}
 		</h2>
 		<ul class="pd-card divide-y divide-[var(--color-border)] overflow-hidden">
 			{#each members as m (m.id)}
@@ -296,7 +297,7 @@
 					<div class="min-w-0 flex-1">
 						<p class="truncate text-sm font-medium">
 							{m.username}
-							{#if m.id === myId}<span class="text-xs text-[var(--color-muted)]">(you)</span>{/if}
+							{#if m.id === myId}<span class="text-xs text-[var(--color-muted)]">({t('admin.you')})</span>{/if}
 						</p>
 						<p class="truncate text-xs text-[var(--color-muted)]">{m.email}</p>
 					</div>
@@ -306,31 +307,31 @@
 							? 'bg-[var(--color-brand)]/15 text-[var(--color-brand-bright)]'
 							: 'text-[var(--color-muted)]'}"
 					>
-						{m.role}
+						{m.role === 'admin' ? t('admin.roleAdmin') : t('admin.roleMember')}
 					</span>
 
 					{#if m.banned}
-						<span class="pd-cut-sm bg-[var(--color-magenta)]/15 px-2 py-0.5 text-xs text-[var(--color-magenta)]">banned</span>
+						<span class="pd-cut-sm bg-[var(--color-magenta)]/15 px-2 py-0.5 text-xs text-[var(--color-magenta)]">{t('admin.banned')}</span>
 					{/if}
 
 					{#if m.id !== myId}
 						<div class="flex gap-2">
 							{#if m.role === 'admin'}
 								<button onclick={() => setRole(m, 'member')} class="btn-pd-ghost btn-pd px-3 py-1 text-xs">
-									Make member
+									{t('admin.makeMember')}
 								</button>
 							{:else}
 								<button onclick={() => setRole(m, 'admin')} class="btn-pd-ghost btn-pd px-3 py-1 text-xs">
-									Make admin
+									{t('admin.makeAdmin')}
 								</button>
 							{/if}
 							{#if m.banned}
 								<button onclick={() => setBanned(m, false)} class="btn-pd cyan px-3 py-1 text-xs">
-									Unban
+									{t('admin.unban')}
 								</button>
 							{:else}
 								<button onclick={() => setBanned(m, true)} class="btn-pd magenta px-3 py-1 text-xs">
-									Ban
+									{t('admin.ban')}
 								</button>
 							{/if}
 						</div>

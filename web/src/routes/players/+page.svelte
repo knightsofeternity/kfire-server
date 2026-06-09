@@ -3,6 +3,7 @@
 	import { api, type PresenceEntry } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { t } from '$lib/i18n';
 
 	let members = $state<PresenceEntry[]>([]);
 	let query = $state('');
@@ -24,19 +25,19 @@
 </script>
 
 <div class="mb-5 flex items-center justify-between gap-4">
-	<h1 class="pd-heading text-xl">Players</h1>
+	<h1 class="pd-heading text-xl">{t('players.heading')}</h1>
 	<input
 		type="search"
-		placeholder="Search..."
+		placeholder={t('players.searchPlaceholder')}
 		bind:value={query}
 		class="pd-cut-sm w-48 border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-brand)]"
 	/>
 </div>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading...</p>
+	<p class="text-[var(--color-muted)]">{t('players.loading')}</p>
 {:else if filtered.length === 0}
-	<p class="text-[var(--color-muted)]">No players found.</p>
+	<p class="text-[var(--color-muted)]">{t('players.empty')}</p>
 {:else}
 	<ul class="pd-card overflow-hidden">
 		{#each filtered as m (m.user_id)}
