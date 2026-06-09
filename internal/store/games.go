@@ -16,6 +16,7 @@ type Game struct {
 	ExecutableNames []string
 	Platform        string
 	IconURL         *string
+	CoverURL        *string
 }
 
 // GameSeed is a normalized entry from an external catalog (Discord).
@@ -25,7 +26,73 @@ type GameSeed struct {
 	Slug            string
 	ExecutableNames []string
 	IconURL         string
+	CoverURL        string
 	SteamAppID      string
+}
+
+// LeaderboardEntry is one player's standing for a game.
+type LeaderboardEntry struct {
+	UserID       string
+	Username     string
+	AvatarURL    *string
+	TotalSeconds int64
+	SessionCount int
+}
+
+// GameLeaderboard returns the top players by playtime for a game (merging
+// local sessions and imported platform playtime), plus the org-wide total
+// seconds and the number of distinct players.
+func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) ([]LeaderboardEntry, int64, int, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.pool.Query(ctx, `
+		WITH sess AS (
+			SELECT user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs, count(*) AS cnt
+			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
+		),
+		ext AS (
+			SELECT user_id, total_seconds AS secs FROM external_playtime WHERE game_id = $1
+		),
+		players AS (SELECT user_id FROM sess UNION SELECT user_id FROM ext)
+		SELECT u.id, u.username, u.avatar_url,
+		       (COALESCE(sess.secs,0) + COALESCE(ext.secs,0))::bigint AS total,
+		       COALESCE(sess.cnt,0) AS cnt
+		FROM players p
+		JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
+		LEFT JOIN sess ON sess.user_id = p.user_id
+		LEFT JOIN ext  ON ext.user_id  = p.user_id
+		ORDER BY total DESC, cnt DESC
+		LIMIT $2`, gameID, limit)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	defer rows.Close()
+
+	var out []LeaderboardEntry
+	for rows.Next() {
+		var e LeaderboardEntry
+		if err := rows.Scan(&e.UserID, &e.Username, &e.AvatarURL, &e.TotalSeconds, &e.SessionCount); err != nil {
+			return nil, 0, 0, err
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, 0, err
+	}
+
+	var totalSeconds int64
+	var players int
+	err = s.pool.QueryRow(ctx, `
+		WITH p AS (
+			SELECT user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs
+			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
+			UNION ALL
+			SELECT user_id, total_seconds FROM external_playtime WHERE game_id = $1
+		)
+		SELECT COALESCE(sum(secs),0)::bigint, count(DISTINCT user_id) FROM p`,
+		gameID).Scan(&totalSeconds, &players)
+	return out, totalSeconds, players, err
 }
 
 // CountGames returns the catalog size.
@@ -61,9 +128,22 @@ func (s *Store) ListGames(ctx context.Context) ([]Game, error) {
 func (s *Store) GetGameBySlug(ctx context.Context, slug string) (Game, error) {
 	var g Game
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, slug, executable_names, platform, icon_url
+		SELECT id, name, slug, executable_names, platform, icon_url, cover_url
 		FROM games WHERE slug = $1`, slug).
-		Scan(&g.ID, &g.Name, &g.Slug, &g.ExecutableNames, &g.Platform, &g.IconURL)
+		Scan(&g.ID, &g.Name, &g.Slug, &g.ExecutableNames, &g.Platform, &g.IconURL, &g.CoverURL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Game{}, ErrNotFound
+	}
+	return g, err
+}
+
+// GetGameByID fetches one game by id (used by the image proxy).
+func (s *Store) GetGameByID(ctx context.Context, id string) (Game, error) {
+	var g Game
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, name, slug, executable_names, platform, icon_url, cover_url
+		FROM games WHERE id = $1`, id).
+		Scan(&g.ID, &g.Name, &g.Slug, &g.ExecutableNames, &g.Platform, &g.IconURL, &g.CoverURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Game{}, ErrNotFound
 	}
@@ -115,14 +195,15 @@ func (s *Store) UpsertGames(ctx context.Context, seeds []GameSeed) (int, error) 
 			}
 
 			batch.Queue(`
-				INSERT INTO games (name, slug, executable_names, platform, icon_url, discord_app_id, steam_app_id)
-				VALUES ($1, $2, $3, 'pc', NULLIF($4, ''), $5, NULLIF($6, ''))
+				INSERT INTO games (name, slug, executable_names, platform, icon_url, cover_url, discord_app_id, steam_app_id)
+				VALUES ($1, $2, $3, 'pc', NULLIF($4, ''), NULLIF($5, ''), $6, NULLIF($7, ''))
 				ON CONFLICT (discord_app_id) DO UPDATE SET
 					name             = EXCLUDED.name,
 					executable_names = EXCLUDED.executable_names,
 					icon_url         = EXCLUDED.icon_url,
+					cover_url        = EXCLUDED.cover_url,
 					steam_app_id     = EXCLUDED.steam_app_id`,
-				seed.Name, slug, seed.ExecutableNames, seed.IconURL, seed.DiscordAppID, seed.SteamAppID)
+				seed.Name, slug, seed.ExecutableNames, seed.IconURL, seed.CoverURL, seed.DiscordAppID, seed.SteamAppID)
 		}
 
 		if err := s.pool.SendBatch(ctx, batch).Close(); err != nil {

@@ -65,6 +65,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Patch("/users/me", h.requireAuth, h.updateMe)
 	v1.Get("/users/:id", h.requireAuth, h.userProfile)
 	v1.Get("/games", h.requireAuth, h.listGames)
+	v1.Get("/games/:slug", h.requireAuth, h.gameDetail)
 	v1.Get("/presence", h.requireAuth, h.presence)
 	v1.Get("/sessions", h.requireAuth, h.sessions)
 
@@ -92,6 +93,9 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 		return fiber.ErrUpgradeRequired
 	})
 	app.Get("/ws", websocket.New(hub.Handler()))
+
+	// Lazy image cache (public: referenced from <img> tags, no auth header).
+	app.Get("/img/games/:id/:kind", h.gameImage)
 }
 
 func notImplemented(c *fiber.Ctx) error {
@@ -125,7 +129,8 @@ func MountSPA(app *fiber.App, dist fs.FS) {
 		NotFoundFile: "index.html", // SPA deep-link fallback
 		Next: func(c *fiber.Ctx) bool {
 			p := c.Path()
-			return strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/ws") || p == "/healthz"
+			return strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/ws") ||
+				strings.HasPrefix(p, "/img/") || p == "/healthz"
 		},
 	}))
 }

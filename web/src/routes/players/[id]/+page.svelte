@@ -114,7 +114,7 @@
 		{:else}
 			<div class="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
 				{#each profile.game_stats.slice(0, 10) as stat (stat.game.id)}
-					<div class="flex items-center gap-3">
+					<a href="/games/{stat.game.slug}" class="flex items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-[var(--color-surface-2)]">
 						{#if stat.game.icon_url}
 							<img src={stat.game.icon_url} alt="" class="h-6 w-6 shrink-0 rounded" />
 						{/if}
@@ -128,7 +128,7 @@
 						<span class="w-20 shrink-0 text-right text-sm text-[var(--color-muted)]">
 							{formatDuration(stat.total_seconds)}
 						</span>
-					</div>
+					</a>
 				{/each}
 			</div>
 		{/if}

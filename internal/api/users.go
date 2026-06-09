@@ -69,7 +69,7 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 	var totalSeconds int64
 	for i, st := range stats {
 		gameStats[i] = fiber.Map{
-			"game":           presenceGameJSON(st.Game),
+			"game":           h.gameJSON(st.Game),
 			"total_seconds":  st.TotalSeconds,
 			"session_count":  st.SessionCount,
 			"last_played_at": st.LastPlayedAt.UTC(),
@@ -103,7 +103,7 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 	recentAchievements := make([]fiber.Map, len(achievements))
 	for i, a := range achievements {
 		m := fiber.Map{
-			"game":        presenceGameJSON(a.Game),
+			"game":        h.gameJSON(a.Game),
 			"api_name":    a.APIName,
 			"unlocked_at": a.UnlockedAt.UTC(),
 		}

@@ -64,7 +64,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 
-	hub := ws.NewHub([]byte(cfg.JWTSecret), st)
+	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL)
 
 	// Steam connector + background library/achievement poller.
 	steamConn := steam.New(cfg.SteamAPIKey)

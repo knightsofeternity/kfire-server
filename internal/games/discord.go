@@ -20,10 +20,11 @@ import (
 const DetectableURL = "https://discord.com/api/v10/applications/detectable"
 
 type detectableApp struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	IconHash    string `json:"icon_hash"`
-	Executables []struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	IconHash       string `json:"icon_hash"`
+	CoverImageHash string `json:"cover_image_hash"`
+	Executables    []struct {
 		Name       string `json:"name"`
 		OS         string `json:"os"`
 		IsLauncher bool   `json:"is_launcher"`
@@ -97,9 +98,12 @@ func normalize(apps []detectableApp) []store.GameSeed {
 			continue
 		}
 
-		var iconURL string
+		var iconURL, coverURL string
 		if app.IconHash != "" {
 			iconURL = fmt.Sprintf("https://cdn.discordapp.com/app-icons/%s/%s.png", app.ID, app.IconHash)
+		}
+		if app.CoverImageHash != "" {
+			coverURL = fmt.Sprintf("https://cdn.discordapp.com/app-icons/%s/%s.png", app.ID, app.CoverImageHash)
 		}
 
 		seeds = append(seeds, store.GameSeed{
@@ -108,6 +112,7 @@ func normalize(apps []detectableApp) []store.GameSeed {
 			Slug:            Slugify(app.Name),
 			ExecutableNames: exes,
 			IconURL:         iconURL,
+			CoverURL:        coverURL,
 			SteamAppID:      app.steamAppID(),
 		})
 	}

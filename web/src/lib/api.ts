@@ -14,7 +14,22 @@ export type User = {
 	created_at: string;
 };
 
-export type Game = { id: string; name: string; slug: string; icon_url?: string };
+export type Game = { id: string; name: string; slug: string; icon_url?: string; cover_url?: string };
+
+export type LeaderboardEntry = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	total_seconds: number;
+	session_count: number;
+};
+
+export type GameDetail = {
+	game: Game;
+	total_seconds: number;
+	player_count: number;
+	leaderboard: LeaderboardEntry[];
+};
 
 export type PresenceEntry = {
 	user_id: string;
@@ -141,6 +156,10 @@ export const api = {
 
 	async getProfile(id: string): Promise<Profile> {
 		return json(await authFetch(`/api/v1/users/${id}`));
+	},
+
+	async getGame(slug: string): Promise<GameDetail> {
+		return json(await authFetch(`/api/v1/games/${encodeURIComponent(slug)}`));
 	},
 
 	async getSessions(userId: string, cursor?: string): Promise<{ sessions: Session[]; next_cursor?: string }> {

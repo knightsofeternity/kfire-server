@@ -40,7 +40,7 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 			entry["since"] = online.UTC()
 			if r.Game != nil && showGame {
 				entry["status"] = "in_game"
-				entry["game"] = presenceGameJSON(*r.Game)
+				entry["game"] = h.gameJSON(*r.Game)
 				if r.StartedAt != nil {
 					entry["since"] = r.StartedAt.UTC()
 				}
@@ -74,7 +74,7 @@ func (h *handlers) userPresence(c *fiber.Ctx, u store.User, showGame bool) fiber
 	if showGame {
 		if sess, err := h.store.LatestOpenSession(c.Context(), u.ID); err == nil && sess != nil {
 			entry["status"] = "in_game"
-			entry["game"] = presenceGameJSON(sess.Game)
+			entry["game"] = h.gameJSON(sess.Game)
 			entry["since"] = sess.StartedAt.UTC()
 		}
 	}
@@ -91,10 +91,15 @@ func presenceUser(u store.User) ws.PresenceUser {
 	}
 }
 
-func presenceGameJSON(g store.Game) fiber.Map {
+// gameJSON renders a game with image URLs pointing at our lazy image cache
+// (/img/games/:id/:kind) rather than directly at Discord's CDN.
+func (h *handlers) gameJSON(g store.Game) fiber.Map {
 	m := fiber.Map{"id": g.ID, "name": g.Name, "slug": g.Slug}
 	if g.IconURL != nil {
-		m["icon_url"] = *g.IconURL
+		m["icon_url"] = h.cfg.PublicURL + "/img/games/" + g.ID + "/icon"
+	}
+	if g.CoverURL != nil {
+		m["cover_url"] = h.cfg.PublicURL + "/img/games/" + g.ID + "/cover"
 	}
 	return m
 }
@@ -134,7 +139,7 @@ func (h *handlers) sessions(c *fiber.Ctx) error {
 		m := fiber.Map{
 			"id":         s.ID,
 			"user_id":    s.UserID,
-			"game":       presenceGameJSON(s.Game),
+			"game":       h.gameJSON(s.Game),
 			"source":     s.Source,
 			"started_at": s.StartedAt.UTC(),
 			"ended_at":   nil,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,17 +10,10 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-func gameJSON(g store.Game) fiber.Map {
-	m := fiber.Map{
-		"id":               g.ID,
-		"name":             g.Name,
-		"slug":             g.Slug,
-		"executable_names": g.ExecutableNames,
-		"platform":         g.Platform,
-	}
-	if g.IconURL != nil {
-		m["icon_url"] = *g.IconURL
-	}
+func (h *handlers) gameCatalogJSON(g store.Game) fiber.Map {
+	m := h.gameJSON(g)
+	m["executable_names"] = g.ExecutableNames
+	m["platform"] = g.Platform
 	return m
 }
 
@@ -34,9 +28,47 @@ func (h *handlers) listGames(c *fiber.Ctx) error {
 	}
 	out := make([]fiber.Map, len(list))
 	for i, g := range list {
-		out[i] = gameJSON(g)
+		out[i] = h.gameCatalogJSON(g)
 	}
 	return c.JSON(fiber.Map{"games": out})
+}
+
+// GET /api/v1/games/:slug  (authenticated)
+//
+// Game detail with the org leaderboard (top players by playtime).
+func (h *handlers) gameDetail(c *fiber.Ctx) error {
+	g, err := h.store.GetGameBySlug(c.Context(), c.Params("slug"))
+	if errors.Is(err, store.ErrNotFound) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "game not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
+	if err != nil {
+		return err
+	}
+	board := make([]fiber.Map, len(entries))
+	for i, e := range entries {
+		m := fiber.Map{
+			"user_id":       e.UserID,
+			"username":      e.Username,
+			"total_seconds": e.TotalSeconds,
+			"session_count": e.SessionCount,
+		}
+		if e.AvatarURL != nil {
+			m["avatar_url"] = *e.AvatarURL
+		}
+		board[i] = m
+	}
+
+	return c.JSON(fiber.Map{
+		"game":          h.gameJSON(g),
+		"total_seconds": totalSeconds,
+		"player_count":  players,
+		"leaderboard":   board,
+	})
 }
 
 // POST /api/v1/admin/games/sync  (admin)

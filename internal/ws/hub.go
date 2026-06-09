@@ -100,17 +100,20 @@ type onlineState struct {
 type Hub struct {
 	jwtSecret []byte
 	store     *store.Store
+	publicURL string
 	mu        sync.RWMutex
 	clients   map[*client]struct{}
 	online    map[string]*onlineState // by user ID
 }
 
 // NewHub creates an empty hub. jwtSecret verifies the access tokens presented
-// in `hello` handshakes; st persists sessions and resolves games.
-func NewHub(jwtSecret []byte, st *store.Store) *Hub {
+// in `hello` handshakes; st persists sessions and resolves games; publicURL
+// builds image-proxy URLs in presence broadcasts.
+func NewHub(jwtSecret []byte, st *store.Store, publicURL string) *Hub {
 	return &Hub{
 		jwtSecret: jwtSecret,
 		store:     st,
+		publicURL: publicURL,
 		clients:   make(map[*client]struct{}),
 		online:    make(map[string]*onlineState),
 	}
@@ -247,7 +250,7 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 			} else if sess != nil {
 				entry["status"] = "in_game"
 				entry["since"] = sess.StartedAt
-				entry["game"] = gameJSON(sess.Game)
+				entry["game"] = h.gameJSON(sess.Game)
 			}
 		}
 	}
@@ -255,10 +258,10 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 	h.Broadcast("presence_update", entry)
 }
 
-func gameJSON(g store.Game) map[string]any {
+func (h *Hub) gameJSON(g store.Game) map[string]any {
 	m := map[string]any{"id": g.ID, "name": g.Name, "slug": g.Slug}
 	if g.IconURL != nil {
-		m["icon_url"] = *g.IconURL
+		m["icon_url"] = h.publicURL + "/img/games/" + g.ID + "/icon"
 	}
 	return m
 }
