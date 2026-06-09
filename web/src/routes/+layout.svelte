@@ -37,8 +37,9 @@
 		<header class="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
 				<div class="flex items-center gap-8">
-					<a href="/" class="text-lg font-bold tracking-[0.12em] text-[var(--color-brand)]">
-						KFIRE
+					<a href="/" class="flex items-center gap-2">
+						<img src="/favicon-96.png" alt="" class="h-7 w-7" />
+						<span class="text-lg font-bold tracking-[0.12em] text-[var(--color-brand)]">KFIRE</span>
 					</a>
 					<nav class="flex gap-1">
 						{#each navItems as item (item.href)}

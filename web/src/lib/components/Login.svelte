@@ -56,9 +56,7 @@
 
 <div class="grid min-h-screen place-items-center px-4">
 	<div class="w-full max-w-sm">
-		<h1 class="mb-1 text-center text-2xl font-bold tracking-[0.12em] text-[var(--color-brand)]">
-			KFIRE
-		</h1>
+		<img src="/kfire-logo-640.png" alt="KFIRE" class="mx-auto mb-2 h-28 w-auto" />
 		<p class="mb-6 text-center text-sm text-[var(--color-muted)]">
 			{#if needsSetup}
 				Welcome — create the first account (it becomes the admin)
