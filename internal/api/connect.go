@@ -92,13 +92,19 @@ func (h *handlers) connectSteamCallback(c *fiber.Ctx) error {
 	}
 
 	account := store.LinkedAccount{Provider: "steam", ProviderUserID: steamID}
+	var steamAvatar string
 	if player, err := h.steam.ResolvePlayer(c.Context(), steamID); err == nil {
 		account.DisplayName = strPtr(player.PersonaName)
 		account.AvatarURL = strPtr(player.AvatarURL)
 		account.ProfileURL = strPtr(player.ProfileURL)
+		steamAvatar = player.AvatarURL
 	}
 	if err := h.store.UpsertLinkedAccount(c.Context(), userID, account); err != nil {
 		return err
+	}
+	// Adopt the Steam avatar as the member's profile picture when they have none.
+	if steamAvatar != "" {
+		_ = h.store.UpdateUserAvatarIfEmpty(c.Context(), userID, steamAvatar)
 	}
 	return c.Redirect("/account?steam=linked")
 }

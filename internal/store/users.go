@@ -102,6 +102,15 @@ func (s *Store) EnsureDefaultOrg(ctx context.Context, name string) (string, erro
 	return id, err
 }
 
+// UpdateUserAvatarIfEmpty sets the user's avatar only when they don't already
+// have one, so adopting a linked Steam avatar never overrides a chosen avatar.
+func (s *Store) UpdateUserAvatarIfEmpty(ctx context.Context, userID, avatarURL string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET avatar_url = $2 WHERE id = $1 AND avatar_url IS NULL`,
+		userID, avatarURL)
+	return err
+}
+
 // CountUsers returns the total number of accounts.
 func (s *Store) CountUsers(ctx context.Context) (int, error) {
 	var n int
