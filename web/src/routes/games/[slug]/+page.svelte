@@ -29,45 +29,68 @@
 </script>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading…</p>
+	<p class="text-[var(--color-muted)]">Loading...</p>
 {:else if error}
-	<p class="text-red-500">{error}</p>
+	<p class="text-[var(--color-magenta)]">{error}</p>
 {:else if detail}
 	<!-- Cover banner -->
-	<div class="mb-6 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+	<div class="pd-card pd-glow mb-6 overflow-hidden">
 		{#if detail.game.cover_url}
-			<div class="relative h-44 sm:h-56">
+			<div class="relative h-44 sm:h-64">
 				<img src={detail.game.cover_url} alt="" class="h-full w-full object-cover" />
-				<div class="absolute inset-0 bg-gradient-to-t from-[var(--color-bg)] to-transparent"></div>
-				<div class="absolute bottom-0 left-0 flex items-center gap-3 p-4">
+				<!-- Cinematic gradient overlay - stronger at bottom for text legibility -->
+				<div class="absolute inset-0 bg-gradient-to-t from-[var(--color-bg)] via-[rgba(18,19,25,0.55)] to-transparent"></div>
+				<!-- Subtle violet glow strip at the top edge -->
+				<div class="absolute inset-x-0 top-0 h-1 bg-[var(--color-brand-bright)] opacity-70"></div>
+				<div class="absolute bottom-0 left-0 flex items-end gap-4 p-5">
 					{#if detail.game.icon_url}
-						<img src={detail.game.icon_url} alt="" class="h-12 w-12 rounded-lg shadow-lg" />
+						<img
+							src={detail.game.icon_url}
+							alt=""
+							class="pd-cut-sm h-14 w-14 shrink-0 object-cover shadow-lg ring-2 ring-[var(--color-brand)]"
+						/>
 					{/if}
-					<h1 class="text-2xl font-bold drop-shadow">{detail.game.name}</h1>
+					<h1
+						class="pd-heading text-3xl text-white drop-shadow-lg"
+						style="text-shadow: 0 0 24px rgba(154,108,255,0.7), 0 2px 8px rgba(0,0,0,0.8);"
+					>
+						{detail.game.name}
+					</h1>
 				</div>
 			</div>
 		{:else}
-			<div class="flex items-center gap-3 p-5">
+			<div class="flex items-center gap-4 p-5">
 				{#if detail.game.icon_url}
-					<img src={detail.game.icon_url} alt="" class="h-12 w-12 rounded-lg" />
+					<img
+						src={detail.game.icon_url}
+						alt=""
+						class="pd-cut-sm h-14 w-14 shrink-0 object-cover ring-2 ring-[var(--color-brand)]"
+					/>
 				{/if}
-				<h1 class="text-2xl font-bold">{detail.game.name}</h1>
+				<h1
+					class="pd-heading text-3xl text-white"
+					style="text-shadow: 0 0 24px rgba(154,108,255,0.7);"
+				>
+					{detail.game.name}
+				</h1>
 			</div>
 		{/if}
-		<div class="flex gap-8 px-5 py-4">
+		<!-- Stats row -->
+		<div class="flex gap-8 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-5 py-4">
 			<div>
-				<p class="text-xl font-bold">{formatDuration(detail.total_seconds)}</p>
-				<p class="text-xs text-[var(--color-muted)]">total played in the org</p>
+				<p class="font-display text-xl font-bold text-[var(--color-brand-bright)]">{formatDuration(detail.total_seconds)}</p>
+				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">Total played in org</p>
 			</div>
 			<div>
-				<p class="text-xl font-bold">{detail.player_count}</p>
-				<p class="text-xs text-[var(--color-muted)]">{detail.player_count === 1 ? 'player' : 'players'}</p>
+				<p class="font-display text-xl font-bold text-[var(--color-cyan)]">{detail.player_count}</p>
+				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">{detail.player_count === 1 ? 'Player' : 'Players'}</p>
 			</div>
 		</div>
 	</div>
 
 	<!-- Leaderboard -->
-	<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
+	<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+		<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
 		Leaderboard
 	</h2>
 	{#if detail.leaderboard.length === 0}
@@ -77,20 +100,44 @@
 			{#each detail.leaderboard as e, i (e.user_id)}
 				<a
 					href="/players/{e.user_id}"
-					class="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition-colors hover:border-[var(--color-brand)]"
+					class="pd-card group flex items-center gap-3 p-3 transition-all duration-150
+						{i === 0
+							? 'border-[var(--color-gold)] bg-[var(--color-surface-2)]'
+							: 'hover:border-[var(--color-brand)]'}"
+					style={i === 0 ? 'border-color: var(--color-gold); box-shadow: 0 0 18px -4px rgba(255,180,0,0.35);' : ''}
 				>
-					<span class="w-6 text-center text-sm font-bold {i < 3 ? 'text-[var(--color-brand)]' : 'text-[var(--color-muted)]'}">
+					<!-- Rank badge -->
+					<span
+						class="pd-cut-sm flex h-7 w-7 shrink-0 items-center justify-center font-display text-sm font-bold
+							{i === 0
+								? 'bg-[var(--color-gold)] text-[#1a1200]'
+								: i === 1
+								? 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
+								: i === 2
+								? 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'
+								: 'bg-[var(--color-surface-2)] text-[var(--color-muted)]'}"
+					>
 						{i + 1}
 					</span>
+
 					<Avatar username={e.username} url={e.avatar_url} size={36} />
-					<span class="flex-1 truncate font-medium">{e.username}</span>
-					<div class="hidden h-2 w-32 overflow-hidden rounded-full bg-[var(--color-bg)] sm:block">
+
+					<span class="flex-1 truncate font-display font-semibold
+						{i === 0 ? 'text-[var(--color-gold)]' : 'text-[var(--color-text)]'}">
+						{e.username}
+					</span>
+
+					<!-- Progress bar (desktop) -->
+					<div class="hidden h-1.5 w-28 overflow-hidden sm:block" style="background-color: var(--color-bg); clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);">
 						<div
-							class="h-full rounded-full bg-[var(--color-brand)]"
-							style="width:{Math.max(3, (e.total_seconds / topSeconds) * 100)}%"
+							class="h-full transition-all duration-300"
+							style="width:{Math.max(3, (e.total_seconds / topSeconds) * 100)}%;
+								background-color: {i === 0 ? 'var(--color-gold)' : 'var(--color-brand)'};"
 						></div>
 					</div>
-					<span class="w-20 text-right text-sm text-[var(--color-muted)]">
+
+					<span class="w-20 text-right font-display text-sm
+						{i === 0 ? 'text-[var(--color-gold)]' : 'text-[var(--color-muted)]'}">
 						{formatDuration(e.total_seconds)}
 					</span>
 				</a>

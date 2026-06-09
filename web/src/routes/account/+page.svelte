@@ -122,15 +122,16 @@
 </script>
 
 {#if user}
-	<h1 class="mb-6 text-xl font-bold">Account</h1>
+	<h1 class="pd-heading mb-6 text-2xl text-[var(--color-text)]">Account</h1>
 
-	<div class="mb-4 flex items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+	<!-- Profile card -->
+	<div class="pd-card mb-4 flex items-center gap-4 p-5">
 		<Avatar username={user.username} url={user.avatar_url} size={56} />
 		<div>
 			<div class="flex items-center gap-2">
-				<span class="text-lg font-semibold">{user.username}</span>
+				<span class="font-display text-lg font-semibold text-[var(--color-text)]">{user.username}</span>
 				{#if user.role === 'admin'}
-					<span class="rounded bg-[var(--color-brand)]/15 px-2 py-0.5 text-xs text-[var(--color-brand)]">admin</span>
+					<span class="pd-cut-sm bg-[var(--color-brand)]/15 px-2 py-0.5 font-display text-xs font-bold uppercase tracking-widest text-[var(--color-brand-bright)]">admin</span>
 				{/if}
 			</div>
 			{#if user.email}<p class="text-sm text-[var(--color-muted)]">{user.email}</p>{/if}
@@ -139,11 +140,11 @@
 	</div>
 
 	<!-- Privacy -->
-	<div class="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">Privacy</h2>
+	<div class="pd-card mb-4 p-5">
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-brand-bright)]">Privacy</h2>
 		<div class="flex items-center justify-between gap-4">
 			<div>
-				<p class="font-medium">Show my game activity</p>
+				<p class="font-display font-semibold text-[var(--color-text)]">Show my game activity</p>
 				<p class="text-sm text-[var(--color-muted)]">
 					When off, other members see you as online but never see which game you're playing.
 					Your own history is unaffected.
@@ -170,14 +171,12 @@
 	</div>
 
 	<!-- Connected accounts -->
-	<div class="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
-			Connected accounts
-		</h2>
+	<div class="pd-card mb-4 p-5">
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-brand-bright)]">Connected accounts</h2>
 
 		{#if steamResult}
 			<p
-				class="mb-3 rounded-lg px-3 py-2 text-sm {steamResult === 'linked'
+				class="mb-3 px-3 py-2 text-sm pd-cut-sm {steamResult === 'linked'
 					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
 					: 'bg-red-500/10 text-red-400'}"
 			>
@@ -187,15 +186,15 @@
 		{/if}
 
 		<!-- Steam -->
-		<div class="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+		<div class="flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
 			<div class="flex items-center gap-3">
 				{#if steam?.avatar_url}
-					<img src={steam.avatar_url} alt="" class="h-9 w-9 rounded" />
+					<img src={steam.avatar_url} alt="" class="h-9 w-9 pd-cut-sm" />
 				{:else}
-					<span class="grid h-9 w-9 place-items-center rounded bg-[#1b2838] text-xs font-bold text-[#66c0f4]">St</span>
+					<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[#1b2838] text-xs font-bold text-[#66c0f4]">St</span>
 				{/if}
 				<div>
-					<p class="font-medium">Steam</p>
+					<p class="font-display font-semibold text-[var(--color-text)]">Steam</p>
 					{#if steam}
 						<p class="text-sm text-[var(--color-muted)]">
 							{steam.display_name ?? steam.provider_user_id}
@@ -210,14 +209,14 @@
 					<button
 						onclick={syncSteam}
 						disabled={steamBusy}
-						class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)] disabled:opacity-60"
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm disabled:opacity-60"
 					>
-						{steamBusy ? '…' : 'Sync now'}
+						{steamBusy ? '...' : 'Sync now'}
 					</button>
 					<button
 						onclick={unlinkSteam}
 						disabled={steamBusy}
-						class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
 					>
 						Unlink
 					</button>
@@ -226,9 +225,9 @@
 				<button
 					onclick={linkSteam}
 					disabled={steamBusy}
-					class="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+					class="btn-pd violet disabled:opacity-60"
 				>
-					{steamBusy ? '…' : 'Link Steam'}
+					{steamBusy ? '...' : 'Link Steam'}
 				</button>
 			{/if}
 		</div>
@@ -240,7 +239,7 @@
 				href="https://steamcommunity.com/my/edit/settings"
 				target="_blank"
 				rel="noreferrer"
-				class="text-[var(--color-brand)] hover:underline">Steam, Edit Profile, Privacy Settings</a
+				class="text-[var(--color-brand-bright)] hover:underline">Steam, Edit Profile, Privacy Settings</a
 			>, set <span class="text-[var(--color-text)]">My profile</span> and
 			<span class="text-[var(--color-text)]">Game details</span> to Public.
 		</p>
@@ -249,8 +248,8 @@
 			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
 		{/if}
 		{#if syncPrivacyHint}
-			<div class="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-sm text-[var(--color-muted)]">
-				<p class="mb-1 font-medium text-yellow-500">Make your Steam library visible</p>
+			<div class="mt-2 border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 p-3 text-sm text-[var(--color-muted)] pd-cut-sm">
+				<p class="mb-1 font-display font-bold uppercase tracking-wide text-[var(--color-gold)]">Make your Steam library visible</p>
 				<ol class="ml-4 list-decimal space-y-0.5">
 					<li>
 						Open
@@ -258,19 +257,19 @@
 							href="https://steamcommunity.com/my/edit/settings"
 							target="_blank"
 							rel="noreferrer"
-							class="text-[var(--color-brand)] hover:underline">Steam → Edit Profile → Privacy Settings</a
+							class="text-[var(--color-brand-bright)] hover:underline">Steam - Edit Profile - Privacy Settings</a
 						>.
 					</li>
 					<li>Set <span class="text-[var(--color-text)]">My profile</span> to <em>Public</em>.</li>
 					<li>Set <span class="text-[var(--color-text)]">Game details</span> to <em>Public</em> (this is the important one).</li>
-					<li>Untick “Always keep my total playtime private”, save, then click <em>Sync now</em> again.</li>
+					<li>Untick "Always keep my total playtime private", save, then click <em>Sync now</em> again.</li>
 				</ol>
 			</div>
 		{/if}
 
 		{#if battlenetResult}
 			<p
-				class="mt-3 rounded-lg px-3 py-2 text-sm {battlenetResult === 'linked'
+				class="mt-3 px-3 py-2 text-sm pd-cut-sm {battlenetResult === 'linked'
 					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
 					: 'bg-red-500/10 text-red-400'}"
 			>
@@ -280,11 +279,11 @@
 		{/if}
 
 		<!-- Battle.net -->
-		<div class="mt-3 flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
 			<div class="flex items-center gap-3">
-				<span class="grid h-9 w-9 place-items-center rounded bg-[#148eff]/15 text-xs font-bold text-[#148eff]">B</span>
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[var(--color-blue)]/15 text-xs font-bold text-[var(--color-blue)]">B</span>
 				<div>
-					<p class="font-medium">Battle.net</p>
+					<p class="font-display font-semibold text-[var(--color-text)]">Battle.net</p>
 					{#if battlenet}
 						<p class="text-sm text-[var(--color-muted)]">
 							{battlenet.display_name ?? battlenet.provider_user_id}
@@ -298,7 +297,7 @@
 				<button
 					onclick={unlinkBattlenet}
 					disabled={bnBusy}
-					class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
 				>
 					Unlink
 				</button>
@@ -306,9 +305,9 @@
 				<button
 					onclick={linkBattlenet}
 					disabled={bnBusy}
-					class="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+					class="btn-pd violet disabled:opacity-60"
 				>
-					{bnBusy ? '…' : 'Link Battle.net'}
+					{bnBusy ? '...' : 'Link Battle.net'}
 				</button>
 			{/if}
 		</div>
@@ -320,7 +319,7 @@
 
 	<button
 		onclick={() => auth.logout()}
-		class="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400"
+		class="btn-pd btn-pd-ghost px-4 py-2 text-sm"
 	>
 		Sign out
 	</button>

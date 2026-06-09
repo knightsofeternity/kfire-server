@@ -51,52 +51,64 @@
 	}
 </script>
 
-<div class="mx-auto max-w-md">
-	<h1 class="mb-6 text-xl font-bold">Link a device</h1>
+<div class="mx-auto max-w-md px-4 py-10">
+	<h1 class="pd-heading mb-8 text-2xl text-[var(--color-brand-bright)]">Link a device</h1>
 
 	{#if approved}
-		<div class="rounded-xl border border-[var(--color-online)]/40 bg-[var(--color-online)]/10 p-6 text-center">
-			<p class="text-lg font-semibold text-[var(--color-online)]">✓ Device linked</p>
-			<p class="mt-2 text-sm text-[var(--color-muted)]">
+		<div class="pd-card p-6 text-center" style="border-color: color-mix(in srgb, var(--color-online) 40%, transparent);">
+			<p class="pd-heading text-lg text-[var(--color-online)]">Device linked</p>
+			<p class="mt-3 text-sm text-[var(--color-muted)]">
 				You can return to the KFIRE app - it will connect automatically.
 			</p>
 		</div>
 	{:else if loading}
-		<p class="text-[var(--color-muted)]">Loading…</p>
+		<p class="text-[var(--color-muted)]">Loading...</p>
 	{:else if device}
-		<div class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-			<p class="mb-1 text-sm text-[var(--color-muted)]">A device wants to link to your account:</p>
-			<p class="mb-1 text-lg font-semibold">{device.device_name}</p>
-			<p class="mb-5 text-sm text-[var(--color-muted)]">
-				{platformLabel[device.platform] ?? device.platform} · code <span class="font-mono">{code}</span>
+		<div class="pd-card pd-glow p-6">
+			<p class="mb-2 text-xs uppercase tracking-widest text-[var(--color-muted)]">
+				A device wants to link to your account
 			</p>
+			<p class="font-display mb-1 text-xl font-bold text-[var(--color-text)]">{device.device_name}</p>
+			<p class="mb-1 text-sm text-[var(--color-muted)]">
+				{platformLabel[device.platform] ?? device.platform}
+			</p>
+
+			<div class="my-5 flex flex-col items-center gap-1">
+				<span class="text-xs uppercase tracking-widest text-[var(--color-muted)]">Pairing code</span>
+				<span
+					class="pd-cut-sm font-display inline-block bg-[var(--color-surface-2)] px-6 py-3 text-3xl font-extrabold italic tracking-[0.25em] text-[var(--color-brand-bright)]"
+				>
+					{code}
+				</span>
+			</div>
+
 			<p class="mb-5 text-xs text-[var(--color-muted)]">
 				Only approve if you just started linking the KFIRE app on this device.
 			</p>
-			{#if error}<p class="mb-3 text-sm text-red-500">{error}</p>{/if}
-			<button
-				onclick={approve}
-				disabled={busy}
-				class="w-full rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
-			>
-				{busy ? 'Linking…' : 'Approve & link this device'}
+
+			{#if error}<p class="mb-3 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
+
+			<button onclick={approve} disabled={busy} class="btn-pd violet w-full">
+				{busy ? 'Linking...' : 'Approve & link this device'}
 			</button>
 		</div>
 	{:else}
-		<div class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-			{#if error}<p class="mb-3 text-sm text-red-500">{error}</p>{/if}
-			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+		<div class="pd-card p-6">
+			{#if error}<p class="mb-3 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
+
+			<label class="flex flex-col gap-2 text-xs uppercase tracking-widest text-[var(--color-muted)]">
 				Enter the code shown in the app
 				<input
 					bind:value={manualCode}
 					placeholder="XXXX-XXXX"
-					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-center font-mono uppercase outline-none focus:border-[var(--color-brand)]"
+					class="pd-cut-sm border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-center font-mono text-lg uppercase tracking-[0.2em] text-[var(--color-brand-bright)] outline-none focus:border-[var(--color-brand)] focus:shadow-[0_0_10px_-2px_var(--color-brand)]"
 				/>
 			</label>
+
 			<button
 				onclick={() => lookup(manualCode)}
 				disabled={!manualCode}
-				class="mt-3 w-full rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+				class="btn-pd violet mt-4 w-full"
 			>
 				Continue
 			</button>

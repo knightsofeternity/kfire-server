@@ -83,33 +83,33 @@
 	}
 </script>
 
-<h1 class="mb-5 text-xl font-bold">Admin</h1>
+<h1 class="pd-heading mb-6 text-2xl text-[var(--color-brand-bright)]">Admin</h1>
 
 {#if loading}
-	<p class="text-[var(--color-muted)]">Loading…</p>
+	<p class="text-[var(--color-muted)]">Loading...</p>
 {:else}
-	{#if error}<p class="mb-4 text-sm text-red-500">{error}</p>{/if}
+	{#if error}<p class="mb-4 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
 
 	<!-- Invites -->
 	<section class="mb-8">
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">
 			Invite a member
 		</h2>
-		<div class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+		<div class="pd-card mb-4 flex flex-wrap items-end gap-3 p-4">
 			<label class="flex flex-1 flex-col gap-1 text-xs text-[var(--color-muted)]">
 				Note (optional - who's it for?)
 				<input
 					type="text"
 					bind:value={newNote}
 					placeholder="e.g. Lancelot"
-					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+					class="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
 				Role
 				<select
 					bind:value={newRole}
-					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+					class="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
 				>
 					<option value="member">Member</option>
 					<option value="admin">Admin</option>
@@ -118,34 +118,34 @@
 			<button
 				onclick={createInvite}
 				disabled={creating}
-				class="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+				class="btn-pd violet"
 			>
-				{creating ? '…' : 'Create link'}
+				{creating ? '...' : 'Create link'}
 			</button>
 		</div>
 
 		{#if invites.length > 0}
-			<ul class="divide-y divide-[var(--color-border)] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+			<ul class="pd-card divide-y divide-[var(--color-border)] overflow-hidden">
 				{#each invites as inv (inv.code)}
 					<li class="flex items-center gap-3 px-4 py-3">
 						<div class="min-w-0 flex-1">
 							<p class="truncate text-sm">
 								{inv.note ?? 'Invite'}
-								<span class="text-[var(--color-muted)]">· {inv.role}</span>
+								<span class="text-[var(--color-muted)]">- {inv.role}</span>
 							</p>
 							<p class="truncate text-xs text-[var(--color-muted)]">
-								{inv.url} · expires {formatDate(inv.expires_at)}
+								{inv.url} - expires {formatDate(inv.expires_at)}
 							</p>
 						</div>
 						<button
 							onclick={() => copy(inv.url, inv.code)}
-							class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-brand)]"
+							class="btn-pd btn-pd-ghost px-3 py-1.5 text-xs"
 						>
 							{copied === inv.code ? 'Copied!' : 'Copy link'}
 						</button>
 						<button
 							onclick={() => revoke(inv.code)}
-							class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400"
+							class="btn-pd magenta px-3 py-1.5 text-xs"
 						>
 							Revoke
 						</button>
@@ -159,10 +159,10 @@
 
 	<!-- Members -->
 	<section>
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">
 			Members ({members.length})
 		</h2>
-		<ul class="divide-y divide-[var(--color-border)] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+		<ul class="pd-card divide-y divide-[var(--color-border)] overflow-hidden">
 			{#each members as m (m.id)}
 				<li class="flex items-center gap-3 px-4 py-3" class:opacity-60={m.banned}>
 					<Avatar username={m.username} url={m.avatar_url} size={36} />
@@ -175,34 +175,34 @@
 					</div>
 
 					<span
-						class="rounded px-2 py-0.5 text-xs {m.role === 'admin'
-							? 'bg-[var(--color-brand)]/15 text-[var(--color-brand)]'
+						class="pd-cut-sm px-2 py-0.5 text-xs font-display {m.role === 'admin'
+							? 'bg-[var(--color-brand)]/15 text-[var(--color-brand-bright)]'
 							: 'text-[var(--color-muted)]'}"
 					>
 						{m.role}
 					</span>
 
 					{#if m.banned}
-						<span class="rounded bg-red-500/15 px-2 py-0.5 text-xs text-red-400">banned</span>
+						<span class="pd-cut-sm bg-[var(--color-magenta)]/15 px-2 py-0.5 text-xs text-[var(--color-magenta)]">banned</span>
 					{/if}
 
 					{#if m.id !== myId}
 						<div class="flex gap-2">
 							{#if m.role === 'admin'}
-								<button onclick={() => setRole(m, 'member')} class="text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]">
+								<button onclick={() => setRole(m, 'member')} class="btn-pd-ghost btn-pd px-3 py-1 text-xs">
 									Make member
 								</button>
 							{:else}
-								<button onclick={() => setRole(m, 'admin')} class="text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]">
+								<button onclick={() => setRole(m, 'admin')} class="btn-pd-ghost btn-pd px-3 py-1 text-xs">
 									Make admin
 								</button>
 							{/if}
 							{#if m.banned}
-								<button onclick={() => setBanned(m, false)} class="text-xs text-[var(--color-online)] hover:underline">
+								<button onclick={() => setBanned(m, false)} class="btn-pd cyan px-3 py-1 text-xs">
 									Unban
 								</button>
 							{:else}
-								<button onclick={() => setBanned(m, true)} class="text-xs text-red-400 hover:underline">
+								<button onclick={() => setBanned(m, true)} class="btn-pd magenta px-3 py-1 text-xs">
 									Ban
 								</button>
 							{/if}

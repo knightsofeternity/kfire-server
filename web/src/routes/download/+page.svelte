@@ -51,41 +51,46 @@
 </script>
 
 <div class="mx-auto max-w-2xl">
-	<div class="mb-6 flex items-center gap-3">
-		<img src="/favicon-96.png" alt="" class="h-12 w-12" />
+	<!-- Page header -->
+	<div class="mb-8 flex items-center gap-4">
+		<div class="pd-glow rounded-sm">
+			<img src="/favicon-96.png" alt="" class="h-16 w-16" />
+		</div>
 		<div>
-			<h1 class="text-xl font-bold">Get the KFIRE desktop app</h1>
-			<p class="text-sm text-[var(--color-muted)]">
+			<h1 class="pd-heading text-3xl text-[var(--color-text)]">Get the KFIRE desktop app</h1>
+			<p class="mt-1 text-sm text-[var(--color-muted)]">
 				Runs in your tray, detects your games and shares your presence.
 			</p>
 		</div>
 	</div>
 
 	{#if loading}
-		<p class="text-[var(--color-muted)]">Loading latest release…</p>
+		<p class="font-display text-sm uppercase tracking-widest text-[var(--color-muted)]">Loading latest release...</p>
 	{:else if noRelease || !release}
-		<div class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-			<p class="font-medium">No build published yet.</p>
-			<p class="mt-1 text-sm text-[var(--color-muted)]">
+		<div class="pd-card p-6">
+			<p class="font-display font-bold uppercase text-[var(--color-text)]">No build published yet.</p>
+			<p class="mt-2 text-sm text-[var(--color-muted)]">
 				The desktop app builds are on the way. Check the
-				<a href="https://github.com/{REPO}/releases" target="_blank" rel="noreferrer" class="text-[var(--color-brand)] hover:underline">releases page</a>
+				<a href="https://github.com/{REPO}/releases" target="_blank" rel="noreferrer" class="text-[var(--color-brand-bright)] hover:underline">releases page</a>
 				or build it from source.
 			</p>
 		</div>
 	{:else}
 		<!-- Recommended for detected OS -->
-		<div class="mb-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-			<p class="mb-3 text-sm text-[var(--color-muted)]">
-				Detected: <span class="text-[var(--color-text)]">{osLabel[os]}</span> · version {release.tag_name}
+		<div class="pd-card mb-6 p-6">
+			<p class="mb-4 text-sm text-[var(--color-muted)]">
+				Detected: <span class="font-semibold text-[var(--color-text)]">{osLabel[os]}</span>
+				<span class="mx-1 text-[var(--color-border)]">|</span>
+				version <span class="text-[var(--color-brand-bright)]">{release.tag_name}</span>
 			</p>
 			{#if recommended.length > 0}
 				{#each recommended as a (a.name)}
 					<a
 						href={a.browser_download_url}
-						class="mb-2 flex items-center justify-between rounded-lg bg-[var(--color-brand)] px-4 py-3 font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)]"
+						class="btn-pd violet mb-2 w-full py-4 text-base"
 					>
 						<span>Download for {osLabel[os]}</span>
-						<span class="text-sm opacity-80">{a.name} · {fmtSize(a.size)}</span>
+						<span class="ml-auto text-xs font-normal opacity-70">{a.name} - {fmtSize(a.size)}</span>
 					</a>
 				{/each}
 			{:else}
@@ -97,14 +102,15 @@
 
 		<!-- Other platforms -->
 		{#if others.length > 0}
-			<h2 class="mb-2 text-sm font-semibold tracking-wide text-[var(--color-muted)] uppercase">
-				Other platforms
-			</h2>
-			<ul class="divide-y divide-[var(--color-border)] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+			<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">Other platforms</h2>
+			<ul class="pd-card mb-6 divide-y divide-[var(--color-border)] overflow-hidden">
 				{#each others as a (a.name)}
 					<li>
-						<a href={a.browser_download_url} class="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-2)]">
-							<span class="text-sm">{a.name}</span>
+						<a
+							href={a.browser_download_url}
+							class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-[var(--color-surface-2)]"
+						>
+							<span class="text-sm text-[var(--color-text)]">{a.name}</span>
 							<span class="text-xs text-[var(--color-muted)]">{fmtSize(a.size)}</span>
 						</a>
 					</li>
@@ -113,8 +119,9 @@
 		{/if}
 	{/if}
 
-	<div class="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-		<h2 class="mb-2 text-sm font-semibold">First launch</h2>
+	<!-- First launch steps -->
+	<div class="pd-card mt-6 p-5">
+		<h2 class="pd-heading mb-3 text-sm text-[var(--color-brand-bright)]">First launch</h2>
 		<ol class="ml-4 list-decimal space-y-1 text-sm text-[var(--color-muted)]">
 			<li>Open the app and enter this server's address.</li>
 			<li>It opens your browser to confirm - approve the device here.</li>
@@ -122,23 +129,23 @@
 		</ol>
 	</div>
 
-	<!-- Security warning note -->
-	<div class="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-5">
-		<h2 class="mb-2 text-sm font-semibold text-yellow-500">⚠️ A security warning on first run? It's expected.</h2>
+	<!-- Security caution callout -->
+	<div class="pd-card mt-4 border-[var(--color-gold)] p-5" style="border-color: color-mix(in srgb, var(--color-gold) 40%, transparent);">
+		<h2 class="pd-heading mb-2 text-sm text-[var(--color-gold)]">Caution - Security warning on first run? It's expected.</h2>
 		<p class="mb-2 text-sm text-[var(--color-muted)]">
 			KFIRE is open-source and the installers aren't code-signed yet, so your OS may
 			warn that the publisher is "unknown". The app is safe - here's how to proceed:
 		</p>
 		<ul class="ml-4 list-disc space-y-1 text-sm text-[var(--color-muted)]">
 			<li>
-				<span class="text-[var(--color-text)]">Windows</span> (SmartScreen): click
-				<em>More info</em> → <em>Run anyway</em>.
+				<span class="font-semibold text-[var(--color-text)]">Windows</span> (SmartScreen): click
+				<em>More info</em> then <em>Run anyway</em>.
 			</li>
 			<li>
-				<span class="text-[var(--color-text)]">macOS</span> (Gatekeeper): right-click the
-				app → <em>Open</em> → <em>Open</em>.
+				<span class="font-semibold text-[var(--color-text)]">macOS</span> (Gatekeeper): right-click the
+				app, choose <em>Open</em>, then <em>Open</em>.
 			</li>
-			<li><span class="text-[var(--color-text)]">Linux</span>: no warning - just run it.</li>
+			<li><span class="font-semibold text-[var(--color-text)]">Linux</span>: no warning - just run it.</li>
 		</ul>
 	</div>
 </div>
