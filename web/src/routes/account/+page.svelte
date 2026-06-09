@@ -12,6 +12,7 @@
 	let connections = $state<Connection[]>([]);
 	let steamBusy = $state(false);
 	let syncMessage = $state('');
+	let syncPrivacyHint = $state(false);
 
 	let user = $derived($auth.user);
 	let steam = $derived(connections.find((c) => c.provider === 'steam'));
@@ -80,9 +81,18 @@
 	async function syncSteam() {
 		steamBusy = true;
 		syncMessage = '';
+		syncPrivacyHint = false;
 		try {
 			const r = await api.syncSteam();
-			syncMessage = `Imported ${r.games_imported} games and ${r.achievements_imported} achievements.`;
+			if (r.games_imported === 0) {
+				// The sync succeeded but Steam returned an empty library — almost always
+				// because the profile's "Game details" are private (Steam's default).
+				syncMessage =
+					'No games imported. Steam only shares your library when your game details are public.';
+				syncPrivacyHint = true;
+			} else {
+				syncMessage = `Imported ${r.games_imported} games and ${r.achievements_imported} achievements.`;
+			}
 		} catch (e) {
 			syncMessage = e instanceof Error ? e.message : 'sync failed';
 		} finally {
@@ -225,6 +235,25 @@
 
 		{#if syncMessage}
 			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
+		{/if}
+		{#if syncPrivacyHint}
+			<div class="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-sm text-[var(--color-muted)]">
+				<p class="mb-1 font-medium text-yellow-500">Make your Steam library visible</p>
+				<ol class="ml-4 list-decimal space-y-0.5">
+					<li>
+						Open
+						<a
+							href="https://steamcommunity.com/my/edit/settings"
+							target="_blank"
+							rel="noreferrer"
+							class="text-[var(--color-brand)] hover:underline">Steam → Edit Profile → Privacy Settings</a
+						>.
+					</li>
+					<li>Set <span class="text-[var(--color-text)]">My profile</span> to <em>Public</em>.</li>
+					<li>Set <span class="text-[var(--color-text)]">Game details</span> to <em>Public</em> (this is the important one).</li>
+					<li>Untick “Always keep my total playtime private”, save, then click <em>Sync now</em> again.</li>
+				</ol>
+			</div>
 		{/if}
 
 		{#if battlenetResult}
