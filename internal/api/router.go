@@ -108,6 +108,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	admin.Get("/invites", h.listInvites)
 	admin.Post("/invites", h.createInvite)
 	admin.Delete("/invites/:code", h.deleteInvite)
+	admin.Get("/branding", h.getBranding)
+	admin.Patch("/branding", h.setAccent)
+	admin.Post("/branding/logo", h.uploadLogo)
+	admin.Delete("/branding/logo", h.deleteLogo)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).
@@ -121,6 +125,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	// Lazy image cache (public: referenced from <img> tags, no auth header).
 	app.Get("/img/games/:id/:kind", h.gameImage)
+	// Org logo (public: shown in the header and on the login screen).
+	app.Get("/img/org/logo", h.orgLogo)
 }
 
 func notImplemented(c *fiber.Ctx) error {

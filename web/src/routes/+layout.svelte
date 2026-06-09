@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { getConfig } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Login from '$lib/components/Login.svelte';
 	import Footer from '$lib/components/Footer.svelte';
@@ -10,8 +11,24 @@
 
 	let { children } = $props();
 
-	onMount(() => {
+	let hasLogo = $state(false);
+	let orgName = $state('KFIRE');
+
+	onMount(async () => {
 		auth.init();
+		try {
+			const cfg = await getConfig();
+			// Apply the server's dominant accent (orange is the CSS default).
+			if (cfg.accent && cfg.accent !== 'orange') {
+				document.documentElement.dataset.accent = cfg.accent;
+			} else {
+				delete document.documentElement.dataset.accent;
+			}
+			hasLogo = cfg.has_logo;
+			orgName = cfg.org_name;
+		} catch (e) {
+			/* keep defaults when config is unavailable */
+		}
 	});
 
 	let navItems = $derived([
@@ -50,6 +67,10 @@
 							K<span class="text-[var(--color-brand)]">FIRE</span>
 						</span>
 					</a>
+					{#if hasLogo}
+						<span class="h-8 w-px bg-[var(--color-border)]"></span>
+						<img src="/img/org/logo" alt={orgName} title={orgName} class="h-9 w-auto" />
+					{/if}
 					<nav class="flex gap-1">
 						{#each navItems as item (item.href)}
 							<a

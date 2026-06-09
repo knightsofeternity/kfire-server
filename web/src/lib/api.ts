@@ -117,7 +117,8 @@ async function authFetch(path: string, init: RequestInit = {}): Promise<Response
 	const token = get(auth).accessToken;
 	const headers = new Headers(init.headers);
 	if (token) headers.set('Authorization', `Bearer ${token}`);
-	if (init.body) headers.set('Content-Type', 'application/json');
+	// Let the browser set the multipart boundary for FormData uploads.
+	if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
 
 	let res = await fetch(path, { ...init, headers });
 	if (res.status === 401 && (await auth.refresh())) {
@@ -235,17 +236,53 @@ export const api = {
 			method: 'DELETE'
 		});
 		if (!res.ok && res.status !== 404) throw new Error('failed to revoke invite');
+	},
+
+	async getBranding(): Promise<{ accent: string; has_logo: boolean }> {
+		return json(await authFetch('/api/v1/admin/branding'));
+	},
+
+	async setAccent(accent: string): Promise<void> {
+		await json(await authFetch('/api/v1/admin/branding', {
+			method: 'PATCH',
+			body: JSON.stringify({ accent })
+		}));
+	},
+
+	async uploadLogo(file: File): Promise<void> {
+		const form = new FormData();
+		form.append('logo', file);
+		const res = await authFetch('/api/v1/admin/branding/logo', { method: 'POST', body: form });
+		if (!res.ok) {
+			const body = await res.json().catch(() => ({ message: 'upload failed' }));
+			throw new ApiError(body.code ?? 'unknown', body.message ?? 'upload failed');
+		}
+	},
+
+	async deleteLogo(): Promise<void> {
+		const res = await authFetch('/api/v1/admin/branding/logo', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to remove logo');
 	}
 };
 
-/** Public instance config (no auth) - drives the sign-up UI. */
+/** Public instance config (no auth) - drives the sign-up UI and branding. */
 export async function getConfig(): Promise<{
 	open_registration: boolean;
 	org_name: string;
 	needs_setup: boolean;
+	accent: string;
+	has_logo: boolean;
 }> {
 	const res = await fetch('/api/v1/config');
-	return res.ok ? res.json() : { open_registration: true, org_name: 'KFIRE', needs_setup: false };
+	return res.ok
+		? res.json()
+		: {
+				open_registration: true,
+				org_name: 'KFIRE',
+				needs_setup: false,
+				accent: 'orange',
+				has_logo: false
+			};
 }
 
 export { ApiError };

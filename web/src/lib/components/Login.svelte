@@ -15,6 +15,8 @@
 	let inviteCode = $state<string | null>(null);
 	let openRegistration = $state(true);
 	let needsSetup = $state(false);
+	let serverHasLogo = $state(false);
+	let orgName = $state('');
 
 	let strength = $derived(passwordStrength(password));
 	const barColors = ['bg-red-500', 'bg-red-500', 'bg-yellow-500', 'bg-lime-500', 'bg-[var(--color-online)]'];
@@ -28,6 +30,8 @@
 		const cfg = await getConfig();
 		openRegistration = cfg.open_registration;
 		needsSetup = cfg.needs_setup;
+		serverHasLogo = cfg.has_logo;
+		orgName = cfg.org_name;
 		if (inviteCode || needsSetup) mode = 'register';
 	});
 
@@ -60,6 +64,9 @@
 		<h1 class="font-display text-center text-3xl font-extrabold tracking-[0.08em] italic">
 			K<span class="text-[var(--color-brand)]">FIRE</span>
 		</h1>
+		{#if serverHasLogo}
+			<img src="/img/org/logo" alt={orgName} title={orgName} class="mx-auto mt-3 h-12 w-auto" />
+		{/if}
 		<p class="mt-1 mb-6 text-center text-sm text-[var(--color-muted)]">
 			{#if needsSetup}
 				Welcome. Create the first account; it becomes the admin.

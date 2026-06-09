@@ -25,6 +25,7 @@
 			return;
 		}
 		load();
+		loadBranding();
 	});
 
 	async function load() {
@@ -81,6 +82,70 @@
 		copied = code;
 		setTimeout(() => (copied = copied === code ? null : copied), 1500);
 	}
+
+	// --- branding -----------------------------------------------------------
+	const accents = ['orange', 'violet', 'blue', 'red', 'green', 'yellow'];
+	const accentHex: Record<string, string> = {
+		orange: '#f24405',
+		violet: '#7442ce',
+		blue: '#1c7ff3',
+		red: '#e11d2a',
+		green: '#1f9d4d',
+		yellow: '#e6a700'
+	};
+	let accent = $state('orange');
+	let hasLogo = $state(false);
+	let brandingMsg = $state('');
+	let logoVersion = $state(0); // cache-busts the preview after upload/remove
+
+	async function loadBranding() {
+		try {
+			const b = await api.getBranding();
+			accent = b.accent;
+			hasLogo = b.has_logo;
+		} catch (e) {
+			/* non-fatal */
+		}
+	}
+
+	async function chooseAccent(a: string) {
+		accent = a;
+		brandingMsg = '';
+		try {
+			await api.setAccent(a);
+			if (a !== 'orange') document.documentElement.dataset.accent = a;
+			else delete document.documentElement.dataset.accent;
+		} catch (e) {
+			brandingMsg = e instanceof Error ? e.message : 'could not save the color';
+		}
+	}
+
+	async function onLogoFile(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		brandingMsg = '';
+		try {
+			await api.uploadLogo(file);
+			hasLogo = true;
+			logoVersion++;
+		} catch (err) {
+			brandingMsg = err instanceof Error ? err.message : 'upload failed';
+		} finally {
+			input.value = '';
+		}
+	}
+
+	async function removeLogo() {
+		brandingMsg = '';
+		try {
+			await api.deleteLogo();
+			hasLogo = false;
+			logoVersion++;
+		} catch (e) {
+			brandingMsg = e instanceof Error ? e.message : 'could not remove the logo';
+		}
+	}
 </script>
 
 <h1 class="pd-heading mb-6 text-2xl text-[var(--color-brand-bright)]">Admin</h1>
@@ -89,6 +154,68 @@
 	<p class="text-[var(--color-muted)]">Loading...</p>
 {:else}
 	{#if error}<p class="mb-4 text-sm text-[var(--color-magenta)]">{error}</p>{/if}
+
+	<!-- Branding -->
+	<section class="mb-8">
+		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">Branding</h2>
+		<div class="pd-card flex flex-col gap-6 p-4">
+			<div class="flex flex-wrap items-center gap-4">
+				<div
+					class="grid h-16 w-16 place-items-center border border-[var(--color-border)] bg-[var(--color-bg)]"
+				>
+					{#if hasLogo}
+						<img
+							src={`/img/org/logo?v=${logoVersion}`}
+							alt="Clan logo"
+							class="h-14 w-14 object-contain"
+						/>
+					{:else}
+						<span class="text-[10px] text-[var(--color-muted)]">No logo</span>
+					{/if}
+				</div>
+				<div class="flex flex-col gap-2">
+					<p class="text-sm text-[var(--color-text)]">Clan / team logo</p>
+					<p class="text-xs text-[var(--color-muted)]">
+						PNG or JPEG, up to 2 MB. Shown next to the KFIRE logo in the header.
+					</p>
+					<div class="flex gap-2">
+						<label class="btn-pd violet cursor-pointer">
+							Upload
+							<input
+								type="file"
+								accept="image/png,image/jpeg"
+								class="hidden"
+								onchange={onLogoFile}
+							/>
+						</label>
+						{#if hasLogo}
+							<button class="btn-pd btn-pd-ghost" onclick={removeLogo}>Remove</button>
+						{/if}
+					</div>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<p class="text-sm text-[var(--color-text)]">Dominant color</p>
+				<div class="flex flex-wrap gap-2">
+					{#each accents as a (a)}
+						<button
+							onclick={() => chooseAccent(a)}
+							title={a}
+							aria-label={a}
+							class="h-9 w-9 border-2 transition-transform hover:scale-110 {accent === a
+								? 'border-[var(--color-text)]'
+								: 'border-transparent'}"
+							style={`background:${accentHex[a]}; clip-path: polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);`}
+							aria-pressed={accent === a}
+						></button>
+					{/each}
+				</div>
+			</div>
+
+			{#if brandingMsg}<p class="text-sm text-[var(--color-magenta)]">{brandingMsg}</p>{/if}
+		</div>
+	</section>
 
 	<!-- Invites -->
 	<section class="mb-8">

@@ -20,12 +20,19 @@ func (h *handlers) publicConfig(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	branding, err := h.store.GetBranding(c.Context())
+	if err != nil {
+		return err
+	}
 	return c.JSON(fiber.Map{
 		"open_registration": h.cfg.OpenRegistration,
 		"org_name":          h.cfg.OrgName,
 		// True only on a brand-new instance: the first account can be created
 		// (it becomes the admin) even when registration is invite-only.
 		"needs_setup": count == 0,
+		// Branding the SPA applies before/at load.
+		"accent":   branding.Accent,
+		"has_logo": branding.HasLogo,
 	})
 }
 
