@@ -231,30 +231,40 @@ func (h *handlers) logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// issueTokens creates an access/refresh pair and persists the refresh token.
-func (h *handlers) issueTokens(c *fiber.Ctx, u store.User, device deviceInfo) error {
+// mintTokens creates an access/refresh pair and persists the device-bound
+// refresh token. Returns the token pair for the caller to serialize.
+func (h *handlers) mintTokens(c *fiber.Ctx, u store.User, device deviceInfo) (fiber.Map, error) {
 	accessToken, err := auth.NewAccessToken([]byte(h.cfg.JWTSecret), auth.Claims{
 		UserID:   u.ID,
 		DeviceID: device.DeviceID,
 		Role:     u.Role,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	refreshToken, refreshHash, err := auth.NewRefreshToken()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := h.store.SaveRefreshToken(c.Context(), u.ID, device.DeviceID,
 		device.Name, device.Platform, refreshHash,
 		time.Now().Add(auth.RefreshTokenTTL)); err != nil {
-		return err
+		return nil, err
 	}
 
-	return c.JSON(fiber.Map{
+	return fiber.Map{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 		"expires_in":    int(auth.AccessTokenTTL.Seconds()),
-	})
+	}, nil
+}
+
+// issueTokens mints a token pair and writes it as the response.
+func (h *handlers) issueTokens(c *fiber.Ctx, u store.User, device deviceInfo) error {
+	tokens, err := h.mintTokens(c, u, device)
+	if err != nil {
+		return err
+	}
+	return c.JSON(tokens)
 }

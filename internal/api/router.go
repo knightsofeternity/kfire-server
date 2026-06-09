@@ -71,6 +71,14 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	// External account connectors. The OpenID callback is a public browser
 	// redirect; it recovers the user from a signed state instead of a token.
+	// Device pairing (browser-based client linking — OAuth device grant).
+	// start/poll are public (the client isn't authenticated yet); approval is
+	// done by the logged-in user in the web app.
+	v1.Post("/devices/pair/start", h.pairStart)
+	v1.Post("/devices/pair/poll", h.pairPoll)
+	v1.Get("/devices/pair/:code", h.requireAuth, h.pairInfo)
+	v1.Post("/devices/pair/:code/approve", h.requireAuth, h.pairApprove)
+
 	v1.Get("/connect/steam", h.requireAuth, h.connectSteamStart)
 	v1.Get("/connect/steam/callback", h.connectSteamCallback)
 	v1.Post("/connect/steam/sync", h.requireAuth, h.syncSteam)

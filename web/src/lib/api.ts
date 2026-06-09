@@ -162,6 +162,20 @@ export const api = {
 		return json(await authFetch(`/api/v1/games/${encodeURIComponent(slug)}`));
 	},
 
+	async getPairInfo(code: string): Promise<{ device_name: string; platform: string }> {
+		return json(await authFetch(`/api/v1/devices/pair/${encodeURIComponent(code)}`));
+	},
+
+	async approvePair(code: string): Promise<void> {
+		const res = await authFetch(`/api/v1/devices/pair/${encodeURIComponent(code)}/approve`, {
+			method: 'POST'
+		});
+		if (!res.ok) {
+			const b = await res.json().catch(() => ({ message: 'approval failed' }));
+			throw new Error(b.message ?? 'approval failed');
+		}
+	},
+
 	async getSessions(userId: string, cursor?: string): Promise<{ sessions: Session[]; next_cursor?: string }> {
 		const q = new URLSearchParams({ user_id: userId, limit: '20' });
 		if (cursor) q.set('cursor', cursor);

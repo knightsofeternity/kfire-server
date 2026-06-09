@@ -15,6 +15,7 @@
 	let navItems = $derived([
 		{ href: '/', label: 'Dashboard' },
 		{ href: '/players', label: 'Players' },
+		{ href: '/download', label: 'Get the app' },
 		...($auth.user?.role === 'admin' ? [{ href: '/admin', label: 'Admin' }] : []),
 		{ href: '/account', label: 'Account' }
 	]);
