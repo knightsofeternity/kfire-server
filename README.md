@@ -1,137 +1,89 @@
-# kfire-server
+<p align="center">
+  <img src=".github/logo.png" alt="KFIRE" width="300" />
+</p>
 
-Backend and admin web UI for **KFIRE** (Knight FIRE) — an open-source, self-hosted
-gaming presence tracker inspired by Xfire. One server instance = one organization
-(clan, guild, team): see in real time who is playing what among your members, with
-session history and statistics.
+<h1 align="center">kfire-server</h1>
 
-> **Status: MVP backend + admin UI.** Auth (Argon2id + JWT, device-bound
-> refresh rotation), real-time presence over WebSocket, persisted sessions
-> with history, a ~10k games catalog seeded from Discord, player profiles with
-> per-game playtime, an activity privacy toggle, the embedded admin web UI,
-> and **Steam account linking** (OpenID + Web API). Everything follows the
-> contract in [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol).
+<p align="center">
+  Self-hosted gaming presence for your organization — see who's playing what, in real time.
+</p>
+
+<p align="center">
+  <a href="./LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-fb923c"></a>
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white">
+  <a href="https://github.com/knightsofeternity/kfire-protocol"><img alt="Protocol" src="https://img.shields.io/badge/API-OpenAPI%203.1-6BA539?logo=openapiinitiative&logoColor=white"></a>
+</p>
+
+---
+
+**KFIRE** (Knight FIRE) is an open-source, self-hosted gaming presence tracker inspired by
+[Xfire](https://en.wikipedia.org/wiki/Xfire) (2004–2015). One server instance = one
+organization (clan, guild, team): your members run a lightweight desktop client, and you
+see — in real time — who is playing what, with history, stats and internal leaderboards.
+
+This repository is the **backend + admin web UI**. It ships as a single static Go binary
+(the SvelteKit admin SPA is embedded) and self-hosts with Docker.
+
+## Features
+
+- 🎮 **Live presence** — real-time "who's playing what", over WebSocket
+- 📊 **Profiles & stats** — per-game playtime, session history, achievements
+- 🏆 **Per-game leaderboards** — who plays the most in your org
+- 🗂️ **~10k games catalog** — auto-seeded from Discord's detectable-apps list, with cached artwork
+- 🔗 **Steam connector** — link your account, import library playtime & achievements
+- 🔒 **Privacy** — per-member toggle to hide your current game
+- 👑 **Member management** — invite links, roles, ban; invite-only registration
+- 🖥️ **Frictionless client linking** — approve devices from the browser, no password in the app
+- 🛡️ **Secure by default** — Argon2id, short JWTs + device-bound refresh tokens, HTTPS
 
 ## Stack
 
-- **Go + [Fiber](https://gofiber.io/)** — static binary, ~20 MB Docker image
-- **PostgreSQL** — durable storage (users, sessions, linked accounts, games)
-- **Redis** — presence state + WebSocket pub/sub
-- **Caddy** — reverse proxy with automatic HTTPS (Let's Encrypt)
-- **Admin web UI** — SvelteKit + Tailwind SPA (dark gaming theme) in `web/`,
-  embedded into the Go binary and served at `/`: live dashboard, player
-  profiles with per-game playtime, account settings (activity privacy toggle)
+Go + [Fiber](https://gofiber.io) · PostgreSQL · Redis · [SvelteKit](https://svelte.dev) +
+Tailwind (embedded) · Caddy (auto-HTTPS).
 
-## Self-hosting (Docker)
+## Self-hosting
 
 ```bash
 git clone https://github.com/knightsofeternity/kfire-server
 cd kfire-server
-cp .env.example .env
-# Fill in .env: domain, postgres password, JWT secret, master key
-docker compose up -d
+cp .env.example .env          # fill in the secrets (openssl commands are in the file)
+docker compose up -d          # server + postgres + redis + caddy (auto-HTTPS)
 ```
 
-Caddy obtains a Let's Encrypt certificate for `KFIRE_DOMAIN` automatically —
-ports 80/443 must be reachable and the domain must resolve to your host.
+The first account you create becomes the **admin**. From there, invite your members and
+point them to the **download page** for the desktop client.
 
-### Behind an existing reverse proxy
+> **Behind an existing reverse proxy** (no public IP / shared host)? Use
+> `docker-compose.proxied.yml` — see the [deployment guide](./docs/DEPLOYMENT.md).
 
-If the host already runs a reverse proxy (or has no public IP and sits behind
-one — e.g. a Traefik gateway), skip the bundled Caddy and let the existing
-proxy terminate TLS:
+## Documentation
 
-```bash
-cp .env.example .env          # secrets + KFIRE_DOMAIN + (optional) KFIRE_STEAM_API_KEY
-docker compose -f docker-compose.proxied.yml up -d --build
-```
-
-This publishes the server on an internal port (`8090` by default) instead of
-80/443. Point the proxy at it — a ready-to-edit Traefik file-provider route is
-in [`deploy/traefik/kfire.yml`](./deploy/traefik). The server handles the API,
-WebSocket and SPA on that single port, and most proxies pass WebSocket through
-transparently. `KFIRE_PUBLIC_URL` must equal the public HTTPS URL the proxy
-serves (it is the Steam OpenID realm).
-
-## Local development
-
-Requires Go ≥ 1.23 and Docker (for Postgres/Redis).
-
-```bash
-docker compose up -d postgres redis
-
-export KFIRE_DATABASE_URL="postgres://kfire:dev@localhost:5432/kfire?sslmode=disable"
-export KFIRE_JWT_SECRET=$(openssl rand -hex 32)
-export KFIRE_MASTER_KEY=$(openssl rand -base64 32)
-
-go run ./cmd/kfire-server
-curl localhost:8080/healthz
-```
-
-### Admin web UI
-
-The SvelteKit SPA lives in [`web/`](./web) and is embedded into the binary via
-`//go:embed`. For frontend development run it with hot reload against the Go
-server (Vite proxies `/api` and `/ws`):
-
-```bash
-cd web
-pnpm install
-pnpm dev            # http://localhost:5173, proxying to :8080
-```
-
-For a production build (also what Docker does), `pnpm build` writes `web/build`,
-which the next `go build` embeds and serves at `/`. The binary runs API-only if
-the SPA was never built.
-
-Migrations live in [`migrations/`](./migrations) (plain SQL, embedded in the
-binary and applied automatically at startup).
-
-The first registered account becomes the instance **admin**. Set
-`KFIRE_OPEN_REGISTRATION=false` to close registration after that
-(invite system is TODO).
-
-## Project layout
-
-```
-cmd/kfire-server/   entrypoint
-internal/config/    environment configuration
-internal/api/       REST routes (contract: kfire-protocol/openapi.yaml)
-internal/ws/        WebSocket presence hub (contract: kfire-protocol/websocket-events.md)
-migrations/         SQL schema migrations
-deploy/             Caddyfile
-```
-
-## Connectors
-
-External platform accounts link from the **Account** page. Implemented:
-
-- **Steam** — "Sign in through Steam" (OpenID 2.0) yields the SteamID; the
-  server's Steam Web API key (`KFIRE_STEAM_API_KEY`) resolves the persona and
-  avatar, and imports the library (lifetime playtime, merged into each profile's
-  per-game stats) and unlocked **achievements** for the most-played games. A
-  background poller refreshes every linked account every 6 h; members can also
-  trigger a sync from their Account page. No per-user secret is stored. Without
-  the key the connector returns `501`.
-
-Planned next: Battle.net, Riot, Epic (OAuth2), Xbox (OpenXBL), PlayStation
-(psn-api, best-effort) — those use OAuth2, so their tokens will be encrypted at
-rest with AES-256-GCM (`KFIRE_MASTER_KEY`).
-
-## Security model
-
-- Passwords hashed with **Argon2id** (never bcrypt)
-- **JWT 15 min** access tokens + single-use, device-bound refresh tokens
-- OAuth tokens (Steam, Battle.net, …) encrypted at rest with **AES-256-GCM**,
-  master key in env only
-- HTTPS enforced by Caddy; HSTS enabled
-- Rate limiting on sensitive endpoints (login, OAuth)
-- GDPR from the MVP: account export + deletion endpoints
+- 📐 [Architecture](./docs/ARCHITECTURE.md)
+- 🚀 [Deployment](./docs/DEPLOYMENT.md)
+- 🧭 [Player onboarding](./docs/ONBOARDING.md)
+- 📜 [API & protocol](https://github.com/knightsofeternity/kfire-protocol)
 
 ## Related repositories
 
-- [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol) — API & WebSocket contract (Apache-2.0)
-- [kfire-client](https://github.com/knightsofeternity/kfire-client) — desktop tray client (MIT)
+| Repo | What | License |
+|------|------|---------|
+| [kfire-server](https://github.com/knightsofeternity/kfire-server) | Backend + admin web UI | AGPL-3.0 |
+| [kfire-client](https://github.com/knightsofeternity/kfire-client) | Desktop tray client | MIT |
+| [kfire-protocol](https://github.com/knightsofeternity/kfire-protocol) | API & WebSocket contract | Apache-2.0 |
+
+## Development
+
+Requires Go ≥ 1.25, Node ≥ 22 + pnpm, and Docker.
+
+```bash
+docker compose up -d postgres redis
+export KFIRE_DATABASE_URL="postgres://kfire:dev@localhost:5432/kfire?sslmode=disable"
+export KFIRE_JWT_SECRET=$(openssl rand -hex 32)
+export KFIRE_MASTER_KEY=$(openssl rand -base64 32)
+go run ./cmd/kfire-server          # API only
+cd web && pnpm install && pnpm dev # admin UI with hot reload (proxies to :8080)
+```
 
 ## License
 
