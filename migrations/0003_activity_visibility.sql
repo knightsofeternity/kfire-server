@@ -1,4 +1,4 @@
--- 0003_activity_visibility.sql — per-user privacy toggle.
+-- 0003_activity_visibility.sql - per-user privacy toggle.
 --
 -- When false, other members see the user capped at "online" with no game in
 -- live presence (snapshot + WebSocket). The user's own sessions are still

@@ -14,7 +14,7 @@ import (
 // inviteTTL is how long an invite link stays valid.
 const inviteTTL = 14 * 24 * time.Hour
 
-// GET /api/v1/config  (public) — lets the SPA tailor the sign-up UI.
+// GET /api/v1/config  (public) - lets the SPA tailor the sign-up UI.
 func (h *handlers) publicConfig(c *fiber.Ctx) error {
 	count, err := h.store.CountUsers(c.Context())
 	if err != nil {
@@ -53,7 +53,7 @@ func (h *handlers) listMembers(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"members": out})
 }
 
-// PATCH /api/v1/admin/members/:id  (admin) — change role and/or ban state.
+// PATCH /api/v1/admin/members/:id  (admin) - change role and/or ban state.
 func (h *handlers) patchMember(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var req struct {
@@ -138,7 +138,7 @@ func (h *handlers) listInvites(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"invites": out})
 }
 
-// POST /api/v1/admin/invites  (admin) — create a shareable invite link.
+// POST /api/v1/admin/invites  (admin) - create a shareable invite link.
 func (h *handlers) createInvite(c *fiber.Ctx) error {
 	var req struct {
 		Note string `json:"note"`

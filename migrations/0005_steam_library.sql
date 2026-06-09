@@ -1,4 +1,4 @@
--- 0005_steam_library.sql — Steam library & achievement import.
+-- 0005_steam_library.sql - Steam library & achievement import.
 
 BEGIN;
 

@@ -97,7 +97,7 @@
 		</h2>
 		<div class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
 			<label class="flex flex-1 flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Note (optional — who's it for?)
+				Note (optional - who's it for?)
 				<input
 					type="text"
 					bind:value={newNote}

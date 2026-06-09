@@ -4,7 +4,7 @@ import "strings"
 
 // Password policy follows current NIST guidance: favour length over forced
 // composition, but reject the predictable passwords credential-stuffing tries
-// first — the most common base words (with any trailing digits/symbols) and
+// first - the most common base words (with any trailing digits/symbols) and
 // anything derived from the account's own identifiers.
 
 // commonBases are the most-abused password "stems". We strip trailing digits

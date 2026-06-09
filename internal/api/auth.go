@@ -84,7 +84,7 @@ func (h *handlers) register(c *fiber.Ctx) error {
 			"password must be 12-128 characters")
 	case weakPassword(req.Password, req.Username, req.Email):
 		return errorJSON(c, fiber.StatusUnprocessableEntity, "weak_password",
-			"password is too common or based on your name/email — choose a stronger one")
+			"password is too common or based on your name/email - choose a stronger one")
 	}
 
 	count, err := h.store.CountUsers(c.Context())
@@ -113,7 +113,7 @@ func (h *handlers) register(c *fiber.Ctx) error {
 		consumeInvite = req.InviteCode
 	case !h.cfg.OpenRegistration:
 		return errorJSON(c, fiber.StatusForbidden, "registration_closed",
-			"registration is invite-only — ask an admin for an invite link")
+			"registration is invite-only - ask an admin for an invite link")
 	}
 
 	hash, err := auth.HashPassword(req.Password)

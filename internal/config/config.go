@@ -25,7 +25,7 @@ type Config struct {
 	// OrgName names the instance's organization, created on first boot.
 	OrgName string
 	// OpenRegistration allows anyone to register. When false, registration
-	// is closed once the first (admin) account exists — invites are TODO.
+	// is closed once the first (admin) account exists - invites are TODO.
 	OpenRegistration bool
 	// SteamAPIKey enables the Steam connector (https://steamcommunity.com/dev/apikey).
 	// Empty disables Steam account linking.

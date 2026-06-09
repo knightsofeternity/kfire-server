@@ -238,7 +238,7 @@ export const api = {
 	}
 };
 
-/** Public instance config (no auth) — drives the sign-up UI. */
+/** Public instance config (no auth) - drives the sign-up UI. */
 export async function getConfig(): Promise<{
 	open_registration: boolean;
 	org_name: string;

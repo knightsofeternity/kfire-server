@@ -1,4 +1,4 @@
--- 0008_device_pairings.sql — browser-based device linking (OAuth device grant).
+-- 0008_device_pairings.sql - browser-based device linking (OAuth device grant).
 --
 -- A desktop client links to the server without typing credentials: it starts a
 -- pairing, the user approves it from the already-authenticated web app, and the

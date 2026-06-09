@@ -1,7 +1,7 @@
 // Package steam implements account linking and profile lookups via Steam.
 //
 // Linking uses Steam's OpenID 2.0 ("Sign in through Steam"), which yields the
-// user's 64-bit SteamID — no per-user secret, so nothing needs encrypting.
+// user's 64-bit SteamID - no per-user secret, so nothing needs encrypting.
 // Profile and (later) library/achievement reads use the server's Steam Web API
 // key. Docs: https://steamcommunity.com/dev and https://partner.steamgames.com/doc/webapi
 package steam

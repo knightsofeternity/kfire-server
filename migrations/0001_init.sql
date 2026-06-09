@@ -1,4 +1,4 @@
--- 0001_init.sql — KFIRE initial schema
+-- 0001_init.sql - KFIRE initial schema
 --
 -- Conventions:
 --   * UUID primary keys (gen_random_uuid, pgcrypto is built-in since PG 13)
@@ -105,7 +105,7 @@ CREATE TABLE game_sessions (
 CREATE INDEX game_sessions_user_started_idx ON game_sessions (user_id, started_at DESC);
 -- Stats queries: "hours per game".
 CREATE INDEX game_sessions_game_idx ON game_sessions (game_id);
--- Live presence: open sessions only — tiny partial index.
+-- Live presence: open sessions only - tiny partial index.
 CREATE INDEX game_sessions_open_idx ON game_sessions (user_id) WHERE ended_at IS NULL;
 -- At most one open session per user and game (reconnect dedup).
 CREATE UNIQUE INDEX game_sessions_open_unique ON game_sessions (user_id, game_id)

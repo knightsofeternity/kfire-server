@@ -85,7 +85,7 @@
 		try {
 			const r = await api.syncSteam();
 			if (r.games_imported === 0) {
-				// The sync succeeded but Steam returned an empty library — almost always
+				// The sync succeeded but Steam returned an empty library - almost always
 				// because the profile's "Game details" are private (Steam's default).
 				syncMessage =
 					'No games imported. Steam only shares your library when your game details are public.';

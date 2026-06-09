@@ -64,7 +64,7 @@ func (h *handlers) connectSteamStart(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"url": url})
 }
 
-// GET /api/v1/connect/steam/callback  (public — browser redirect from Steam)
+// GET /api/v1/connect/steam/callback  (public - browser redirect from Steam)
 func (h *handlers) connectSteamCallback(c *fiber.Ctx) error {
 	if h.steam == nil || !h.steam.Enabled() {
 		return c.Redirect("/account?steam=error")

@@ -1,5 +1,5 @@
 // Package games seeds the games catalog from Discord's public "detectable
-// applications" list — the same database Discord uses for its own game
+// applications" list - the same database Discord uses for its own game
 // detection. ~10k games ship at least one detectable executable.
 package games
 
@@ -71,7 +71,7 @@ func FetchSeed(ctx context.Context) ([]store.GameSeed, error) {
 }
 
 // genericExecutables are helper/shared binaries that ship with many unrelated
-// games — engine crash handlers, redistributables, runtimes, VPN/driver helpers.
+// games - engine crash handlers, redistributables, runtimes, VPN/driver helpers.
 // Matching presence on them produces false positives: a Unity crash handler or a
 // VPN TAP adapter idling in the background would make a player look "in game".
 var genericExecutables = map[string]struct{}{
@@ -87,7 +87,7 @@ var genericExecutables = map[string]struct{}{
 
 // maxGamesPerExecutable bounds how many distinct games may share an executable
 // basename before it's considered non-discriminating and dropped from matching.
-// e.g. "hl2.exe" ships with ~34 Source games — it can't identify any one of them.
+// e.g. "hl2.exe" ships with ~34 Source games - it can't identify any one of them.
 const maxGamesPerExecutable = 3
 
 // basename lowercases an executable path and keeps only its file name. Discord

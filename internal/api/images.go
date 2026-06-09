@@ -20,7 +20,7 @@ const maxImageBytes = 2 << 20 // 2 MiB
 
 var imageHTTP = &http.Client{Timeout: 15 * time.Second}
 
-// GET /img/games/:id/:kind  (public) — lazy image cache.
+// GET /img/games/:id/:kind  (public) - lazy image cache.
 //
 // Serves a game's icon or cover. On the first request the image is fetched
 // from Discord's CDN and stored in Postgres; subsequent requests serve the

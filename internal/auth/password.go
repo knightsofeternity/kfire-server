@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// Argon2id parameters — OWASP-recommended class. Bumping them later is safe:
+// Argon2id parameters - OWASP-recommended class. Bumping them later is safe:
 // VerifyPassword reads the parameters back from the encoded hash, so existing
 // hashes keep verifying and can be re-hashed on next successful login.
 const (

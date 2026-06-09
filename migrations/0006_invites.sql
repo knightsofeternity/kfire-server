@@ -1,4 +1,4 @@
--- 0006_invites.sql — admin member onboarding via shareable invite links.
+-- 0006_invites.sql - admin member onboarding via shareable invite links.
 
 BEGIN;
 

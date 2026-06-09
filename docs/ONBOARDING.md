@@ -22,7 +22,7 @@ strength meter guides them), and lands in the web app.
 ### 3. Download the desktop app
 
 From **Get the app**, the page detects their OS and offers the matching installer from the
-latest [GitHub release](https://github.com/knightsofeternity/kfire-client/releases) — Windows
+latest [GitHub release](https://github.com/knightsofeternity/kfire-client/releases) - Windows
 `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
 
 ### 4. Link the device (browser approval, no password)
@@ -31,7 +31,7 @@ On first launch the member enters the **server address**. The app:
 
 1. registers a pairing and gets a short code (e.g. `WHAU-55AP`),
 2. opens the browser at `https://<server>/link?code=…`,
-3. the member — already signed in — sees *“Link this device: Gaming PC (Windows)?”* and
+3. the member - already signed in - sees *“Link this device: Gaming PC (Windows)?”* and
    approves,
 4. the app polls, receives **device-bound tokens**, and connects.
 

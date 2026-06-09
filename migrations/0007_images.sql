@@ -1,8 +1,8 @@
--- 0007_images.sql — game cover art + a lazy image cache.
+-- 0007_images.sql - game cover art + a lazy image cache.
 --
 -- Game icons/covers come from Discord's CDN. To avoid depending on it at
 -- render time (and to control storage), we cache each image in Postgres the
--- first time it is actually requested — only games that are really displayed
+-- first time it is actually requested - only games that are really displayed
 -- ever get cached, so storage scales with usage, not the 10k+ catalog.
 
 BEGIN;

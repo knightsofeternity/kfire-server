@@ -85,7 +85,7 @@ func (c *Connector) GetPlayerAchievements(ctx context.Context, steamID, appID st
 		} `json:"playerstats"`
 	}
 	if err := c.getJSON(ctx, endpoint, &payload); err != nil {
-		// 403/400 here usually means "no achievements for this app" — treat as empty.
+		// 403/400 here usually means "no achievements for this app" - treat as empty.
 		return nil, nil
 	}
 

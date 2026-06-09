@@ -84,7 +84,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	// External account connectors. The OpenID callback is a public browser
 	// redirect; it recovers the user from a signed state instead of a token.
-	// Device pairing (browser-based client linking — OAuth device grant).
+	// Device pairing (browser-based client linking - OAuth device grant).
 	// start/poll are public (the client isn't authenticated yet); approval is
 	// done by the logged-in user in the web app.
 	v1.Post("/devices/pair/start", rateLimiter(20), h.pairStart)

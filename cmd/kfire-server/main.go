@@ -1,4 +1,4 @@
-// kfire-server — self-hosted gaming presence for organizations.
+// kfire-server - self-hosted gaming presence for organizations.
 //
 // One instance = one organization. See https://github.com/knightsofeternity/kfire-protocol
 // for the client/server contract.

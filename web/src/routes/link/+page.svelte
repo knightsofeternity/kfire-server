@@ -58,7 +58,7 @@
 		<div class="rounded-xl border border-[var(--color-online)]/40 bg-[var(--color-online)]/10 p-6 text-center">
 			<p class="text-lg font-semibold text-[var(--color-online)]">✓ Device linked</p>
 			<p class="mt-2 text-sm text-[var(--color-muted)]">
-				You can return to the KFIRE app — it will connect automatically.
+				You can return to the KFIRE app - it will connect automatically.
 			</p>
 		</div>
 	{:else if loading}

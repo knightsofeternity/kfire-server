@@ -5,7 +5,7 @@
 <h1 align="center">kfire-server</h1>
 
 <p align="center">
-  Self-hosted gaming presence for your organization — see who's playing what, in real time.
+  Self-hosted gaming presence for your organization - see who's playing what, in real time.
 </p>
 
 <p align="center">
@@ -20,22 +20,22 @@
 **KFIRE** (Knight FIRE) is an open-source, self-hosted gaming presence tracker inspired by
 [Xfire](https://en.wikipedia.org/wiki/Xfire) (2004–2015). One server instance = one
 organization (clan, guild, team): your members run a lightweight desktop client, and you
-see — in real time — who is playing what, with history, stats and internal leaderboards.
+see - in real time - who is playing what, with history, stats and internal leaderboards.
 
 This repository is the **backend + admin web UI**. It ships as a single static Go binary
 (the SvelteKit admin SPA is embedded) and self-hosts with Docker.
 
 ## Features
 
-- 🎮 **Live presence** — real-time "who's playing what", over WebSocket
-- 📊 **Profiles & stats** — per-game playtime, session history, achievements
-- 🏆 **Per-game leaderboards** — who plays the most in your org
-- 🗂️ **~10k games catalog** — auto-seeded from Discord's detectable-apps list, with cached artwork
-- 🔗 **Steam connector** — link your account, import library playtime & achievements
-- 🔒 **Privacy** — per-member toggle to hide your current game
-- 👑 **Member management** — invite links, roles, ban; invite-only registration
-- 🖥️ **Frictionless client linking** — approve devices from the browser, no password in the app
-- 🛡️ **Secure by default** — Argon2id, short JWTs + device-bound refresh tokens, HTTPS
+- 🎮 **Live presence** - real-time "who's playing what", over WebSocket
+- 📊 **Profiles & stats** - per-game playtime, session history, achievements
+- 🏆 **Per-game leaderboards** - who plays the most in your org
+- 🗂️ **~10k games catalog** - auto-seeded from Discord's detectable-apps list, with cached artwork
+- 🔗 **Steam connector** - link your account, import library playtime & achievements
+- 🔒 **Privacy** - per-member toggle to hide your current game
+- 👑 **Member management** - invite links, roles, ban; invite-only registration
+- 🖥️ **Frictionless client linking** - approve devices from the browser, no password in the app
+- 🛡️ **Secure by default** - Argon2id, short JWTs + device-bound refresh tokens, HTTPS
 
 ## Stack
 
@@ -55,7 +55,7 @@ The first account you create becomes the **admin**. From there, invite your memb
 point them to the **download page** for the desktop client.
 
 > **Behind an existing reverse proxy** (no public IP / shared host)? Use
-> `docker-compose.proxied.yml` — see the [deployment guide](./docs/DEPLOYMENT.md).
+> `docker-compose.proxied.yml` - see the [deployment guide](./docs/DEPLOYMENT.md).
 
 ## Documentation
 
@@ -87,4 +87,4 @@ cd web && pnpm install && pnpm dev # admin UI with hot reload (proxies to :8080)
 
 ## License
 
-[AGPL-3.0](./LICENSE) — if you host a modified version, you must publish your changes.
+[AGPL-3.0](./LICENSE) - if you host a modified version, you must publish your changes.

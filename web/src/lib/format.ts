@@ -1,6 +1,6 @@
-/** "12h 34m", "5m", "—" for durations in seconds. */
+/** "12h 34m", "5m", "-" for durations in seconds. */
 export function formatDuration(seconds: number): string {
-	if (!seconds || seconds < 60) return seconds > 0 ? '<1m' : '—';
+	if (!seconds || seconds < 60) return seconds > 0 ? '<1m' : '-';
 	const h = Math.floor(seconds / 3600);
 	const m = Math.floor((seconds % 3600) / 60);
 	if (h === 0) return `${m}m`;

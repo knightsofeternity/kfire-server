@@ -1,7 +1,7 @@
 {
 	"name": "KFIRE",
 	"short_name": "KFIRE",
-	"description": "Gaming presence for your organization — see who is playing what, in real time.",
+	"description": "Gaming presence for your organization - see who is playing what, in real time.",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",

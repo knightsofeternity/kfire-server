@@ -90,7 +90,7 @@
 				{/each}
 			{:else}
 				<p class="text-sm text-[var(--color-muted)]">
-					No build for {osLabel[os]} in this release — see other platforms below.
+					No build for {osLabel[os]} in this release - see other platforms below.
 				</p>
 			{/if}
 		</div>
@@ -117,7 +117,7 @@
 		<h2 class="mb-2 text-sm font-semibold">First launch</h2>
 		<ol class="ml-4 list-decimal space-y-1 text-sm text-[var(--color-muted)]">
 			<li>Open the app and enter this server's address.</li>
-			<li>It opens your browser to confirm — approve the device here.</li>
+			<li>It opens your browser to confirm - approve the device here.</li>
 			<li>You're connected. The app lives in your tray.</li>
 		</ol>
 	</div>
@@ -127,7 +127,7 @@
 		<h2 class="mb-2 text-sm font-semibold text-yellow-500">⚠️ A security warning on first run? It's expected.</h2>
 		<p class="mb-2 text-sm text-[var(--color-muted)]">
 			KFIRE is open-source and the installers aren't code-signed yet, so your OS may
-			warn that the publisher is "unknown". The app is safe — here's how to proceed:
+			warn that the publisher is "unknown". The app is safe - here's how to proceed:
 		</p>
 		<ul class="ml-4 list-disc space-y-1 text-sm text-[var(--color-muted)]">
 			<li>
@@ -138,7 +138,7 @@
 				<span class="text-[var(--color-text)]">macOS</span> (Gatekeeper): right-click the
 				app → <em>Open</em> → <em>Open</em>.
 			</li>
-			<li><span class="text-[var(--color-text)]">Linux</span>: no warning — just run it.</li>
+			<li><span class="text-[var(--color-text)]">Linux</span>: no warning - just run it.</li>
 		</ul>
 	</div>
 </div>

@@ -1,4 +1,4 @@
--- 0009_clean_generic_executables.sql — strip non-discriminating executables
+-- 0009_clean_generic_executables.sql - strip non-discriminating executables
 -- from the catalog so the client stops reporting false positives (e.g. a Unity
 -- crash handler or a VPN TAP adapter idling in the background looked like a
 -- running game). Mirrors the seed-time filter in internal/games/discord.go.

@@ -22,20 +22,20 @@ and ships as a single static Go binary with the admin SPA embedded.
 
 ## Components
 
-- **REST API** (`internal/api`) — auth, device pairing, users/profiles, games, presence
+- **REST API** (`internal/api`) - auth, device pairing, users/profiles, games, presence
   snapshot, sessions, connectors, admin (members/invites). Contract:
   [kfire-protocol/openapi.yaml](https://github.com/knightsofeternity/kfire-protocol).
-- **WebSocket hub** (`internal/ws`) — real-time presence. Clients authenticate with a
+- **WebSocket hub** (`internal/ws`) - real-time presence. Clients authenticate with a
   `hello` handshake (JWT), send `game_started`/`game_stopped`/`heartbeat`; the hub persists
   sessions and broadcasts `presence_update`.
-- **Store** (`internal/store`) — PostgreSQL via pgx; embedded SQL migrations applied at boot.
-- **Games catalog** (`internal/games`) — seeded from Discord's public detectable-apps list
+- **Store** (`internal/store`) - PostgreSQL via pgx; embedded SQL migrations applied at boot.
+- **Games catalog** (`internal/games`) - seeded from Discord's public detectable-apps list
   (~10k games, executables for matching, icon/cover art, Steam app ids).
-- **Image cache** (`/img/games/:id/:kind`) — lazily fetches & stores game icons/covers in
+- **Image cache** (`/img/games/:id/:kind`) - lazily fetches & stores game icons/covers in
   Postgres on first request, so storage scales with games actually shown.
-- **Steam** (`internal/connectors/steam`, `internal/steamsync`) — OpenID account linking +
+- **Steam** (`internal/connectors/steam`, `internal/steamsync`) - OpenID account linking +
   background import of library playtime and achievements.
-- **Admin SPA** (`web/`) — SvelteKit + Tailwind, built and embedded via `//go:embed`.
+- **Admin SPA** (`web/`) - SvelteKit + Tailwind, built and embedded via `//go:embed`.
 
 ## Key data
 
@@ -46,7 +46,7 @@ and ships as a single static Go binary with the admin SPA embedded.
 
 - Passwords: **Argon2id**. Login is timing-oracle-safe; weak/common passwords rejected (NIST).
 - Tokens: **15-minute JWT** access + single-use, **device-bound refresh tokens** (rotated).
-- Client linking: **OAuth device grant** — approved from the browser, never a password in the app.
+- Client linking: **OAuth device grant** - approved from the browser, never a password in the app.
 - OAuth secrets at rest: **AES-256-GCM** (master key in env). *(Steam needs no per-user secret.)*
 - HTTPS enforced (Caddy, or your reverse proxy). Rate limiting on `/auth`.
 - Privacy: per-member toggle hides the current game from other members.

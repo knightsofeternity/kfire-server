@@ -1,6 +1,6 @@
 # Deployment
 
-## Option A — standalone (bundled Caddy, auto-HTTPS)
+## Option A - standalone (bundled Caddy, auto-HTTPS)
 
 For a host with a public IP and ports 80/443 free.
 
@@ -11,10 +11,10 @@ cp .env.example .env       # fill in the values below
 docker compose up -d --build
 ```
 
-Caddy obtains a Let's Encrypt certificate for `KFIRE_DOMAIN` automatically — the domain must
+Caddy obtains a Let's Encrypt certificate for `KFIRE_DOMAIN` automatically - the domain must
 resolve to the host and 80/443 must be reachable.
 
-## Option B — behind an existing reverse proxy
+## Option B - behind an existing reverse proxy
 
 For a host without a public IP, or that already runs a reverse proxy (Traefik, nginx, …).
 Skips the bundled Caddy and publishes the server on an internal port.

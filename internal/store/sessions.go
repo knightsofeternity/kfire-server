@@ -152,7 +152,7 @@ type GameStat struct {
 
 // UserGameStats returns a user's playtime per game, most played first. Per game
 // the total is the GREATER of local sessions and imported platform playtime
-// (Steam) — never their sum, to avoid double-counting Steam time also observed
+// (Steam) - never their sum, to avoid double-counting Steam time also observed
 // by the client. A game still appears if it was only ever played outside the
 // desktop client (Steam-only) or only seen locally (non-Steam).
 func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, error) {

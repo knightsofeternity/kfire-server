@@ -25,7 +25,7 @@ func (h *handlers) connectBattlenetStart(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"url": h.battlenet.AuthURL(state, h.battlenetRedirectURI())})
 }
 
-// GET /api/v1/connect/battlenet/callback  (public — browser redirect)
+// GET /api/v1/connect/battlenet/callback  (public - browser redirect)
 func (h *handlers) connectBattlenetCallback(c *fiber.Ctx) error {
 	if h.battlenet == nil || !h.battlenet.Enabled() {
 		return c.Redirect("/account?battlenet=error")

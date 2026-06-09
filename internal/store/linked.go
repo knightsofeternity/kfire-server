@@ -95,7 +95,7 @@ func (s *Store) DeleteLinkedAccount(ctx context.Context, userID, provider string
 }
 
 // ProviderLinked reports whether a (provider, provider_user_id) is already
-// linked to some other user — used to reject account hijacking.
+// linked to some other user - used to reject account hijacking.
 func (s *Store) ProviderLinkedToOther(ctx context.Context, provider, providerUserID, userID string) (bool, error) {
 	var other string
 	err := s.pool.QueryRow(ctx, `

@@ -43,7 +43,7 @@ type LeaderboardEntry struct {
 // org-wide total seconds and the number of distinct players.
 //
 // Per player, the total is the GREATER of our locally observed sessions and the
-// imported platform playtime (Steam playtime_forever) — never their sum, since
+// imported platform playtime (Steam playtime_forever) - never their sum, since
 // time played through Steam while the KFIRE client is running is counted by
 // both. Steam wins for games played through it; our sessions cover games played
 // outside any linked platform.

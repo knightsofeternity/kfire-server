@@ -74,7 +74,7 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 // POST /api/v1/admin/games/sync  (admin)
 //
 // Re-imports the Discord detectable-games catalog. Synchronous: the download
-// is ~10 MB and the upsert a few seconds — acceptable for an admin action.
+// is ~10 MB and the upsert a few seconds - acceptable for an admin action.
 func (h *handlers) syncGames(c *fiber.Ctx) error {
 	seeds, err := games.FetchSeed(c.Context())
 	if err != nil {

@@ -1,6 +1,6 @@
 // Browser auth: device-bound session, access token in memory, refresh token in
 // localStorage (acceptable for a self-hosted internal tool; documented caveat:
-// vulnerable to XSS — a future iteration could move to an httpOnly cookie).
+// vulnerable to XSS - a future iteration could move to an httpOnly cookie).
 
 import { writable, type Readable } from 'svelte/store';
 import type { User } from '../api';
