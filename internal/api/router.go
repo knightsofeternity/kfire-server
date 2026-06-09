@@ -35,6 +35,18 @@ func errorJSON(c *fiber.Ctx, status int, code, message string) error {
 	return c.Status(status).JSON(fiber.Map{"code": code, "message": message})
 }
 
+// rateLimiter limits a route to max requests/minute/IP.
+func rateLimiter(max int) fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:        max,
+		Expiration: time.Minute,
+		LimitReached: func(c *fiber.Ctx) error {
+			c.Set(fiber.HeaderRetryAfter, "60")
+			return errorJSON(c, fiber.StatusTooManyRequests, "rate_limited", "too many requests")
+		},
+	})
+}
+
 // Register mounts every route on the Fiber app.
 func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer) {
 	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer}
@@ -47,15 +59,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	v1.Get("/config", h.publicConfig)
 
-	// Sensitive endpoints: 10 requests/min/IP (login brute force, register spam).
-	authGroup := v1.Group("/auth", limiter.New(limiter.Config{
-		Max:        10,
-		Expiration: time.Minute,
-		LimitReached: func(c *fiber.Ctx) error {
-			c.Set(fiber.HeaderRetryAfter, "60")
-			return errorJSON(c, fiber.StatusTooManyRequests, "rate_limited", "too many requests")
-		},
-	}))
+	// Sensitive endpoints: rate-limited per IP (login brute force, register spam).
+	authGroup := v1.Group("/auth", rateLimiter(10))
 	authGroup.Post("/register", h.register)
 	authGroup.Post("/login", h.login)
 	authGroup.Post("/refresh", h.refresh)
@@ -74,10 +79,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	// Device pairing (browser-based client linking — OAuth device grant).
 	// start/poll are public (the client isn't authenticated yet); approval is
 	// done by the logged-in user in the web app.
-	v1.Post("/devices/pair/start", h.pairStart)
-	v1.Post("/devices/pair/poll", h.pairPoll)
-	v1.Get("/devices/pair/:code", h.requireAuth, h.pairInfo)
-	v1.Post("/devices/pair/:code/approve", h.requireAuth, h.pairApprove)
+	v1.Post("/devices/pair/start", rateLimiter(20), h.pairStart)
+	v1.Post("/devices/pair/poll", h.pairPoll) // polled frequently; secured by a 256-bit device_code
+	v1.Get("/devices/pair/:code", rateLimiter(20), h.requireAuth, h.pairInfo)
+	v1.Post("/devices/pair/:code/approve", rateLimiter(20), h.requireAuth, h.pairApprove)
 
 	v1.Get("/connect/steam", h.requireAuth, h.connectSteamStart)
 	v1.Get("/connect/steam/callback", h.connectSteamCallback)
