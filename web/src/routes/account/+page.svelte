@@ -243,6 +243,11 @@
 			>, set <span class="text-[var(--color-text)]">My profile</span> and
 			<span class="text-[var(--color-text)]">Game details</span> to Public.
 		</p>
+		<p class="mt-1 text-xs text-[var(--color-muted)]">
+			Want to keep your profile private? Set it public, click
+			<span class="text-[var(--color-text)]">Sync now</span> once, then switch it back: the
+			imported games and achievements stay. Re-sync the same way whenever you want to refresh.
+		</p>
 
 		{#if syncMessage}
 			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
