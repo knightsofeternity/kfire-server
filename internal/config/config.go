@@ -34,6 +34,11 @@ type Config struct {
 	// the production URLs; set only in tests to point at a fake Steam.
 	SteamLoginBase string
 	SteamAPIBase   string
+	// Battle.net OAuth2 credentials (https://develop.battle.net). Empty disables
+	// the connector. BattlenetOAuthBase overrides the endpoint (tests only).
+	BattlenetClientID     string
+	BattlenetClientSecret string
+	BattlenetOAuthBase    string
 }
 
 // Load reads configuration from the environment. Required variables that are
@@ -51,6 +56,10 @@ func Load() (*Config, error) {
 		SteamAPIKey:      os.Getenv("KFIRE_STEAM_API_KEY"),
 		SteamLoginBase:   os.Getenv("KFIRE_STEAM_LOGIN_BASE"),
 		SteamAPIBase:     os.Getenv("KFIRE_STEAM_API_BASE"),
+
+		BattlenetClientID:     os.Getenv("KFIRE_BATTLENET_CLIENT_ID"),
+		BattlenetClientSecret: os.Getenv("KFIRE_BATTLENET_CLIENT_SECRET"),
+		BattlenetOAuthBase:    os.Getenv("KFIRE_BATTLENET_OAUTH_BASE"),
 	}
 
 	for name, val := range map[string]string{

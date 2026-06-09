@@ -15,16 +15,20 @@
 
 	let user = $derived($auth.user);
 	let steam = $derived(connections.find((c) => c.provider === 'steam'));
+	let battlenet = $derived(connections.find((c) => c.provider === 'battlenet'));
+	let bnBusy = $state(false);
 
-	// Surface the result of the Steam OpenID redirect (?steam=linked|denied|…).
+	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
-	const steamMessage: Record<string, string> = {
-		linked: 'Steam account linked.',
-		denied: 'Steam sign-in was cancelled or failed.',
+	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
+	const linkMessage: Record<string, string> = {
+		linked: 'Account linked.',
+		denied: 'Sign-in was cancelled or failed.',
 		expired: 'The link request expired, please try again.',
-		conflict: 'That Steam account is already linked to another member.',
-		error: 'The Steam connector is not available.'
+		conflict: 'That account is already linked to another member.',
+		error: 'This connector is not available on the instance.'
 	};
+	const steamMessage = linkMessage;
 
 	onMount(loadConnections);
 
@@ -83,6 +87,26 @@
 			syncMessage = e instanceof Error ? e.message : 'sync failed';
 		} finally {
 			steamBusy = false;
+		}
+	}
+
+	async function linkBattlenet() {
+		bnBusy = true;
+		try {
+			window.location.href = await api.startBattlenetLink();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Battle.net is not configured on this instance';
+			bnBusy = false;
+		}
+	}
+
+	async function unlinkBattlenet() {
+		bnBusy = true;
+		try {
+			await api.unlinkBattlenet();
+			connections = connections.filter((c) => c.provider !== 'battlenet');
+		} finally {
+			bnBusy = false;
 		}
 	}
 </script>
@@ -203,8 +227,53 @@
 			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
 		{/if}
 
+		{#if battlenetResult}
+			<p
+				class="mt-3 rounded-lg px-3 py-2 text-sm {battlenetResult === 'linked'
+					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
+					: 'bg-red-500/10 text-red-400'}"
+			>
+				{linkMessage[battlenetResult] ?? 'Unknown result.'}
+				<button class="ml-2 underline" onclick={() => goto('/account')}>dismiss</button>
+			</p>
+		{/if}
+
+		<!-- Battle.net -->
+		<div class="mt-3 flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center rounded bg-[#148eff]/15 text-xs font-bold text-[#148eff]">B</span>
+				<div>
+					<p class="font-medium">Battle.net</p>
+					{#if battlenet}
+						<p class="text-sm text-[var(--color-muted)]">
+							{battlenet.display_name ?? battlenet.provider_user_id}
+						</p>
+					{:else}
+						<p class="text-sm text-[var(--color-muted)]">Not linked</p>
+					{/if}
+				</div>
+			</div>
+			{#if battlenet}
+				<button
+					onclick={unlinkBattlenet}
+					disabled={bnBusy}
+					class="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+				>
+					Unlink
+				</button>
+			{:else}
+				<button
+					onclick={linkBattlenet}
+					disabled={bnBusy}
+					class="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
+				>
+					{bnBusy ? '…' : 'Link Battle.net'}
+				</button>
+			{/if}
+		</div>
+
 		<p class="mt-3 text-xs text-[var(--color-muted)]">
-			Battle.net, Riot, Epic, Xbox and PlayStation are coming next.
+			Riot, Epic, Xbox and PlayStation are coming next.
 		</p>
 	</div>
 

@@ -197,6 +197,17 @@ export const api = {
 		return json(await authFetch('/api/v1/connect/steam/sync', { method: 'POST' }));
 	},
 
+	/** Returns the Battle.net OAuth2 authorization URL to navigate to. */
+	async startBattlenetLink(): Promise<string> {
+		const data = await json<{ url: string }>(await authFetch('/api/v1/connect/battlenet'));
+		return data.url;
+	},
+
+	async unlinkBattlenet(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/battlenet', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
 	// --- admin ---------------------------------------------------------------
 
 	async getMembers(): Promise<Member[]> {

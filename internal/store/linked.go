@@ -9,29 +9,38 @@ import (
 )
 
 // LinkedAccount is an external platform account linked to a user (Steam, …).
+// OAuth tokens, when present, are already AES-256-GCM encrypted.
 type LinkedAccount struct {
-	Provider       string
-	ProviderUserID string
-	DisplayName    *string
-	AvatarURL      *string
-	ProfileURL     *string
-	CreatedAt      time.Time
+	Provider        string
+	ProviderUserID  string
+	DisplayName     *string
+	AvatarURL       *string
+	ProfileURL      *string
+	AccessTokenEnc  []byte
+	RefreshTokenEnc []byte
+	TokenExpiresAt  *time.Time
+	CreatedAt       time.Time
 }
 
 // UpsertLinkedAccount links (or refreshes) an external account. One account per
-// (user, provider): re-linking updates the stored profile.
+// (user, provider): re-linking updates the stored profile and tokens.
 func (s *Store) UpsertLinkedAccount(ctx context.Context, userID string, a LinkedAccount) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO linked_accounts
-			(user_id, provider, provider_user_id, display_name, avatar_url, profile_url)
-		VALUES ($1, $2, $3, $4, $5, $6)
+			(user_id, provider, provider_user_id, display_name, avatar_url, profile_url,
+			 access_token_enc, refresh_token_enc, token_expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (user_id, provider) DO UPDATE SET
-			provider_user_id = EXCLUDED.provider_user_id,
-			display_name     = EXCLUDED.display_name,
-			avatar_url       = EXCLUDED.avatar_url,
-			profile_url      = EXCLUDED.profile_url,
-			updated_at       = now()`,
-		userID, a.Provider, a.ProviderUserID, a.DisplayName, a.AvatarURL, a.ProfileURL)
+			provider_user_id  = EXCLUDED.provider_user_id,
+			display_name      = EXCLUDED.display_name,
+			avatar_url        = EXCLUDED.avatar_url,
+			profile_url       = EXCLUDED.profile_url,
+			access_token_enc  = EXCLUDED.access_token_enc,
+			refresh_token_enc = EXCLUDED.refresh_token_enc,
+			token_expires_at  = EXCLUDED.token_expires_at,
+			updated_at        = now()`,
+		userID, a.Provider, a.ProviderUserID, a.DisplayName, a.AvatarURL, a.ProfileURL,
+		a.AccessTokenEnc, a.RefreshTokenEnc, a.TokenExpiresAt)
 	return err
 }
 

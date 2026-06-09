@@ -17,6 +17,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
+	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/games"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -81,7 +82,14 @@ func main() {
 		go syncer.Run(pollCtx, 6*time.Hour)
 	}
 
-	api.Register(app, cfg, st, hub, steamConn, syncer)
+	// AES-256-GCM cipher for OAuth tokens at rest.
+	cipher, err := crypto.New(cfg.MasterKey)
+	if err != nil {
+		slog.Error("master key error", "err", err)
+		os.Exit(1)
+	}
+
+	api.Register(app, cfg, st, hub, steamConn, syncer, cipher)
 
 	// Serve the embedded admin SPA (when built). Mounted last so API and
 	// WebSocket routes take precedence.

@@ -15,7 +15,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 
 	"github.com/knightsofeternity/kfire-server/internal/config"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
+	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -28,6 +30,8 @@ type handlers struct {
 	hub       *ws.Hub
 	steam     *steam.Connector
 	steamSync *steamsync.Syncer
+	battlenet *battlenet.Connector
+	cipher    *crypto.Cipher
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -48,8 +52,12 @@ func rateLimiter(max int) fiber.Handler {
 }
 
 // Register mounts every route on the Fiber app.
-func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer) {
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer}
+func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer, cipher *crypto.Cipher) {
+	bnConn := battlenet.New(cfg.BattlenetClientID, cfg.BattlenetClientSecret)
+	if cfg.BattlenetOAuthBase != "" {
+		bnConn.OAuthBase = cfg.BattlenetOAuthBase
+	}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, cipher: cipher}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -88,6 +96,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/connect/steam/callback", h.connectSteamCallback)
 	v1.Post("/connect/steam/sync", h.requireAuth, h.syncSteam)
 	v1.Delete("/connect/steam", h.requireAuth, h.disconnectSteam)
+
+	v1.Get("/connect/battlenet", h.requireAuth, h.connectBattlenetStart)
+	v1.Get("/connect/battlenet/callback", h.connectBattlenetCallback)
+	v1.Delete("/connect/battlenet", h.requireAuth, h.disconnectBattlenet)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Post("/games/sync", h.syncGames)
