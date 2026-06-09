@@ -54,12 +54,19 @@
 	}
 </script>
 
-<div class="grid min-h-screen place-items-center px-4">
+<div class="pd-grid-bg grid min-h-screen place-items-center px-4">
 	<div class="w-full max-w-sm">
-		<img src="/kfire-logo-640.png" alt="KFIRE" class="mx-auto mb-2 h-28 w-auto" />
-		<p class="mb-6 text-center text-sm text-[var(--color-muted)]">
+		<img
+			src="/kfire-logo-640.png"
+			alt="KFIRE"
+			class="mx-auto mb-3 h-32 w-auto drop-shadow-[0_0_24px_rgba(116,66,206,0.55)]"
+		/>
+		<h1 class="font-display text-center text-3xl font-extrabold tracking-[0.08em] italic">
+			K<span class="text-[var(--color-brand)]">FIRE</span>
+		</h1>
+		<p class="mt-1 mb-6 text-center text-sm text-[var(--color-muted)]">
 			{#if needsSetup}
-				Welcome — create the first account (it becomes the admin)
+				Welcome. Create the first account; it becomes the admin.
 			{:else if mode === 'login'}
 				Sign in to your organization
 			{:else}
@@ -67,10 +74,7 @@
 			{/if}
 		</p>
 
-		<form
-			onsubmit={submit}
-			class="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
-		>
+		<form onsubmit={submit} class="pd-card flex flex-col gap-4 p-6">
 			{#if mode === 'register' && inviteCode}
 				<p class="rounded-lg bg-[var(--color-brand)]/10 px-3 py-2 text-xs text-[var(--color-brand)]">
 					You were invited to join. Set your details below.
@@ -134,11 +138,7 @@
 
 			{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
-			<button
-				type="submit"
-				disabled={busy}
-				class="mt-1 rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-semibold text-[var(--color-bg)] hover:bg-[var(--color-brand-bright)] disabled:opacity-60"
-			>
+			<button type="submit" disabled={busy} class="btn-pd violet mt-1 w-full">
 				{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
 			</button>
 		</form>

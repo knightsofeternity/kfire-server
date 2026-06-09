@@ -1,27 +1,182 @@
 @import 'tailwindcss';
 
-/* Dark gaming theme tokens (refs: Tracker.gg, Exophase). */
+/*
+ * Pixel Diamond theme tokens (eSports & Gaming Magazine).
+ * Palette and type sampled from the original template: violet primary, neon
+ * magenta / blue / cyan / gold accents, deep cold-dark surfaces, Exo for
+ * display type over Roboto body.
+ */
 @theme {
-	--color-bg: #0b0e14;
-	--color-surface: #151a23;
-	--color-surface-2: #1c222e;
-	--color-border: #2a3140;
-	--color-muted: #6b7280;
-	--color-text: #e5e7eb;
-	--color-brand: #f97316;
-	--color-brand-bright: #fb923c;
-	--color-online: #22c55e;
-	--color-in-game: #f97316;
+	--color-bg: #121319;
+	--color-surface: #1e1f26;
+	--color-surface-2: #262833;
+	--color-border: #34374d;
+	--color-muted: #8b8b8b;
+	--color-text: #e8e8ee;
+
+	/* Primary brand: Pixel Diamond violet. */
+	--color-brand: #7442ce;
+	--color-brand-bright: #9a6cff;
+
+	/* Secondary neon accents (used for highlights, badges, charts). */
+	--color-magenta: #f30a5c;
+	--color-blue: #1c95f3;
+	--color-cyan: #00e3d0;
+	--color-gold: #ffb400;
+
+	/* Status. */
+	--color-online: #58d819;
+	--color-in-game: #7442ce;
+
+	--font-display: 'Exo', sans-serif;
+	--font-body: 'Roboto', sans-serif;
 }
 
 html,
 body {
 	background-color: var(--color-bg);
 	color: var(--color-text);
-	font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+	font-family: var(--font-body);
 	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display {
+	font-family: var(--font-display);
+	letter-spacing: 0.01em;
 }
 
 * {
 	box-sizing: border-box;
+}
+
+/* A faint diagonal grid, like the template's sectioned background. */
+.pd-grid-bg {
+	background-image:
+		linear-gradient(rgba(116, 66, 206, 0.05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(116, 66, 206, 0.05) 1px, transparent 1px);
+	background-size: 36px 36px;
+}
+
+/*
+ * Angular "cut corner" shape. Pixel Diamond clips the top-left and
+ * bottom-right corners of cards and buttons; we reproduce it with clip-path.
+ */
+.pd-cut {
+	clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+.pd-cut-sm {
+	clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* Neon glow, tinted to the current brand by default. */
+.pd-glow {
+	box-shadow: 0 0 18px -2px rgba(116, 66, 206, 0.55);
+}
+
+/* Card: angular surface with a hairline border and inner depth. */
+.pd-card {
+	background-color: var(--color-surface);
+	border: 1px solid var(--color-border);
+	clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+
+/* Section heading: skewed, uppercase Exo with a leading accent bar. */
+.pd-heading {
+	font-family: var(--font-display);
+	font-weight: 800;
+	font-style: italic;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/*
+ * Button. Variants set --btn (fill) and --btn-bright (hover) so one rule drives
+ * every colour. A small square ornament sits in the top-right corner, echoing
+ * the template's .button-ornament.
+ */
+.btn-pd {
+	--btn: var(--color-brand);
+	--btn-bright: var(--color-brand-bright);
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.7rem 1.6rem;
+	font-family: var(--font-display);
+	font-weight: 700;
+	font-style: italic;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #fff;
+	background-color: var(--btn);
+	border: none;
+	cursor: pointer;
+	clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+	transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+.btn-pd::after {
+	content: '';
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 7px;
+	height: 7px;
+	background-color: rgba(255, 255, 255, 0.85);
+}
+.btn-pd:hover {
+	background-color: var(--btn-bright);
+	box-shadow: 0 0 16px -2px var(--btn);
+}
+.btn-pd:active {
+	transform: translateY(1px);
+}
+.btn-pd:disabled {
+	color: var(--color-muted);
+	background-color: var(--color-surface-2);
+	cursor: not-allowed;
+	box-shadow: none;
+}
+.btn-pd:disabled::after {
+	background-color: var(--color-muted);
+}
+
+.btn-pd.violet {
+	--btn: var(--color-brand);
+	--btn-bright: var(--color-brand-bright);
+}
+.btn-pd.magenta {
+	--btn: var(--color-magenta);
+	--btn-bright: #ff3d80;
+}
+.btn-pd.blue {
+	--btn: var(--color-blue);
+	--btn-bright: #4bb0ff;
+}
+.btn-pd.cyan {
+	--btn: var(--color-cyan);
+	--btn-bright: #4cf0e2;
+	color: #06231f;
+}
+
+/* Ghost button: outlined, fills on hover. */
+.btn-pd-ghost {
+	background-color: transparent;
+	border: 1px solid var(--color-border);
+	color: var(--color-text);
+}
+.btn-pd-ghost::after {
+	display: none;
+}
+.btn-pd-ghost:hover {
+	border-color: var(--color-brand);
+	color: #fff;
+	background-color: transparent;
+	box-shadow: 0 0 14px -4px var(--color-brand);
 }
