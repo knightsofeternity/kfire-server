@@ -233,6 +233,18 @@
 			{/if}
 		</div>
 
+		<!-- How to make a Steam profile importable (shown before and after linking). -->
+		<p class="mt-2 text-xs text-[var(--color-muted)]">
+			Steam only shares your games and achievements when your profile is public. In
+			<a
+				href="https://steamcommunity.com/my/edit/settings"
+				target="_blank"
+				rel="noreferrer"
+				class="text-[var(--color-brand)] hover:underline">Steam, Edit Profile, Privacy Settings</a
+			>, set <span class="text-[var(--color-text)]">My profile</span> and
+			<span class="text-[var(--color-text)]">Game details</span> to Public.
+		</p>
+
 		{#if syncMessage}
 			<p class="mt-2 text-sm text-[var(--color-muted)]">{syncMessage}</p>
 		{/if}
