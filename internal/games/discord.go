@@ -70,9 +70,62 @@ func FetchSeed(ctx context.Context) ([]store.GameSeed, error) {
 	return normalize(apps), nil
 }
 
-// normalize keeps games with at least one non-launcher executable and cleans
-// up executable names for process matching.
+// genericExecutables are helper/shared binaries that ship with many unrelated
+// games — engine crash handlers, redistributables, runtimes, VPN/driver helpers.
+// Matching presence on them produces false positives: a Unity crash handler or a
+// VPN TAP adapter idling in the background would make a player look "in game".
+var genericExecutables = map[string]struct{}{
+	"unitycrashhandler64.exe": {}, "unitycrashhandler32.exe": {}, "unitycrashhandler.exe": {},
+	"crashhandler.exe": {}, "crashreporter.exe": {}, "crashpad_handler.exe": {},
+	"ueprereqsetup_x64.exe": {}, "ue4prereqsetup_x64.exe": {},
+	"tap.exe":     {},
+	"game.exe":    {}, "launcher.exe": {}, "start.exe": {}, "play.exe": {}, "autorun.exe": {},
+	"vc_redist.x64.exe": {}, "vc_redist.x86.exe": {}, "dxsetup.exe": {}, "dotnet.exe": {},
+	"python.exe": {}, "pythonw.exe": {}, "java.exe": {}, "javaw.exe": {}, "mono.exe": {},
+	"node.exe": {}, "nw.exe": {}, "cmd.exe": {},
+}
+
+// maxGamesPerExecutable bounds how many distinct games may share an executable
+// basename before it's considered non-discriminating and dropped from matching.
+// e.g. "hl2.exe" ships with ~34 Source games — it can't identify any one of them.
+const maxGamesPerExecutable = 3
+
+// basename lowercases an executable path and keeps only its file name. Discord
+// ships paths like "_retail_/wow.exe"; the client matches the process basename.
+func basename(raw string) string {
+	name := strings.ToLower(path.Base(strings.ReplaceAll(raw, `\`, `/`)))
+	if name == "." {
+		return ""
+	}
+	return name
+}
+
+// normalize keeps games with at least one specific, non-launcher executable and
+// cleans up executable names for process matching. It drops generic helper
+// binaries and any name shared by too many games, so the client never reports a
+// player as in a game they aren't running.
 func normalize(apps []detectableApp) []store.GameSeed {
+	// First pass: count how many distinct apps each executable basename appears
+	// in, so we can drop non-discriminating names ("game.exe" ships with ~190).
+	freq := map[string]int{}
+	for _, app := range apps {
+		seen := map[string]struct{}{}
+		for _, exe := range app.Executables {
+			if exe.IsLauncher {
+				continue
+			}
+			name := basename(exe.Name)
+			if name == "" {
+				continue
+			}
+			if _, dup := seen[name]; dup {
+				continue
+			}
+			seen[name] = struct{}{}
+			freq[name]++
+		}
+	}
+
 	seeds := make([]store.GameSeed, 0, len(apps))
 	for _, app := range apps {
 		exes := make([]string, 0, len(app.Executables))
@@ -82,16 +135,20 @@ func normalize(apps []detectableApp) []store.GameSeed {
 				// "Playing Battle.net" is noise, not presence.
 				continue
 			}
-			// Discord ships paths like "_retail_/wow.exe"; the client matches
-			// on the process basename, lowercased.
-			name := strings.ToLower(path.Base(strings.ReplaceAll(exe.Name, `\`, `/`)))
-			if name == "" || name == "." {
+			name := basename(exe.Name)
+			if name == "" {
 				continue
 			}
 			if _, dup := seen[name]; dup {
 				continue
 			}
 			seen[name] = struct{}{}
+			if _, generic := genericExecutables[name]; generic {
+				continue
+			}
+			if freq[name] > maxGamesPerExecutable {
+				continue // shared by too many games to identify this one
+			}
 			exes = append(exes, name)
 		}
 		if len(exes) == 0 {
