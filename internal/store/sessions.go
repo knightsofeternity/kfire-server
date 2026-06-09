@@ -150,9 +150,11 @@ type GameStat struct {
 	LastPlayedAt time.Time
 }
 
-// UserGameStats returns a user's playtime per game, most played first. Totals
-// merge closed local sessions with imported platform playtime (Steam), so a
-// game appears even if it was only ever played outside the desktop client.
+// UserGameStats returns a user's playtime per game, most played first. Per game
+// the total is the GREATER of local sessions and imported platform playtime
+// (Steam) — never their sum, to avoid double-counting Steam time also observed
+// by the client. A game still appears if it was only ever played outside the
+// desktop client (Steam-only) or only seen locally (non-Steam).
 func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH sess AS (
@@ -163,11 +165,11 @@ func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, e
 			FROM game_sessions WHERE user_id = $1 GROUP BY game_id
 		),
 		ext AS (
-			SELECT game_id, total_seconds AS secs, last_synced_at
-			FROM external_playtime WHERE user_id = $1
+			SELECT game_id, sum(total_seconds)::bigint AS secs, max(last_synced_at) AS last_synced_at
+			FROM external_playtime WHERE user_id = $1 GROUP BY game_id
 		)
 		SELECT g.id, g.name, g.slug, g.icon_url,
-		       (COALESCE(sess.secs, 0) + COALESCE(ext.secs, 0))::bigint AS total,
+		       GREATEST(COALESCE(sess.secs, 0), COALESCE(ext.secs, 0))::bigint AS total,
 		       COALESCE(sess.cnt, 0) AS cnt,
 		       COALESCE(sess.last_played, ext.last_synced_at) AS last_at
 		FROM games g

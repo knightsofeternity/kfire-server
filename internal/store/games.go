@@ -39,9 +39,14 @@ type LeaderboardEntry struct {
 	SessionCount int
 }
 
-// GameLeaderboard returns the top players by playtime for a game (merging
-// local sessions and imported platform playtime), plus the org-wide total
-// seconds and the number of distinct players.
+// GameLeaderboard returns the top players by playtime for a game, plus the
+// org-wide total seconds and the number of distinct players.
+//
+// Per player, the total is the GREATER of our locally observed sessions and the
+// imported platform playtime (Steam playtime_forever) — never their sum, since
+// time played through Steam while the KFIRE client is running is counted by
+// both. Steam wins for games played through it; our sessions cover games played
+// outside any linked platform.
 func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) ([]LeaderboardEntry, int64, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 25
@@ -52,11 +57,12 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
 		),
 		ext AS (
-			SELECT user_id, total_seconds AS secs FROM external_playtime WHERE game_id = $1
+			SELECT user_id, sum(total_seconds)::bigint AS secs
+			FROM external_playtime WHERE game_id = $1 GROUP BY user_id
 		),
 		players AS (SELECT user_id FROM sess UNION SELECT user_id FROM ext)
 		SELECT u.id, u.username, u.avatar_url,
-		       (COALESCE(sess.secs,0) + COALESCE(ext.secs,0))::bigint AS total,
+		       GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0))::bigint AS total,
 		       COALESCE(sess.cnt,0) AS cnt
 		FROM players p
 		JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
@@ -84,13 +90,21 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 	var totalSeconds int64
 	var players int
 	err = s.pool.QueryRow(ctx, `
-		WITH p AS (
+		WITH sess AS (
 			SELECT user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
-			UNION ALL
-			SELECT user_id, total_seconds FROM external_playtime WHERE game_id = $1
+		),
+		ext AS (
+			SELECT user_id, sum(total_seconds)::bigint AS secs
+			FROM external_playtime WHERE game_id = $1 GROUP BY user_id
+		),
+		p AS (
+			SELECT GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0)) AS secs
+			FROM (SELECT user_id FROM sess UNION SELECT user_id FROM ext) u
+			LEFT JOIN sess USING (user_id)
+			LEFT JOIN ext  USING (user_id)
 		)
-		SELECT COALESCE(sum(secs),0)::bigint, count(DISTINCT user_id) FROM p`,
+		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p`,
 		gameID).Scan(&totalSeconds, &players)
 	return out, totalSeconds, players, err
 }
