@@ -121,4 +121,24 @@
 			<li>You're connected. The app lives in your tray.</li>
 		</ol>
 	</div>
+
+	<!-- Security warning note -->
+	<div class="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-5">
+		<h2 class="mb-2 text-sm font-semibold text-yellow-500">⚠️ A security warning on first run? It's expected.</h2>
+		<p class="mb-2 text-sm text-[var(--color-muted)]">
+			KFIRE is open-source and the installers aren't code-signed yet, so your OS may
+			warn that the publisher is "unknown". The app is safe — here's how to proceed:
+		</p>
+		<ul class="ml-4 list-disc space-y-1 text-sm text-[var(--color-muted)]">
+			<li>
+				<span class="text-[var(--color-text)]">Windows</span> (SmartScreen): click
+				<em>More info</em> → <em>Run anyway</em>.
+			</li>
+			<li>
+				<span class="text-[var(--color-text)]">macOS</span> (Gatekeeper): right-click the
+				app → <em>Open</em> → <em>Open</em>.
+			</li>
+			<li><span class="text-[var(--color-text)]">Linux</span>: no warning — just run it.</li>
+		</ul>
+	</div>
 </div>
