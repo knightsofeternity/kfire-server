@@ -1,4 +1,7 @@
 <script lang="ts">
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import LanguageToggle from '$lib/components/LanguageToggle.svelte';
+
 	const year = new Date().getFullYear();
 </script>
 
@@ -20,16 +23,20 @@
 			Knights of Eternity
 		</a>
 
-		<p>
-			&copy; {year}
-			<a
-				href="https://www.guilde-ke.fr"
-				target="_blank"
-				rel="noreferrer"
-				class="text-[var(--color-text)] transition-colors hover:text-[var(--color-brand)]"
-			>
-				Knights of Eternity
-			</a>
-		</p>
+		<div class="flex items-center gap-3">
+			<LanguageToggle />
+			<ThemeToggle />
+			<p>
+				&copy; {year}
+				<a
+					href="https://www.guilde-ke.fr"
+					target="_blank"
+					rel="noreferrer"
+					class="text-[var(--color-text)] transition-colors hover:text-[var(--color-brand)]"
+				>
+					Knights of Eternity
+				</a>
+			</p>
+		</div>
 	</div>
 </footer>

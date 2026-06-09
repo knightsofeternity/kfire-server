@@ -4,6 +4,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { getConfig } from '$lib/api';
 	import { passwordStrength } from '$lib/password';
+	import { t } from '$lib/i18n';
 
 	let mode = $state<'login' | 'register'>('login');
 	let displayName = $state('');
@@ -51,7 +52,7 @@
 				await auth.login(email, password);
 			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'something went wrong';
+			error = err instanceof Error ? err.message : t('login.genericError');
 		} finally {
 			busy = false;
 		}
@@ -69,24 +70,24 @@
 		{/if}
 		<p class="mt-1 mb-6 text-center text-sm text-[var(--color-muted)]">
 			{#if needsSetup}
-				Welcome. Create the first account; it becomes the admin.
+				{t('login.setupSubtitle')}
 			{:else if mode === 'login'}
-				Sign in to your organization
+				{t('login.signinSubtitle')}
 			{:else}
-				Create your account
+				{t('login.createSubtitle')}
 			{/if}
 		</p>
 
 		<form onsubmit={submit} class="pd-card flex flex-col gap-4 p-6">
 			{#if mode === 'register' && inviteCode}
 				<p class="rounded-lg bg-[var(--color-brand)]/10 px-3 py-2 text-xs text-[var(--color-brand)]">
-					You were invited to join. Set your details below.
+					{t('login.invited')}
 				</p>
 			{/if}
 
 			{#if mode === 'register'}
 				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-					Display name
+					{t('login.displayName')}
 					<input
 						type="text"
 						bind:value={displayName}
@@ -100,7 +101,7 @@
 			{/if}
 
 			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Email
+				{t('login.email')}
 				<input
 					type="email"
 					bind:value={email}
@@ -111,7 +112,7 @@
 			</label>
 
 			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-				Password
+				{t('login.password')}
 				<input
 					type="password"
 					bind:value={password}
@@ -134,7 +135,7 @@
 						{/each}
 					</div>
 					<span class="text-xs text-[var(--color-muted)]">
-						{strength.label} · at least 12 characters; a passphrase works great
+						{strength.key ? t('login.strength.' + strength.key) : ''} · {t('login.passwordHint')}
 					</span>
 				</div>
 			{/if}
@@ -142,20 +143,20 @@
 			{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
 			<button type="submit" disabled={busy} class="btn-pd violet mt-1 w-full">
-				{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+				{busy ? t('login.pleaseWait') : mode === 'login' ? t('login.signin') : t('login.create')}
 			</button>
 		</form>
 
 		{#if canRegister}
 			<p class="mt-4 text-center text-sm text-[var(--color-muted)]">
-				{mode === 'login' ? 'No account yet?' : 'Already have an account?'}
+				{mode === 'login' ? t('login.noAccount') : t('login.haveAccount')}
 				<button type="button" onclick={toggle} class="text-[var(--color-brand)] hover:underline">
-					{mode === 'login' ? 'Create one' : 'Sign in'}
+					{mode === 'login' ? t('login.createOne') : t('login.signinLink')}
 				</button>
 			</p>
 		{:else if mode === 'login'}
 			<p class="mt-4 text-center text-xs text-[var(--color-muted)]">
-				Registration is invite-only. Ask an admin for an invite link.
+				{t('login.inviteOnly')}
 			</p>
 		{/if}
 	</div>

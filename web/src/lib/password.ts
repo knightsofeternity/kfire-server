@@ -4,17 +4,19 @@
 
 export type Strength = {
 	score: 0 | 1 | 2 | 3 | 4;
-	label: string;
+	// Translation key under login.strength.*, or '' when empty. The component
+	// localizes it so this module stays language-agnostic.
+	key: string;
 };
 
 const COMMON = ['password', 'azerty', 'qwerty', 'motdepasse', 'welcome', 'iloveyou', 'letmein'];
 
 export function passwordStrength(pw: string): Strength {
-	if (!pw) return { score: 0, label: '' };
+	if (!pw) return { score: 0, key: '' };
 
 	const base = pw.toLowerCase().replace(/[0-9!@#$%^&*._-]+$/, '');
-	if (COMMON.includes(base)) return { score: 0, label: 'Too common' };
-	if (pw.length < 12) return { score: 1, label: 'Too short' };
+	if (COMMON.includes(base)) return { score: 0, key: 'tooCommon' };
+	if (pw.length < 12) return { score: 1, key: 'tooShort' };
 
 	let variety = 0;
 	if (/[a-z]/.test(pw)) variety++;
@@ -27,6 +29,6 @@ export function passwordStrength(pw: string): Strength {
 	if (pw.length >= 16 || variety >= 3) score = 3;
 	if (pw.length >= 20 || (pw.length >= 16 && variety >= 3)) score = 4;
 
-	const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-	return { score: score as Strength['score'], label: labels[score] };
+	const keys = ['veryWeak', 'weak', 'fair', 'good', 'strong'];
+	return { score: score as Strength['score'], key: keys[score] };
 }

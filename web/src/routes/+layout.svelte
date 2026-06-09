@@ -7,7 +7,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import Login from '$lib/components/Login.svelte';
 	import Footer from '$lib/components/Footer.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { initLocale, t } from '$lib/i18n';
 
 	let { children } = $props();
 
@@ -15,6 +15,7 @@
 	let orgName = $state('KFIRE');
 
 	onMount(async () => {
+		initLocale();
 		auth.init();
 		try {
 			const cfg = await getConfig();
@@ -32,11 +33,11 @@
 	});
 
 	let navItems = $derived([
-		{ href: '/', label: 'Dashboard' },
-		{ href: '/players', label: 'Players' },
-		{ href: '/download', label: 'Get the app' },
-		...($auth.user?.role === 'admin' ? [{ href: '/admin', label: 'Admin' }] : []),
-		{ href: '/account', label: 'Account' }
+		{ href: '/', label: t('nav.dashboard') },
+		{ href: '/players', label: t('nav.players') },
+		{ href: '/download', label: t('nav.download') },
+		...($auth.user?.role === 'admin' ? [{ href: '/admin', label: t('nav.admin') }] : []),
+		{ href: '/account', label: t('nav.account') }
 	]);
 
 	function isActive(href: string): boolean {
@@ -50,7 +51,7 @@
 
 <div class="flex min-h-screen flex-col">
 	{#if !$auth.ready}
-		<div class="grid flex-1 place-items-center text-[var(--color-muted)]">Loading...</div>
+		<div class="grid flex-1 place-items-center text-[var(--color-muted)]">{t('common.loading')}</div>
 	{:else if !$auth.user}
 		<Login />
 	{:else}
@@ -90,7 +91,6 @@
 					</nav>
 				</div>
 				<div class="flex items-center gap-3">
-					<ThemeToggle />
 					<a href="/account" class="flex items-center gap-2">
 						<span class="text-sm text-[var(--color-muted)]">{$auth.user.username}</span>
 						<Avatar username={$auth.user.username} url={$auth.user.avatar_url} size={32} />
