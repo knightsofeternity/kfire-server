@@ -112,6 +112,16 @@ func (h *handlers) sessions(c *fiber.Ctx) error {
 		Limit:  c.QueryInt("limit", 25),
 		Cursor: c.Query("cursor"),
 	}
+
+	// Another member who hid their activity must not leak their current game:
+	// drop in-progress sessions unless the viewer is the member or an admin.
+	claims := mustClaims(c)
+	if filter.UserID != "" && filter.UserID != claims.UserID && claims.Role != "admin" {
+		if target, err := h.store.GetUserByID(c.Context(), filter.UserID); err == nil &&
+			!target.ActivityVisible {
+			filter.HideOpen = true
+		}
+	}
 	if v := c.Query("from"); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {

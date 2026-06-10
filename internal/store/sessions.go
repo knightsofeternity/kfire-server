@@ -207,6 +207,9 @@ type SessionFilter struct {
 	To     time.Time
 	Limit  int
 	Cursor string
+	// HideOpen excludes in-progress (live) sessions, used to keep a member's
+	// current game private from other viewers.
+	HideOpen bool
 }
 
 type sessionCursor struct {
@@ -247,6 +250,9 @@ func (s *Store) ListSessions(ctx context.Context, f SessionFilter) ([]Session, s
 	}
 	if f.GameID != "" {
 		where = append(where, "s.game_id = "+arg(f.GameID))
+	}
+	if f.HideOpen {
+		where = append(where, "s.ended_at IS NOT NULL")
 	}
 	if !f.From.IsZero() {
 		where = append(where, "s.started_at >= "+arg(f.From))
