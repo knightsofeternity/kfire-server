@@ -90,7 +90,22 @@ var genericExecutables = map[string]struct{}{
 	"install.exe": {}, "installer.exe": {}, "uninstall.exe": {}, "unins000.exe": {},
 	"update.exe": {}, "updater.exe": {}, "launcher_updater.exe": {}, "patcher.exe": {},
 	"config.exe": {}, "settings.exe": {}, "run.exe": {},
+	// Windows system binaries: a catalog exe colliding with one of these matches
+	// routine OS activity (e.g. "Steel Circus" was detected via sc.exe, the
+	// Service Control tool). Short names are handled by the length guard below.
+	"sc.exe": {}, "net.exe": {}, "net1.exe": {}, "reg.exe": {}, "ping.exe": {},
+	"ftp.exe": {}, "find.exe": {}, "findstr.exe": {}, "sort.exe": {}, "more.exe": {},
+	"tree.exe": {}, "mode.exe": {}, "where.exe": {}, "whoami.exe": {},
+	"tasklist.exe": {}, "taskkill.exe": {}, "control.exe": {}, "regedit.exe": {},
+	"rundll32.exe": {}, "svchost.exe": {}, "conhost.exe": {}, "dllhost.exe": {},
+	"werfault.exe": {}, "explorer.exe": {}, "notepad.exe": {}, "mmc.exe": {},
+	"powershell.exe": {}, "pwsh.exe": {}, "wscript.exe": {}, "cscript.exe": {}, "mshta.exe": {},
 }
+
+// minExeStem is the shortest executable stem (the name without its extension) we
+// trust for matching. Stems of 1-2 characters (e.g. "sc.exe") collide with
+// system tools and produce false positives.
+const minExeStem = 3
 
 // testVariant matches catalog names for non-retail editions (test servers, PTR,
 // betas, playtests). Their executables overlap the main game and steal its
@@ -112,6 +127,16 @@ func basename(raw string) string {
 		return ""
 	}
 	return name
+}
+
+// tooShort reports whether an executable's stem (name without its extension) is
+// short enough to collide with system tools (e.g. "sc.exe" -> "sc").
+func tooShort(name string) bool {
+	stem := name
+	if i := strings.LastIndex(name, "."); i > 0 {
+		stem = name[:i]
+	}
+	return len(stem) < minExeStem
 }
 
 // normalize keeps games with at least one specific, non-launcher executable and
@@ -162,6 +187,9 @@ func normalize(apps []detectableApp) []store.GameSeed {
 			seen[name] = struct{}{}
 			if _, generic := genericExecutables[name]; generic {
 				continue
+			}
+			if tooShort(name) {
+				continue // 1-2 char stems collide with system tools
 			}
 			if freq[name] > maxGamesPerExecutable {
 				continue // shared by too many games to identify this one

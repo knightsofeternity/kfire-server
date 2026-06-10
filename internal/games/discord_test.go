@@ -114,6 +114,7 @@ func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 		{ID: "pubg", Name: "PUBG: BATTLEGROUNDS", Executables: exeList("TslGame.exe")},
 		{ID: "pubgtest", Name: "PUBG: Test Server", Executables: exeList("execpubg.exe")},
 		{ID: "hd2", Name: "Hidden & Dangerous 2: Courage Under Fire", Executables: exeList("setup.exe")},
+		{ID: "steel", Name: "Steel Circus", Executables: exeList("sc.exe")},
 	}
 
 	byID := map[string][]string{}
@@ -129,5 +130,8 @@ func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 	}
 	if _, ok := byID["hd2"]; ok {
 		t.Error("Hidden & Dangerous 2 should be excluded: only generic setup.exe")
+	}
+	if _, ok := byID["steel"]; ok {
+		t.Error("Steel Circus should be excluded: sc.exe is a system tool / too short")
 	}
 }
