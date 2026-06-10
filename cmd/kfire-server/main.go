@@ -72,6 +72,16 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 
+	// Baseline security headers on every response (defense in depth).
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()")
+		return c.Next()
+	})
+
 	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL)
 
 	// Steam connector + background library/achievement poller.
