@@ -83,6 +83,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/games/:slug", h.requireAuth, h.gameDetail)
 	v1.Get("/presence", h.requireAuth, h.presence)
 	v1.Get("/sessions", h.requireAuth, h.sessions)
+	v1.Get("/achievements", h.requireAuth, h.userAchievements)
 
 	// External account connectors. The OpenID callback is a public browser
 	// redirect; it recovers the user from a signed state instead of a token.

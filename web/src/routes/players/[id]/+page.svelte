@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { api, type Profile, type Session } from '$lib/api';
+	import { api, type Profile, type Session, type Achievement, type Game } from '$lib/api';
 	import { formatDuration, timeAgo, formatDate } from '$lib/format';
 	import { t } from '$lib/i18n';
 	import Avatar from '$lib/components/Avatar.svelte';
@@ -13,6 +13,14 @@
 	let loading = $state(true);
 	let error = $state('');
 	let loadingMore = $state(false);
+
+	let achievements = $state<Achievement[]>([]);
+	let achGames = $state<{ game: Game; count: number }[]>([]);
+	let achGameFilter = $state('');
+	let achOffset = $state(0);
+	let achHasMore = $state(false);
+	let achLoading = $state(false);
+	const ACH_LIMIT = 24;
 
 	const id = $derived(page.params.id ?? '');
 	let topSeconds = $derived(Math.max(1, ...(profile?.game_stats ?? []).map((g) => g.total_seconds)));
@@ -27,10 +35,25 @@
 			const res = await api.getSessions(id);
 			sessions = res.sessions;
 			nextCursor = res.next_cursor;
+			await loadAchievements(true);
 		} catch (e) {
 			error = e instanceof Error ? e.message : t('profile.loadError');
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadAchievements(reset: boolean) {
+		achLoading = true;
+		try {
+			const off = reset ? 0 : achOffset;
+			const r = await api.getUserAchievements(id, { gameId: achGameFilter || undefined, offset: off, limit: ACH_LIMIT });
+			achievements = reset ? r.achievements : [...achievements, ...r.achievements];
+			achGames = r.games;
+			achHasMore = r.has_more;
+			achOffset = off + r.achievements.length;
+		} finally {
+			achLoading = false;
 		}
 	}
 
@@ -141,20 +164,34 @@
 		{/if}
 	</section>
 
-	<!-- Recent achievements -->
-	{#if profile.recent_achievements.length > 0}
-		<section class="mb-6">
-			<h2 class="pd-heading mb-4 text-sm text-[var(--color-gold)]">{t('profile.recentAchievements')}</h2>
+	<!-- Achievements -->
+	<section class="mb-6">
+		<div class="mb-4 flex items-center gap-3">
+			<h2 class="pd-heading text-sm text-[var(--color-gold)]">{t('profile.achievementsTitle')}</h2>
+			<select
+				bind:value={achGameFilter}
+				onchange={() => loadAchievements(true)}
+				class="pd-cut-sm ml-auto border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs text-[var(--color-text)]"
+			>
+				<option value="">{t('profile.allGames')}</option>
+				{#each achGames as g (g.game.id)}
+					<option value={g.game.id}>{g.game.name} ({g.count})</option>
+				{/each}
+			</select>
+		</div>
+		{#if achievements.length === 0 && !achLoading}
+			<p class="text-sm text-[var(--color-muted)]">{t('profile.noAchievements')}</p>
+		{:else}
 			<div class="pd-card grid gap-3 p-4 sm:grid-cols-2">
-				{#each profile.recent_achievements as a (a.game.id + a.api_name)}
+				{#each achievements as a (a.game.id + a.api_name)}
 					<div class="flex items-center gap-3 rounded bg-[var(--color-surface-2)] px-3 py-2">
 						{#if a.icon_url}
-							<img src={a.icon_url} alt="" class="h-8 w-8 shrink-0 rounded" />
+							<img src={a.icon_url} alt="" class="h-9 w-9 shrink-0 pd-cut-sm object-cover" />
 						{:else}
-							<span class="grid h-8 w-8 shrink-0 place-items-center bg-[var(--color-bg)] font-display text-base text-[var(--color-gold)]">★</span>
+							<span class="grid h-9 w-9 shrink-0 pd-cut-sm place-items-center bg-[var(--color-bg)] font-display text-base text-[var(--color-gold)]">🏆</span>
 						{/if}
 						<div class="min-w-0">
-							<p class="truncate text-sm font-semibold">{a.display_name ?? a.api_name}</p>
+							<p class="truncate text-sm font-display font-semibold">{a.display_name ?? a.api_name}</p>
 							<p class="truncate text-xs text-[var(--color-muted)]">
 								{a.game.name} - {timeAgo(a.unlocked_at)}
 							</p>
@@ -162,8 +199,17 @@
 					</div>
 				{/each}
 			</div>
-		</section>
-	{/if}
+		{/if}
+		{#if achHasMore}
+			<button
+				onclick={() => loadAchievements(false)}
+				disabled={achLoading}
+				class="btn-pd btn-pd-ghost mt-3 w-full py-2 text-sm disabled:opacity-60"
+			>
+				{achLoading ? t('profile.loadingMore') : t('profile.loadMore')}
+			</button>
+		{/if}
+	</section>
 
 	<!-- Recent sessions -->
 	<section>

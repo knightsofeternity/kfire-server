@@ -93,6 +93,9 @@ export const en = {
 		hoursPerGame: 'Hours per game',
 		noSessionsYet: 'No sessions recorded yet.',
 		recentAchievements: 'Recent achievements',
+		achievementsTitle: 'Achievements',
+		allGames: 'All games',
+		noAchievements: 'No achievements yet.',
 		recentSessions: 'Recent sessions',
 		noSessions: 'No sessions yet.',
 		loadMore: 'Load more',
@@ -104,7 +107,10 @@ export const en = {
 		totalPlayed: 'Total played in org',
 		players: 'Players',
 		leaderboard: 'Leaderboard',
-		noPlayers: 'Nobody has played this yet.'
+		noPlayers: 'Nobody has played this yet.',
+		achievements: 'Achievements',
+		noAchievements: 'No achievements unlocked yet.',
+		unlockedBy: '{count} members'
 	},
 	gamesList: {
 		title: 'Games',

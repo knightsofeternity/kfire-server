@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -206,4 +207,117 @@ func (s *Store) AchievementCount(ctx context.Context, userID string) (int, error
 	err := s.pool.QueryRow(ctx,
 		`SELECT count(*) FROM achievements WHERE user_id = $1`, userID).Scan(&n)
 	return n, err
+}
+
+// ListUserAchievements returns a user's unlocked achievements, most recent
+// first, optionally filtered to one game, paginated by limit/offset.
+func (s *Store) ListUserAchievements(ctx context.Context, userID, gameID string, limit, offset int) ([]Achievement, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 24
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	args := []any{userID}
+	where := "a.user_id = $1"
+	if gameID != "" {
+		args = append(args, gameID)
+		where += fmt.Sprintf(" AND a.game_id = $%d", len(args))
+	}
+	args = append(args, limit, offset)
+	query := fmt.Sprintf(`
+		SELECT a.api_name, a.display_name, a.icon_url, a.unlocked_at,
+		       g.id, g.name, g.slug, g.icon_url
+		FROM achievements a
+		JOIN games g ON g.id = a.game_id
+		WHERE %s
+		ORDER BY a.unlocked_at DESC
+		LIMIT $%d OFFSET $%d`, where, len(args)-1, len(args))
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Achievement
+	for rows.Next() {
+		var a Achievement
+		if err := rows.Scan(&a.APIName, &a.DisplayName, &a.IconURL, &a.UnlockedAt,
+			&a.Game.ID, &a.Game.Name, &a.Game.Slug, &a.Game.IconURL); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// AchievementGameCount is a game and how many achievements a user unlocked in it.
+type AchievementGameCount struct {
+	Game  Game
+	Count int
+}
+
+// UserAchievementGames lists the games a user has achievements in (for a filter),
+// alphabetical, with the per-game count.
+func (s *Store) UserAchievementGames(ctx context.Context, userID string) ([]AchievementGameCount, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT g.id, g.name, g.slug, g.icon_url, count(*)
+		FROM achievements a
+		JOIN games g ON g.id = a.game_id
+		WHERE a.user_id = $1
+		GROUP BY g.id, g.name, g.slug, g.icon_url
+		ORDER BY g.name ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []AchievementGameCount
+	for rows.Next() {
+		var ag AchievementGameCount
+		if err := rows.Scan(&ag.Game.ID, &ag.Game.Name, &ag.Game.Slug, &ag.Game.IconURL, &ag.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, ag)
+	}
+	return out, rows.Err()
+}
+
+// GameAchievement is one achievement of a game and how many members unlocked it.
+type GameAchievement struct {
+	APIName     string
+	DisplayName *string
+	IconURL     *string
+	Unlocks     int
+}
+
+// GameAchievements lists the achievements org members unlocked in a game, most
+// unlocked first.
+func (s *Store) GameAchievements(ctx context.Context, gameID string, limit int) ([]GameAchievement, error) {
+	if limit <= 0 || limit > 300 {
+		limit = 60
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.api_name, max(a.display_name), max(a.icon_url), count(DISTINCT a.user_id)
+		FROM achievements a
+		JOIN users u ON u.id = a.user_id AND u.banned_at IS NULL
+		WHERE a.game_id = $1
+		GROUP BY a.api_name
+		ORDER BY count(DISTINCT a.user_id) DESC, a.api_name
+		LIMIT $2`, gameID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []GameAchievement
+	for rows.Next() {
+		var ga GameAchievement
+		if err := rows.Scan(&ga.APIName, &ga.DisplayName, &ga.IconURL, &ga.Unlocks); err != nil {
+			return nil, err
+		}
+		out = append(out, ga)
+	}
+	return out, rows.Err()
 }

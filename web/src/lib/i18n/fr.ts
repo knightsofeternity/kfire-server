@@ -94,6 +94,9 @@ export const fr: Catalog = {
 		hoursPerGame: 'Heures par jeu',
 		noSessionsYet: "Aucune session enregistrée pour l'instant.",
 		recentAchievements: 'Succès récents',
+		achievementsTitle: 'Succès',
+		allGames: 'Tous les jeux',
+		noAchievements: "Aucun succès pour l'instant.",
 		recentSessions: 'Sessions récentes',
 		noSessions: "Aucune session pour l'instant.",
 		loadMore: 'Charger plus',
@@ -105,7 +108,10 @@ export const fr: Catalog = {
 		totalPlayed: "Total joué dans l'org",
 		players: 'Joueurs',
 		leaderboard: 'Classement',
-		noPlayers: "Personne n'a encore joué à ce jeu."
+		noPlayers: "Personne n'a encore joué à ce jeu.",
+		achievements: 'Succès',
+		noAchievements: "Aucun succès débloqué pour l'instant.",
+		unlockedBy: '{count} membres'
 	},
 	gamesList: {
 		title: 'Jeux',

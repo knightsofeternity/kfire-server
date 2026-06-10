@@ -82,11 +82,76 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		board[i] = m
 	}
 
+	achievements, err := h.store.GameAchievements(c.Context(), g.ID, 60)
+	if err != nil {
+		return err
+	}
+	achs := make([]fiber.Map, len(achievements))
+	for i, a := range achievements {
+		m := fiber.Map{"api_name": a.APIName, "unlocks": a.Unlocks}
+		if a.DisplayName != nil {
+			m["display_name"] = *a.DisplayName
+		}
+		if a.IconURL != nil {
+			m["icon_url"] = *a.IconURL
+		}
+		achs[i] = m
+	}
+
 	return c.JSON(fiber.Map{
 		"game":          h.gameJSON(g),
 		"total_seconds": totalSeconds,
 		"player_count":  players,
 		"leaderboard":   board,
+		"achievements":  achs,
+	})
+}
+
+// GET /api/v1/achievements?user_id=&game_id=&limit=&offset=  (authenticated)
+//
+// A member's unlocked achievements, most recent first, optionally filtered by
+// game and paginated, plus the per-game breakdown for the filter UI.
+func (h *handlers) userAchievements(c *fiber.Ctx) error {
+	userID := c.Query("user_id")
+	if userID == "" {
+		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "user_id is required")
+	}
+	limit := c.QueryInt("limit", 24)
+	offset := c.QueryInt("offset", 0)
+
+	list, err := h.store.ListUserAchievements(c.Context(), userID, c.Query("game_id"), limit, offset)
+	if err != nil {
+		return err
+	}
+	achs := make([]fiber.Map, len(list))
+	for i, a := range list {
+		m := fiber.Map{
+			"game":        h.gameJSON(a.Game),
+			"api_name":    a.APIName,
+			"unlocked_at": a.UnlockedAt.UTC(),
+		}
+		if a.DisplayName != nil {
+			m["display_name"] = *a.DisplayName
+		}
+		if a.IconURL != nil {
+			m["icon_url"] = *a.IconURL
+		}
+		achs[i] = m
+	}
+
+	games, err := h.store.UserAchievementGames(c.Context(), userID)
+	if err != nil {
+		return err
+	}
+	gameOpts := make([]fiber.Map, len(games))
+	for i, ag := range games {
+		gameOpts[i] = fiber.Map{"game": h.gameJSON(ag.Game), "count": ag.Count}
+	}
+
+	return c.JSON(fiber.Map{
+		"achievements": achs,
+		"games":        gameOpts,
+		"has_more":     len(list) == limit,
 	})
 }
 

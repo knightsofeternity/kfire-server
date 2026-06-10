@@ -145,4 +145,33 @@
 			{/each}
 		</ul>
 	{/if}
+
+	<!-- Achievements -->
+	<h2 class="pd-heading mt-8 mb-4 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+		<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+		{t('game.achievements')}
+	</h2>
+	{#if !detail.achievements || detail.achievements.length === 0}
+		<p class="text-sm text-[var(--color-muted)]">{t('game.noAchievements')}</p>
+	{:else}
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			{#each detail.achievements as a (a.api_name)}
+				<div class="pd-card flex items-center gap-3 p-3">
+					{#if a.icon_url}
+						<img
+							src={a.icon_url}
+							alt=""
+							class="pd-cut-sm h-10 w-10 shrink-0 object-cover"
+						/>
+					{:else}
+						<span class="pd-cut-sm flex h-10 w-10 shrink-0 items-center justify-center bg-[var(--color-surface)] text-xl" aria-hidden="true">🏆</span>
+					{/if}
+					<div class="min-w-0 flex-1">
+						<p class="font-display truncate font-bold text-[var(--color-text)]">{a.display_name ?? a.api_name}</p>
+						<p class="text-xs text-[var(--color-muted)]">{t('game.unlockedBy', { count: a.unlocks })}</p>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
 {/if}

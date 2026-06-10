@@ -24,11 +24,27 @@ export type LeaderboardEntry = {
 	session_count: number;
 };
 
+export type GameAchievement = {
+	api_name: string;
+	display_name?: string;
+	icon_url?: string;
+	unlocks: number;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
 	player_count: number;
 	leaderboard: LeaderboardEntry[];
+	achievements: GameAchievement[];
+};
+
+export type AchievementGameOption = { game: Game; count: number };
+
+export type UserAchievements = {
+	achievements: Achievement[];
+	games: AchievementGameOption[];
+	has_more: boolean;
 };
 
 export type PlayedGame = {
@@ -175,6 +191,17 @@ export const api = {
 	async getPlayedGames(): Promise<PlayedGame[]> {
 		const data = await json<{ games: PlayedGame[] }>(await authFetch('/api/v1/games/played'));
 		return data.games;
+	},
+
+	async getUserAchievements(
+		userId: string,
+		opts: { gameId?: string; offset?: number; limit?: number } = {}
+	): Promise<UserAchievements> {
+		const p = new URLSearchParams({ user_id: userId });
+		if (opts.gameId) p.set('game_id', opts.gameId);
+		if (opts.offset) p.set('offset', String(opts.offset));
+		if (opts.limit) p.set('limit', String(opts.limit));
+		return json(await authFetch(`/api/v1/achievements?${p.toString()}`));
 	},
 
 	async getPairInfo(code: string): Promise<{ device_name: string; platform: string }> {
