@@ -23,6 +23,15 @@
 			Knights of Eternity
 		</a>
 
+		<a
+			href="https://kfire.io"
+			target="_blank"
+			rel="noreferrer"
+			class="font-display font-bold tracking-wider uppercase transition-colors hover:text-[var(--color-brand)]"
+		>
+			kfire.io
+		</a>
+
 		<div class="flex items-center gap-3">
 			<LanguageToggle />
 			<ThemeToggle />
