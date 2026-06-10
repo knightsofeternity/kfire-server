@@ -105,6 +105,21 @@ func (h *handlers) gameJSON(g store.Game) fiber.Map {
 }
 
 // GET /api/v1/sessions  (authenticated)
+// sessionVisibility decides how much of a target user's sessions a viewer sees.
+type sessionVisibility struct {
+	HideAll  bool // hide the entire recent-sessions list
+	HideOpen bool // hide only in-progress (live) sessions
+}
+
+// sessionVisibilityFor applies a member's privacy toggles for a given viewer.
+// Self and admins always see everything.
+func sessionVisibilityFor(viewerID, viewerRole, targetID string, activityVisible, sessionsVisible bool) sessionVisibility {
+	if targetID == "" || targetID == viewerID || viewerRole == "admin" {
+		return sessionVisibility{}
+	}
+	return sessionVisibility{HideAll: !sessionsVisible, HideOpen: !activityVisible}
+}
+
 func (h *handlers) sessions(c *fiber.Ctx) error {
 	filter := store.SessionFilter{
 		UserID: c.Query("user_id"),
@@ -113,13 +128,18 @@ func (h *handlers) sessions(c *fiber.Ctx) error {
 		Cursor: c.Query("cursor"),
 	}
 
-	// Another member who hid their activity must not leak their current game:
-	// drop in-progress sessions unless the viewer is the member or an admin.
+	// Honor a target member's privacy toggles. Self and admins see everything;
+	// another member who hid their activity has in-progress sessions dropped,
+	// and one who hid their recent sessions gets an empty list.
 	claims := mustClaims(c)
 	if filter.UserID != "" && filter.UserID != claims.UserID && claims.Role != "admin" {
-		if target, err := h.store.GetUserByID(c.Context(), filter.UserID); err == nil &&
-			!target.ActivityVisible {
-			filter.HideOpen = true
+		if target, err := h.store.GetUserByID(c.Context(), filter.UserID); err == nil {
+			vis := sessionVisibilityFor(claims.UserID, claims.Role, filter.UserID,
+				target.ActivityVisible, target.SessionsVisible)
+			if vis.HideAll {
+				return c.JSON(fiber.Map{"sessions": []fiber.Map{}})
+			}
+			filter.HideOpen = vis.HideOpen
 		}
 	}
 	if v := c.Query("from"); v != "" {

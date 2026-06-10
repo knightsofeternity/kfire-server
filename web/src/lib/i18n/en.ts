@@ -134,7 +134,11 @@ export const en = {
 			toggleLabel: 'Show my game activity',
 			toggleHint:
 				"When off, other members see you as online but never see which game you're playing. Your own history is unaffected.",
-			ariaLabel: 'Toggle game activity visibility'
+			ariaLabel: 'Toggle game activity visibility',
+			sessionsToggleLabel: 'Show my recent sessions',
+			sessionsToggleHint:
+				"When off, other members won't see your recent-sessions history on your profile. Your per-game stats and leaderboard ranks are unaffected.",
+			sessionsAriaLabel: 'Toggle recent-sessions visibility'
 		},
 		linkResult: {
 			linked: 'Account linked.',

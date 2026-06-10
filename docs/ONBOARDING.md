@@ -44,3 +44,18 @@ The client lives in the tray, scans running processes every few seconds, and rep
 `game_started` / `game_stopped` over WebSocket. The member appears live on the dashboard, and
 their playtime feeds profiles, per-game leaderboards and stats. Linking Steam (in **Account →
 Connected accounts**) additionally imports library playtime and achievements.
+
+### Privacy controls
+
+Members decide how visible they are:
+
+- **Status** (from the desktop tray or window): **Online** (reported and visible),
+  **Invisible** (still recorded so stats keep accruing, but hidden from others), or **Offline**
+  (nothing reported, without quitting the app). The client can be linked to several guilds at
+  once, with a global status and an optional per-guild override.
+- **Account → Privacy** on the web:
+  - *Show my game activity* - when off, others see you online but never which game you're playing.
+  - *Show my recent sessions* - when off, others don't see your recent-sessions history on your
+    profile (your per-game stats and leaderboard ranks are unaffected).
+
+Self and admins always see the real activity.

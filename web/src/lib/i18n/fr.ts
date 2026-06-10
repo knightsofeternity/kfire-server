@@ -135,7 +135,11 @@ export const fr: Catalog = {
 			toggleLabel: 'Afficher mon activité de jeu',
 			toggleHint:
 				"Désactivé, les autres membres vous voient en ligne mais ne voient jamais à quel jeu vous jouez. Votre historique personnel n'est pas affecté.",
-			ariaLabel: "Basculer la visibilité de l'activité de jeu"
+			ariaLabel: "Basculer la visibilité de l'activité de jeu",
+			sessionsToggleLabel: 'Afficher mes sessions récentes',
+			sessionsToggleHint:
+				"Désactivé, les autres membres ne voient pas l'historique de vos sessions récentes sur votre profil. Vos statistiques par jeu et vos classements ne sont pas affectés.",
+			sessionsAriaLabel: 'Basculer la visibilité des sessions récentes'
 		},
 		linkResult: {
 			linked: 'Compte lié.',

@@ -57,6 +57,20 @@
 		}
 	}
 
+	async function toggleSessions() {
+		if (!user) return;
+		saving = true;
+		error = '';
+		try {
+			const updated = await api.updateSessionsVisible(!user.sessions_visible);
+			auth.setUser(updated);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'failed to update';
+		} finally {
+			saving = false;
+		}
+	}
+
 	async function linkSteam() {
 		steamBusy = true;
 		try {
@@ -160,6 +174,28 @@
 			>
 				<span
 					class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all {user.activity_visible
+						? 'left-[22px]'
+						: 'left-0.5'}"
+				></span>
+			</button>
+		</div>
+		<div class="mt-4 flex items-center justify-between gap-4 border-t border-[var(--color-border)] pt-4">
+			<div>
+				<p class="font-display font-semibold text-[var(--color-text)]">{t('account.privacy.sessionsToggleLabel')}</p>
+				<p class="text-sm text-[var(--color-muted)]">{t('account.privacy.sessionsToggleHint')}</p>
+			</div>
+			<button
+				onclick={toggleSessions}
+				disabled={saving}
+				role="switch"
+				aria-checked={user.sessions_visible}
+				aria-label={t('account.privacy.sessionsAriaLabel')}
+				class="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 {user.sessions_visible
+					? 'bg-[var(--color-brand)]'
+					: 'bg-[var(--color-border)]'}"
+			>
+				<span
+					class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all {user.sessions_visible
 						? 'left-[22px]'
 						: 'left-0.5'}"
 				></span>

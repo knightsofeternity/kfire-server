@@ -11,6 +11,7 @@ export type User = {
 	role: 'admin' | 'member';
 	avatar_url?: string;
 	activity_visible?: boolean;
+	sessions_visible?: boolean;
 	created_at: string;
 };
 
@@ -171,6 +172,15 @@ export const api = {
 			await authFetch('/api/v1/users/me', {
 				method: 'PATCH',
 				body: JSON.stringify({ activity_visible: visible })
+			})
+		);
+	},
+
+	async updateSessionsVisible(visible: boolean): Promise<User> {
+		return json(
+			await authFetch('/api/v1/users/me', {
+				method: 'PATCH',
+				body: JSON.stringify({ sessions_visible: visible })
 			})
 		);
 	},
