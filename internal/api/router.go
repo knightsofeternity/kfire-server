@@ -67,8 +67,9 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	v1.Get("/config", h.publicConfig)
 
-	// Sensitive endpoints: rate-limited per IP (login brute force, register spam).
-	authGroup := v1.Group("/auth", rateLimiter(10))
+	// Sensitive endpoints: rate-limited per client IP (login brute force,
+	// register spam). The group also carries token refresh, so keep some headroom.
+	authGroup := v1.Group("/auth", rateLimiter(30))
 	authGroup.Post("/register", h.register)
 	authGroup.Post("/login", h.login)
 	authGroup.Post("/refresh", h.refresh)
