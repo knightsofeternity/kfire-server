@@ -151,10 +151,10 @@ type GameStat struct {
 }
 
 // UserGameStats returns a user's playtime per game, most played first. Per game
-// the total is the GREATER of local sessions and imported platform playtime
-// (Steam) - never their sum, to avoid double-counting Steam time also observed
-// by the client. A game still appears if it was only ever played outside the
-// desktop client (Steam-only) or only seen locally (non-Steam).
+// the total is the imported platform baseline plus local sessions recorded
+// since the last sync (see playtime.go); a game with no imported baseline counts
+// all its local sessions. A game still appears if it was only ever played
+// outside the desktop client (Steam-only) or only seen locally (non-Steam).
 func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH sess AS (
@@ -165,13 +165,21 @@ func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, e
 			FROM game_sessions WHERE user_id = $1 GROUP BY game_id
 		),
 		ext AS (
-			SELECT game_id, sum(total_seconds)::bigint AS secs, max(last_synced_at) AS last_synced_at
+			SELECT game_id, sum(total_seconds)::bigint AS base, max(last_synced_at) AS synced
 			FROM external_playtime WHERE user_id = $1 GROUP BY game_id
+		),
+		sess_since AS (
+			SELECT s.game_id, COALESCE(sum(s.duration_seconds), 0)::bigint AS secs
+			FROM game_sessions s JOIN ext ON ext.game_id = s.game_id
+			WHERE s.user_id = $1 AND s.started_at > ext.synced
+			GROUP BY s.game_id
 		)
 		SELECT g.id, g.name, g.slug, g.icon_url,
-		       GREATEST(COALESCE(sess.secs, 0), COALESCE(ext.secs, 0))::bigint AS total,
+		       (CASE WHEN ext.game_id IS NOT NULL
+		             THEN ext.base + COALESCE(sess_since.secs, 0)
+		             ELSE COALESCE(sess.secs, 0) END)::bigint AS total,
 		       COALESCE(sess.cnt, 0) AS cnt,
-		       COALESCE(sess.last_played, ext.last_synced_at) AS last_at
+		       COALESCE(sess.last_played, ext.synced) AS last_at
 		FROM games g
 		JOIN (
 			SELECT game_id FROM sess
@@ -180,6 +188,7 @@ func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, e
 		) played ON played.game_id = g.id
 		LEFT JOIN sess ON sess.game_id = g.id
 		LEFT JOIN ext  ON ext.game_id = g.id
+		LEFT JOIN sess_since ON sess_since.game_id = g.id
 		ORDER BY total DESC, cnt DESC`,
 		userID)
 	if err != nil {
