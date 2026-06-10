@@ -108,3 +108,26 @@ func TestNormalizeFiltersGenericExecutables(t *testing.T) {
 		t.Error("All Generic should be excluded: its only executable is generic")
 	}
 }
+
+func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
+	apps := []detectableApp{
+		{ID: "pubg", Name: "PUBG: BATTLEGROUNDS", Executables: exeList("TslGame.exe")},
+		{ID: "pubgtest", Name: "PUBG: Test Server", Executables: exeList("execpubg.exe")},
+		{ID: "hd2", Name: "Hidden & Dangerous 2: Courage Under Fire", Executables: exeList("setup.exe")},
+	}
+
+	byID := map[string][]string{}
+	for _, s := range normalize(apps) {
+		byID[s.DiscordAppID] = s.ExecutableNames
+	}
+
+	if got, want := byID["pubg"], []string{"tslgame.exe"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("PUBG executables = %v, want %v", got, want)
+	}
+	if _, ok := byID["pubgtest"]; ok {
+		t.Error("PUBG: Test Server should be excluded (non-retail test variant)")
+	}
+	if _, ok := byID["hd2"]; ok {
+		t.Error("Hidden & Dangerous 2 should be excluded: only generic setup.exe")
+	}
+}

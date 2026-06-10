@@ -77,13 +77,27 @@ func FetchSeed(ctx context.Context) ([]store.GameSeed, error) {
 var genericExecutables = map[string]struct{}{
 	"unitycrashhandler64.exe": {}, "unitycrashhandler32.exe": {}, "unitycrashhandler.exe": {},
 	"crashhandler.exe": {}, "crashreporter.exe": {}, "crashpad_handler.exe": {},
-	"ueprereqsetup_x64.exe": {}, "ue4prereqsetup_x64.exe": {},
+	"ueprereqsetup_x64.exe": {}, "ue4prereqsetup_x64.exe": {}, "prerequisites.exe": {},
 	"tap.exe":     {},
 	"game.exe":    {}, "launcher.exe": {}, "start.exe": {}, "play.exe": {}, "autorun.exe": {},
 	"vc_redist.x64.exe": {}, "vc_redist.x86.exe": {}, "dxsetup.exe": {}, "dotnet.exe": {},
 	"python.exe": {}, "pythonw.exe": {}, "java.exe": {}, "javaw.exe": {}, "mono.exe": {},
 	"node.exe": {}, "nw.exe": {}, "cmd.exe": {},
+	// Installers / updaters / config tools ship with countless games and match
+	// whenever someone installs or configures anything (e.g. "Hidden & Dangerous
+	// 2" was detected via setup.exe).
+	"setup.exe": {}, "setup_x64.exe": {}, "setup_x86.exe": {},
+	"install.exe": {}, "installer.exe": {}, "uninstall.exe": {}, "unins000.exe": {},
+	"update.exe": {}, "updater.exe": {}, "launcher_updater.exe": {}, "patcher.exe": {},
+	"config.exe": {}, "settings.exe": {}, "run.exe": {},
 }
+
+// testVariant matches catalog names for non-retail editions (test servers, PTR,
+// betas, playtests). Their executables overlap the main game and steal its
+// presence (e.g. "PUBG: Test Server" via execpubg.exe), so we don't detect on
+// them.
+var testVariant = regexp.MustCompile(
+	`(?i)(test server|public test|play ?test|closed test|open test|closed beta|open beta|public beta|beta test|experimental|\bPTR\b|\bPTS\b)`)
 
 // maxGamesPerExecutable bounds how many distinct games may share an executable
 // basename before it's considered non-discriminating and dropped from matching.
@@ -128,6 +142,9 @@ func normalize(apps []detectableApp) []store.GameSeed {
 
 	seeds := make([]store.GameSeed, 0, len(apps))
 	for _, app := range apps {
+		if testVariant.MatchString(app.Name) {
+			continue // non-retail edition; its exes would shadow the main game
+		}
 		exes := make([]string, 0, len(app.Executables))
 		seen := map[string]struct{}{}
 		for _, exe := range app.Executables {
