@@ -19,16 +19,17 @@ type User struct {
 	Role            string
 	AvatarURL       *string
 	ActivityVisible bool
+	SessionsVisible bool
 	BannedAt        *time.Time
 	CreatedAt       time.Time
 }
 
-const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, activity_visible, banned_at, created_at`
+const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, activity_visible, sessions_visible, banned_at, created_at`
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.OrgID, &u.Username, &u.Email, &u.PasswordHash,
-		&u.Role, &u.AvatarURL, &u.ActivityVisible, &u.BannedAt, &u.CreatedAt)
+		&u.Role, &u.AvatarURL, &u.ActivityVisible, &u.SessionsVisible, &u.BannedAt, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -39,6 +40,13 @@ func scanUser(row pgx.Row) (User, error) {
 func (s *Store) SetActivityVisible(ctx context.Context, userID string, visible bool) error {
 	_, err := s.pool.Exec(ctx,
 		`UPDATE users SET activity_visible = $2 WHERE id = $1`, userID, visible)
+	return err
+}
+
+// SetSessionsVisible updates a user's recent-sessions privacy toggle.
+func (s *Store) SetSessionsVisible(ctx context.Context, userID string, visible bool) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET sessions_visible = $2 WHERE id = $1`, userID, visible)
 	return err
 }
 
