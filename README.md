@@ -31,8 +31,9 @@ This repository is the **backend + admin web UI**. It ships as a single static G
 - 📊 **Profiles & stats** - per-game playtime, session history, achievements
 - 🏆 **Per-game leaderboards** - who plays the most in your org
 - 🗂️ **~10k games catalog** - auto-seeded from Discord's detectable-apps list, with cached artwork
-- 🔗 **Steam connector** - link your account, import library playtime & achievements
-- 🔒 **Privacy** - per-member toggle to hide your current game
+- 🔗 **Steam & Battle.net connectors** - link your accounts, import Steam library playtime & achievements
+- 🌐 **Multi-guild client** - one desktop app reports to several KFIRE servers at once, one per guild
+- 🔒 **Privacy & status** - go online / invisible / offline from the client (global or per guild), plus per-member web toggles to hide your current game or your recent-sessions history
 - 👑 **Member management** - invite links, roles, ban; invite-only registration
 - 🖥️ **Frictionless client linking** - approve devices from the browser, no password in the app
 - 🛡️ **Secure by default** - Argon2id, short JWTs + device-bound refresh tokens, HTTPS
