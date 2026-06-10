@@ -53,3 +53,10 @@ func (s *Store) DeleteRefreshToken(ctx context.Context, userID, deviceID string)
 		userID, deviceID)
 	return err
 }
+
+// DeleteUserRefreshTokens revokes every session of a user (used after a
+// password reset so old sessions can't continue).
+func (s *Store) DeleteUserRefreshTokens(ctx context.Context, userID string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM refresh_tokens WHERE user_id = $1`, userID)
+	return err
+}

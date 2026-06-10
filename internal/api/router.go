@@ -74,6 +74,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	authGroup.Post("/login", h.login)
 	authGroup.Post("/refresh", h.refresh)
 	authGroup.Post("/logout", h.requireAuth, h.logout)
+	// Admin-generated password reset link (no email); the member sets a new
+	// password from the link.
+	authGroup.Get("/reset/:token", h.peekReset)
+	authGroup.Post("/reset/:token", h.doReset)
 
 	v1.Get("/users/me", h.requireAuth, h.me)
 	v1.Patch("/users/me", h.requireAuth, h.updateMe)
@@ -108,6 +112,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	admin.Post("/games/sync", h.syncGames)
 	admin.Get("/members", h.listMembers)
 	admin.Patch("/members/:id", h.patchMember)
+	admin.Post("/members/:id/reset", h.adminResetPassword)
 	admin.Get("/invites", h.listInvites)
 	admin.Post("/invites", h.createInvite)
 	admin.Delete("/invites/:code", h.deleteInvite)

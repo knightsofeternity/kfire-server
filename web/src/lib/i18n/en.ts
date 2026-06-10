@@ -208,7 +208,21 @@ export const en = {
 		unban: 'Unban',
 		ban: 'Ban',
 		errorLoad: 'failed to load',
-		errorGeneric: 'failed'
+		errorGeneric: 'failed',
+		resetPassword: 'Reset password',
+		resetLinkTitle: 'Password reset link',
+		resetLinkHint: 'Share this single-use link with the member. It expires in 1 hour.'
+	},
+	reset: {
+		title: 'Reset your password',
+		subtitleFor: 'Set a new password for {username}.',
+		invalidLink: 'This reset link is invalid or has expired. Ask an admin for a new one.',
+		password: 'New password',
+		submit: 'Set new password',
+		submitting: 'Saving...',
+		success: 'Password updated. You can now sign in.',
+		toLogin: 'Go to sign in',
+		genericError: 'something went wrong'
 	},
 	download: {
 		title: 'Get the KFIRE desktop app',

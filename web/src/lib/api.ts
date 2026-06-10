@@ -204,6 +204,12 @@ export const api = {
 		return json(await authFetch(`/api/v1/achievements?${p.toString()}`));
 	},
 
+	async resetMemberPassword(id: string): Promise<{ reset_url: string; expires_at: string }> {
+		return json(
+			await authFetch(`/api/v1/admin/members/${encodeURIComponent(id)}/reset`, { method: 'POST' })
+		);
+	},
+
 	async getPairInfo(code: string): Promise<{ device_name: string; platform: string }> {
 		return json(await authFetch(`/api/v1/devices/pair/${encodeURIComponent(code)}`));
 	},
@@ -324,6 +330,26 @@ export async function getConfig(): Promise<{
 				accent: 'orange',
 				has_logo: false
 			};
+}
+
+/** Validate an admin-issued password reset link (no auth). */
+export async function peekReset(token: string): Promise<{ username: string }> {
+	const res = await fetch(`/api/v1/auth/reset/${encodeURIComponent(token)}`);
+	if (!res.ok) throw new ApiError('invalid_token', 'this reset link is invalid or expired');
+	return res.json();
+}
+
+/** Set a new password from a reset link (no auth). */
+export async function submitReset(token: string, password: string): Promise<void> {
+	const res = await fetch(`/api/v1/auth/reset/${encodeURIComponent(token)}`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ password })
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({ code: 'unknown', message: 'reset failed' }));
+		throw new ApiError(body.code ?? 'unknown', body.message ?? 'reset failed');
+	}
 }
 
 export { ApiError };

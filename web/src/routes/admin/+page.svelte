@@ -49,6 +49,18 @@
 		}
 	}
 
+	let resetLink = $state<{ id: string; url: string } | null>(null);
+
+	async function resetPassword(m: Member) {
+		error = '';
+		try {
+			const r = await api.resetMemberPassword(m.id);
+			resetLink = { id: m.id, url: r.reset_url };
+		} catch (e) {
+			error = e instanceof Error ? e.message : t('admin.errorGeneric');
+		}
+	}
+
 	async function setBanned(m: Member, banned: boolean) {
 		try {
 			await api.patchMember(m.id, { banned });
@@ -290,6 +302,24 @@
 		<h2 class="pd-heading mb-3 text-xs text-[var(--color-muted)]">
 			{t('admin.membersHeading', { count: members.length })}
 		</h2>
+		{#if resetLink}
+			<div class="pd-card mb-3 p-3">
+				<p class="font-display mb-1 text-xs font-bold tracking-wide text-[var(--color-brand-bright)] uppercase">
+					{t('admin.resetLinkTitle')}
+				</p>
+				<p class="mb-2 text-xs text-[var(--color-muted)]">{t('admin.resetLinkHint')}</p>
+				<div class="flex items-center gap-2">
+					<input
+						readonly
+						value={resetLink.url}
+						class="pd-cut-sm flex-1 border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs text-[var(--color-text)]"
+					/>
+					<button onclick={() => resetLink && copy(resetLink.url, 'reset')} class="btn-pd btn-pd-ghost px-3 py-1 text-xs">
+						{copied === 'reset' ? t('admin.copied') : t('admin.copyLink')}
+					</button>
+				</div>
+			</div>
+		{/if}
 		<ul class="pd-card divide-y divide-[var(--color-border)] overflow-hidden">
 			{#each members as m (m.id)}
 				<li class="flex items-center gap-3 px-4 py-3" class:opacity-60={m.banned}>
@@ -316,6 +346,9 @@
 
 					{#if m.id !== myId}
 						<div class="flex gap-2">
+							<button onclick={() => resetPassword(m)} class="btn-pd btn-pd-ghost px-3 py-1 text-xs">
+								{t('admin.resetPassword')}
+							</button>
 							{#if m.role === 'admin'}
 								<button onclick={() => setRole(m, 'member')} class="btn-pd-ghost btn-pd px-3 py-1 text-xs">
 									{t('admin.makeMember')}

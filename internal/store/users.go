@@ -102,6 +102,14 @@ func (s *Store) EnsureDefaultOrg(ctx context.Context, name string) (string, erro
 	return id, err
 }
 
+// SetUserPassword replaces a user's password hash (used by admin-initiated
+// password resets).
+func (s *Store) SetUserPassword(ctx context.Context, userID, passwordHash string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET password_hash = $2 WHERE id = $1`, userID, passwordHash)
+	return err
+}
+
 // UpdateUserAvatarIfEmpty sets the user's avatar only when they don't already
 // have one, so adopting a linked Steam avatar never overrides a chosen avatar.
 func (s *Store) UpdateUserAvatarIfEmpty(ctx context.Context, userID, avatarURL string) error {

@@ -54,7 +54,11 @@
 	{#if !$auth.ready}
 		<div class="grid flex-1 place-items-center text-[var(--color-muted)]">{t('common.loading')}</div>
 	{:else if !$auth.user}
-		<Login />
+		{#if page.url.pathname.startsWith('/reset')}
+			{@render children()}
+		{:else}
+			<Login />
+		{/if}
 	{:else}
 		<header
 			class="pd-header-shadow border-b-2 border-[var(--color-brand)]/60 bg-[var(--color-surface)]"

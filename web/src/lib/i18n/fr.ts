@@ -210,7 +210,21 @@ export const fr: Catalog = {
 		unban: 'Débannir',
 		ban: 'Bannir',
 		errorLoad: 'échec du chargement',
-		errorGeneric: 'échec'
+		errorGeneric: 'échec',
+		resetPassword: 'Réinitialiser le mot de passe',
+		resetLinkTitle: 'Lien de réinitialisation',
+		resetLinkHint: 'Partagez ce lien à usage unique avec le membre. Il expire dans 1 heure.'
+	},
+	reset: {
+		title: 'Réinitialisez votre mot de passe',
+		subtitleFor: 'Définissez un nouveau mot de passe pour {username}.',
+		invalidLink: 'Ce lien est invalide ou a expiré. Demandez-en un nouveau à un administrateur.',
+		password: 'Nouveau mot de passe',
+		submit: 'Définir le nouveau mot de passe',
+		submitting: 'Enregistrement...',
+		success: 'Mot de passe mis à jour. Vous pouvez maintenant vous connecter.',
+		toLogin: 'Aller à la connexion',
+		genericError: "une erreur s'est produite"
 	},
 	download: {
 		title: "Obtenir l'application bureau KFIRE",
