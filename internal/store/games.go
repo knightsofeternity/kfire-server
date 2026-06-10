@@ -109,6 +109,60 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 	return out, totalSeconds, players, err
 }
 
+// GameSummary is a played game with org-wide aggregates for the games list.
+type GameSummary struct {
+	Game         Game
+	PlayerCount  int
+	TotalSeconds int64
+}
+
+// ListPlayedGames returns every game with real activity in the org (a local
+// session or imported playtime), alphabetical, with the number of players and
+// the cumulative time. Per player the time is the GREATER of local sessions and
+// imported platform playtime (same merge as the leaderboard), and players with
+// zero time (e.g. owned-but-unplayed Steam games) are excluded.
+func (s *Store) ListPlayedGames(ctx context.Context) ([]GameSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH sess AS (
+			SELECT game_id, user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs
+			FROM game_sessions GROUP BY game_id, user_id
+		),
+		ext AS (
+			SELECT game_id, user_id, sum(total_seconds)::bigint AS secs
+			FROM external_playtime GROUP BY game_id, user_id
+		),
+		per_player AS (
+			SELECT u.game_id,
+			       GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0)) AS secs
+			FROM (SELECT game_id, user_id FROM sess UNION SELECT game_id, user_id FROM ext) u
+			JOIN users usr ON usr.id = u.user_id AND usr.banned_at IS NULL
+			LEFT JOIN sess ON sess.game_id = u.game_id AND sess.user_id = u.user_id
+			LEFT JOIN ext  ON ext.game_id  = u.game_id  AND ext.user_id  = u.user_id
+		),
+		agg AS (
+			SELECT game_id, count(*) AS players, sum(secs)::bigint AS total
+			FROM per_player WHERE secs > 0 GROUP BY game_id
+		)
+		SELECT g.id, g.name, g.slug, g.icon_url, g.cover_url, a.players, a.total
+		FROM agg a JOIN games g ON g.id = a.game_id
+		ORDER BY g.name ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []GameSummary
+	for rows.Next() {
+		var gs GameSummary
+		if err := rows.Scan(&gs.Game.ID, &gs.Game.Name, &gs.Game.Slug,
+			&gs.Game.IconURL, &gs.Game.CoverURL, &gs.PlayerCount, &gs.TotalSeconds); err != nil {
+			return nil, err
+		}
+		out = append(out, gs)
+	}
+	return out, rows.Err()
+}
+
 // CountGames returns the catalog size.
 func (s *Store) CountGames(ctx context.Context) (int, error) {
 	var n int

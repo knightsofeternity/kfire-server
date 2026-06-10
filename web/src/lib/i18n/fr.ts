@@ -14,6 +14,7 @@ export const fr: Catalog = {
 	nav: {
 		dashboard: 'Tableau de bord',
 		players: 'Joueurs',
+		games: 'Jeux',
 		download: "Obtenir l'app",
 		admin: 'Admin',
 		account: 'Compte'
@@ -105,6 +106,15 @@ export const fr: Catalog = {
 		players: 'Joueurs',
 		leaderboard: 'Classement',
 		noPlayers: "Personne n'a encore joué à ce jeu."
+	},
+	gamesList: {
+		title: 'Jeux',
+		search: 'Rechercher un jeu...',
+		loading: 'Chargement...',
+		empty: "Aucun jeu joué pour l'instant.",
+		noMatch: 'Aucun jeu ne correspond à votre recherche.',
+		players: '{count} joueurs',
+		onePlayer: '1 joueur'
 	},
 	account: {
 		title: 'Compte',

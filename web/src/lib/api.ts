@@ -31,6 +31,15 @@ export type GameDetail = {
 	leaderboard: LeaderboardEntry[];
 };
 
+export type PlayedGame = {
+	id: string;
+	name: string;
+	slug: string;
+	icon_url?: string;
+	player_count: number;
+	total_seconds: number;
+};
+
 export type PresenceEntry = {
 	user_id: string;
 	username: string;
@@ -161,6 +170,11 @@ export const api = {
 
 	async getGame(slug: string): Promise<GameDetail> {
 		return json(await authFetch(`/api/v1/games/${encodeURIComponent(slug)}`));
+	},
+
+	async getPlayedGames(): Promise<PlayedGame[]> {
+		const data = await json<{ games: PlayedGame[] }>(await authFetch('/api/v1/games/played'));
+		return data.games;
 	},
 
 	async getPairInfo(code: string): Promise<{ device_name: string; platform: string }> {

@@ -33,6 +33,25 @@ func (h *handlers) listGames(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"games": out})
 }
 
+// GET /api/v1/games/played  (authenticated)
+//
+// Games actually played in the org, alphabetical, with the number of players
+// and the cumulative time. Powers the games list page.
+func (h *handlers) listPlayedGames(c *fiber.Ctx) error {
+	list, err := h.store.ListPlayedGames(c.Context())
+	if err != nil {
+		return err
+	}
+	out := make([]fiber.Map, len(list))
+	for i, gs := range list {
+		m := h.gameJSON(gs.Game)
+		m["player_count"] = gs.PlayerCount
+		m["total_seconds"] = gs.TotalSeconds
+		out[i] = m
+	}
+	return c.JSON(fiber.Map{"games": out})
+}
+
 // GET /api/v1/games/:slug  (authenticated)
 //
 // Game detail with the org leaderboard (top players by playtime).

@@ -13,6 +13,7 @@ export const en = {
 	nav: {
 		dashboard: 'Dashboard',
 		players: 'Players',
+		games: 'Games',
 		download: 'Get the app',
 		admin: 'Admin',
 		account: 'Account'
@@ -104,6 +105,15 @@ export const en = {
 		players: 'Players',
 		leaderboard: 'Leaderboard',
 		noPlayers: 'Nobody has played this yet.'
+	},
+	gamesList: {
+		title: 'Games',
+		search: 'Search games...',
+		loading: 'Loading...',
+		empty: 'No games played yet.',
+		noMatch: 'No game matches your search.',
+		players: '{count} players',
+		onePlayer: '1 player'
 	},
 	account: {
 		title: 'Account',
