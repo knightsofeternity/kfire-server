@@ -23,6 +23,7 @@ func (h *handlers) me(c *fiber.Ctx) error {
 func (h *handlers) updateMe(c *fiber.Ctx) error {
 	var req struct {
 		ActivityVisible *bool `json:"activity_visible"`
+		SessionsVisible *bool `json:"sessions_visible"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "invalid JSON body")
@@ -37,6 +38,12 @@ func (h *handlers) updateMe(c *fiber.Ctx) error {
 		u, err := h.store.GetUserByID(c.Context(), claims.UserID)
 		if err == nil {
 			h.hub.BroadcastPresence(c.Context(), presenceUser(u))
+		}
+	}
+	if req.SessionsVisible != nil {
+		// Read on profile fetch only, so no live presence broadcast is needed.
+		if err := h.store.SetSessionsVisible(c.Context(), claims.UserID, *req.SessionsVisible); err != nil {
+			return err
 		}
 	}
 
