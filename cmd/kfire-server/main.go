@@ -61,10 +61,11 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName:               "kfire-server",
 		DisableStartupMessage: true,
-		// Behind Cloudflare + the Gate reverse proxy: trust X-Forwarded-For only
-		// from the internal proxy network so c.IP() (and the per-IP rate limiter)
-		// sees the real client, not the single proxy IP shared by everyone.
-		ProxyHeader:             fiber.HeaderXForwardedFor,
+		// Behind Cloudflare + the Gate reverse proxy: use Cloudflare's
+		// CF-Connecting-IP (the real client IP) so c.IP() and the per-IP rate
+		// limiter key on the actual user, not the single proxy IP everyone shares.
+		// Only trusted from the internal proxy network.
+		ProxyHeader:             "CF-Connecting-IP",
 		EnableTrustedProxyCheck: true,
 		TrustedProxies:          []string{"127.0.0.1", "172.16.0.0/12", "10.0.0.0/8"},
 	})

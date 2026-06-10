@@ -114,6 +114,14 @@ const minExeStem = 3
 var testVariant = regexp.MustCompile(
 	`(?i)(test server|public test|play ?test|closed test|open test|closed beta|open beta|public beta|beta test|experimental|\bPTR\b|\bPTS\b)`)
 
+// extraExecutables adds curated process names the Discord list misses or names
+// differently, keyed by the game's slug. Example: Palia's Steam build runs
+// PaliaClientSteam-Win64-Shipping.exe while the list only has the Epic name.
+// These bypass the generic/short/frequency filters since they are vetted.
+var extraExecutables = map[string][]string{
+	"palia": {"paliaclientsteam-win64-shipping.exe"},
+}
+
 // maxGamesPerExecutable bounds how many distinct games may share an executable
 // basename before it's considered non-discriminating and dropped from matching.
 // e.g. "hl2.exe" ships with ~34 Source games - it can't identify any one of them.
@@ -195,6 +203,13 @@ func normalize(apps []detectableApp) []store.GameSeed {
 				continue // shared by too many games to identify this one
 			}
 			exes = append(exes, name)
+		}
+		// Curated additions (vetted store-specific variants the list misses).
+		for _, extra := range extraExecutables[Slugify(app.Name)] {
+			if _, dup := seen[extra]; !dup {
+				seen[extra] = struct{}{}
+				exes = append(exes, extra)
+			}
 		}
 		if len(exes) == 0 {
 			continue
