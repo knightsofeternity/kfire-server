@@ -12,9 +12,10 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-// maxAchievementGames bounds how many of a member's most-played games we pull
-// achievements for, to keep the number of Steam API calls reasonable.
-const maxAchievementGames = 10
+// maxAchievementGames bounds how many of a member's games we pull achievements
+// for, to keep the number of Steam API calls reasonable. Games without
+// achievement progress simply return empty and are skipped.
+const maxAchievementGames = 30
 
 // Result summarizes one user sync.
 type Result struct {
@@ -64,7 +65,14 @@ func (s *Syncer) SyncUser(ctx context.Context, userID, steamID string) (Result, 
 	for _, g := range owned {
 		game, ok := catalog[g.AppID]
 		if !ok {
-			continue // not in the Discord-seeded catalog; skipped
+			// Not matched by AppID. The Discord catalog can carry a wrong or
+			// missing Steam AppID (e.g. Rocket League), so resolve the game from
+			// the Steam library itself: match by name and correct the AppID, or
+			// create a new imported entry. This imports the player's whole library.
+			game, err = s.store.UpsertSteamGame(ctx, g.AppID, g.Name, g.IconURL)
+			if err != nil {
+				return res, err
+			}
 		}
 		secs := int64(g.PlaytimeForever.Seconds())
 		if err := s.store.UpsertExternalPlaytime(ctx, userID, "steam", game.ID, secs); err != nil {
@@ -74,16 +82,15 @@ func (s *Syncer) SyncUser(ctx context.Context, userID, steamID string) (Result, 
 		matched = append(matched, match{game: game, appID: g.AppID, playtime: g.PlaytimeForever})
 	}
 
-	// Achievements: only for the most-played matched games (bounds API calls).
+	// Achievements: try the most-played games first; this still works when the
+	// player keeps total playtime private (all zero), bounded by
+	// maxAchievementGames so the number of Steam API calls stays reasonable.
 	sort.Slice(matched, func(i, j int) bool { return matched[i].playtime > matched[j].playtime })
 	if len(matched) > maxAchievementGames {
 		matched = matched[:maxAchievementGames]
 	}
 
 	for _, m := range matched {
-		if m.playtime == 0 {
-			continue // never launched ⇒ no achievements to fetch
-		}
 		unlocked, err := s.steam.GetPlayerAchievements(ctx, steamID, m.appID)
 		if err != nil || len(unlocked) == 0 {
 			continue

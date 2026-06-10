@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"errors"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -55,6 +58,66 @@ func (s *Store) GamesBySteamAppID(ctx context.Context, appIDs []string) (map[str
 		out[appID] = g
 	}
 	return out, rows.Err()
+}
+
+// UpsertSteamGame resolves a Steam-owned game to a catalog game so its playtime
+// and achievements import even when the Discord catalog has a wrong or missing
+// Steam AppID. It matches by AppID, then by slug (adopting the entry and
+// correcting its AppID), and finally creates a new entry from the Steam data.
+// Created entries have no executables, so they are not locally detectable; they
+// exist for playtime, achievements and the games list.
+func (s *Store) UpsertSteamGame(ctx context.Context, appID, name, iconURL string) (Game, error) {
+	var g Game
+
+	err := s.pool.QueryRow(ctx,
+		`SELECT id, name, slug, icon_url FROM games WHERE steam_app_id = $1 LIMIT 1`, appID).
+		Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
+	if err == nil {
+		return g, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return g, err
+	}
+
+	slug := steamSlug(name)
+	err = s.pool.QueryRow(ctx, `
+		UPDATE games
+		SET steam_app_id = $1, icon_url = COALESCE(icon_url, NULLIF($3, ''))
+		WHERE slug = $2
+		RETURNING id, name, slug, icon_url`,
+		appID, slug, iconURL).
+		Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
+	if err == nil {
+		return g, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return g, err
+	}
+
+	err = s.pool.QueryRow(ctx, `
+		INSERT INTO games (name, slug, executable_names, platform, icon_url, steam_app_id)
+		VALUES ($1, $2, '{}', 'pc', NULLIF($3, ''), $4)
+		RETURNING id, name, slug, icon_url`,
+		name, slug, iconURL, appID).
+		Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
+	return g, err
+}
+
+var steamSlugInvalid = regexp.MustCompile(`[^a-z0-9]+`)
+
+// steamSlug mirrors games.Slugify without importing that package (which would
+// create an import cycle: the games package depends on this store package).
+func steamSlug(name string) string {
+	s := strings.ToLower(name)
+	s = steamSlugInvalid.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		s = "game"
+	}
+	if len(s) > 80 {
+		s = strings.Trim(s[:80], "-")
+	}
+	return s
 }
 
 // UpsertExternalPlaytime stores a member's lifetime playtime for one game.
