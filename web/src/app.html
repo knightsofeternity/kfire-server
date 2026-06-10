@@ -15,14 +15,7 @@
 			href="https://fonts.googleapis.com/css2?family=Exo:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800&family=Roboto:wght@400;500;700;900&display=swap"
 			rel="stylesheet"
 		/>
-		<script>
-			// Apply the saved theme before paint to avoid a flash of the wrong theme.
-			try {
-				if (localStorage.getItem('kfire-theme') === 'light') {
-					document.documentElement.dataset.theme = 'light';
-				}
-			} catch (e) {}
-		</script>
+		<script src="/theme-init.js"></script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
