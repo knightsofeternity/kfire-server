@@ -42,11 +42,10 @@ type LeaderboardEntry struct {
 // GameLeaderboard returns the top players by playtime for a game, plus the
 // org-wide total seconds and the number of distinct players.
 //
-// Per player, the total is the GREATER of our locally observed sessions and the
-// imported platform playtime (Steam playtime_forever) - never their sum, since
-// time played through Steam while the KFIRE client is running is counted by
-// both. Steam wins for games played through it; our sessions cover games played
-// outside any linked platform.
+// Per player, the total is the imported platform baseline (Steam) plus local
+// sessions recorded since the last sync, or all local sessions when there is no
+// baseline (see playtime.go). This avoids double-counting Steam time the client
+// also observed while still surfacing recent and non-platform play.
 func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) ([]LeaderboardEntry, int64, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 25
@@ -57,17 +56,26 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
 		),
 		ext AS (
-			SELECT user_id, sum(total_seconds)::bigint AS secs
+			SELECT user_id, sum(total_seconds)::bigint AS base, max(last_synced_at) AS synced
 			FROM external_playtime WHERE game_id = $1 GROUP BY user_id
+		),
+		sess_since AS (
+			SELECT s.user_id, COALESCE(sum(s.duration_seconds),0)::bigint AS secs
+			FROM game_sessions s JOIN ext ON ext.user_id = s.user_id
+			WHERE s.game_id = $1 AND s.started_at > ext.synced
+			GROUP BY s.user_id
 		),
 		players AS (SELECT user_id FROM sess UNION SELECT user_id FROM ext)
 		SELECT u.id, u.username, u.avatar_url,
-		       GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0))::bigint AS total,
+		       (CASE WHEN ext.user_id IS NOT NULL
+		             THEN ext.base + COALESCE(sess_since.secs,0)
+		             ELSE COALESCE(sess.secs,0) END)::bigint AS total,
 		       COALESCE(sess.cnt,0) AS cnt
 		FROM players p
 		JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
 		LEFT JOIN sess ON sess.user_id = p.user_id
 		LEFT JOIN ext  ON ext.user_id  = p.user_id
+		LEFT JOIN sess_since ON sess_since.user_id = p.user_id
 		ORDER BY total DESC, cnt DESC
 		LIMIT $2`, gameID, limit)
 	if err != nil {
@@ -95,14 +103,23 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
 		),
 		ext AS (
-			SELECT user_id, sum(total_seconds)::bigint AS secs
+			SELECT user_id, sum(total_seconds)::bigint AS base, max(last_synced_at) AS synced
 			FROM external_playtime WHERE game_id = $1 GROUP BY user_id
 		),
+		sess_since AS (
+			SELECT s.user_id, COALESCE(sum(s.duration_seconds),0)::bigint AS secs
+			FROM game_sessions s JOIN ext ON ext.user_id = s.user_id
+			WHERE s.game_id = $1 AND s.started_at > ext.synced
+			GROUP BY s.user_id
+		),
 		p AS (
-			SELECT GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0)) AS secs
+			SELECT CASE WHEN ext.user_id IS NOT NULL
+			            THEN ext.base + COALESCE(ss.secs,0)
+			            ELSE COALESCE(sess.secs,0) END AS secs
 			FROM (SELECT user_id FROM sess UNION SELECT user_id FROM ext) u
-			LEFT JOIN sess USING (user_id)
-			LEFT JOIN ext  USING (user_id)
+			LEFT JOIN sess ON sess.user_id = u.user_id
+			LEFT JOIN ext  ON ext.user_id  = u.user_id
+			LEFT JOIN sess_since ss ON ss.user_id = u.user_id
 		)
 		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p`,
 		gameID).Scan(&totalSeconds, &players)
@@ -118,9 +135,9 @@ type GameSummary struct {
 
 // ListPlayedGames returns every game with real activity in the org (a local
 // session or imported playtime), alphabetical, with the number of players and
-// the cumulative time. Per player the time is the GREATER of local sessions and
-// imported platform playtime (same merge as the leaderboard), and players with
-// zero time (e.g. owned-but-unplayed Steam games) are excluded.
+// the cumulative time. Per player the time is the platform baseline plus local
+// sessions since the last sync (same merge as the leaderboard, see playtime.go),
+// and players with zero time (e.g. owned-but-unplayed Steam games) are excluded.
 func (s *Store) ListPlayedGames(ctx context.Context) ([]GameSummary, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH sess AS (
@@ -128,16 +145,25 @@ func (s *Store) ListPlayedGames(ctx context.Context) ([]GameSummary, error) {
 			FROM game_sessions GROUP BY game_id, user_id
 		),
 		ext AS (
-			SELECT game_id, user_id, sum(total_seconds)::bigint AS secs
+			SELECT game_id, user_id, sum(total_seconds)::bigint AS base, max(last_synced_at) AS synced
 			FROM external_playtime GROUP BY game_id, user_id
+		),
+		sess_since AS (
+			SELECT s.game_id, s.user_id, COALESCE(sum(s.duration_seconds),0)::bigint AS secs
+			FROM game_sessions s JOIN ext ON ext.game_id = s.game_id AND ext.user_id = s.user_id
+			WHERE s.started_at > ext.synced
+			GROUP BY s.game_id, s.user_id
 		),
 		per_player AS (
 			SELECT u.game_id,
-			       GREATEST(COALESCE(sess.secs,0), COALESCE(ext.secs,0)) AS secs
+			       CASE WHEN ext.user_id IS NOT NULL
+			            THEN ext.base + COALESCE(ss.secs,0)
+			            ELSE COALESCE(sess.secs,0) END AS secs
 			FROM (SELECT game_id, user_id FROM sess UNION SELECT game_id, user_id FROM ext) u
 			JOIN users usr ON usr.id = u.user_id AND usr.banned_at IS NULL
 			LEFT JOIN sess ON sess.game_id = u.game_id AND sess.user_id = u.user_id
 			LEFT JOIN ext  ON ext.game_id  = u.game_id  AND ext.user_id  = u.user_id
+			LEFT JOIN sess_since ss ON ss.game_id = u.game_id AND ss.user_id = u.user_id
 		),
 		agg AS (
 			SELECT game_id, count(*) AS players, sum(secs)::bigint AS total

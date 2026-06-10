@@ -121,13 +121,27 @@ func steamSlug(name string) string {
 	return s
 }
 
-// UpsertExternalPlaytime stores a member's lifetime playtime for one game.
+// UpsertExternalPlaytime stores a member's platform playtime baseline for one
+// game. On resync the baseline moves to the GREATER of the platform's new
+// lifetime and what we were already displaying (old baseline + local sessions
+// recorded since the previous sync). See playtime.go for the model. Resetting
+// last_synced_at restarts the "since" window, so those local sessions are not
+// counted twice.
 func (s *Store) UpsertExternalPlaytime(ctx context.Context, userID, provider, gameID string, totalSeconds int64) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO external_playtime (user_id, provider, game_id, total_seconds, last_synced_at)
 		VALUES ($1, $2, $3, $4, now())
 		ON CONFLICT (user_id, provider, game_id) DO UPDATE SET
-			total_seconds  = EXCLUDED.total_seconds,
+			total_seconds = GREATEST(
+				EXCLUDED.total_seconds,
+				external_playtime.total_seconds + COALESCE((
+					SELECT sum(gs.duration_seconds)
+					FROM game_sessions gs
+					WHERE gs.user_id = external_playtime.user_id
+					  AND gs.game_id = external_playtime.game_id
+					  AND gs.started_at > external_playtime.last_synced_at
+				), 0)
+			),
 			last_synced_at = now()`,
 		userID, provider, gameID, totalSeconds)
 	return err
