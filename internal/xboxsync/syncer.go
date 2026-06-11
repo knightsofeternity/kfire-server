@@ -56,7 +56,12 @@ func (s *Syncer) reconcileUser(ctx context.Context, userID, xuid string, tokenEn
 		return false
 	}
 	if open != nil {
-		_, _ = s.store.EndSession(ctx, userID, open.Game.ID)
+		// Close the previous game first; if that fails, abort rather than open a
+		// second session and leave a zombie open xbox_api session behind.
+		if _, err := s.store.EndSession(ctx, userID, open.Game.ID); err != nil {
+			slog.Error("xboxsync: end previous session", "user_id", userID, "err", err)
+			return false
+		}
 	}
 	changed, err := s.store.StartSession(ctx, userID, game.ID, "xbox_api")
 	if err != nil {
