@@ -39,6 +39,10 @@ type Config struct {
 	BattlenetClientID     string
 	BattlenetClientSecret string
 	BattlenetOAuthBase    string
+	// BattlenetRegion selects the Blizzard data host and namespace (eu, us, kr, tw).
+	BattlenetRegion string
+	// BattlenetAPIBase overrides the profile API host (tests only).
+	BattlenetAPIBase string
 }
 
 // Load reads configuration from the environment. Required variables that are
@@ -60,6 +64,8 @@ func Load() (*Config, error) {
 		BattlenetClientID:     os.Getenv("KFIRE_BATTLENET_CLIENT_ID"),
 		BattlenetClientSecret: os.Getenv("KFIRE_BATTLENET_CLIENT_SECRET"),
 		BattlenetOAuthBase:    os.Getenv("KFIRE_BATTLENET_OAUTH_BASE"),
+		BattlenetRegion:       getEnv("KFIRE_BATTLENET_REGION", "eu"),
+		BattlenetAPIBase:      os.Getenv("KFIRE_BATTLENET_API_BASE"),
 	}
 
 	for name, val := range map[string]string{
