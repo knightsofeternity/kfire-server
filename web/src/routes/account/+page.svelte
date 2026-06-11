@@ -18,6 +18,9 @@
 	let user = $derived($auth.user);
 	let steam = $derived(connections.find((c) => c.provider === 'steam'));
 	let battlenet = $derived(connections.find((c) => c.provider === 'battlenet'));
+	let bnetNeedsReconnect = $derived(
+		!!battlenet && !(battlenet.scopes ?? []).includes('wow.profile')
+	);
 	let bnBusy = $state(false);
 
 	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=…).
@@ -348,6 +351,11 @@
 				</button>
 			{/if}
 		</div>
+		{#if bnetNeedsReconnect}
+			<button class="mt-2 text-sm underline text-[var(--color-brand-bright)]" onclick={linkBattlenet}>
+				{t('account.bnetReconnectStats')}
+			</button>
+		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">
 			{t('account.comingNext')}
