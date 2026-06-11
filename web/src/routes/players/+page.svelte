@@ -1,27 +1,49 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
 	import { api, type PresenceEntry } from '$lib/api';
+	import { auth } from '$lib/stores/auth.svelte';
+	import { connectPresence, type PresenceSocket } from '$lib/ws';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { t } from '$lib/i18n';
 
-	let members = $state<PresenceEntry[]>([]);
+	// Keyed by user_id so live presence_update events overwrite the right row.
+	// Without the live subscription the list froze at page-load state: a member
+	// who went offline still showed online until a manual reload.
+	let entries = $state<Map<string, PresenceEntry>>(new Map());
 	let query = $state('');
 	let loading = $state(true);
+	let socket: PresenceSocket | null = null;
 
 	let filtered = $derived(
-		members
+		[...entries.values()]
 			.filter((m) => m.username.toLowerCase().includes(query.toLowerCase()))
 			.sort((a, b) => a.username.localeCompare(b.username))
 	);
 
 	onMount(async () => {
 		try {
-			members = await api.getPresence();
+			const snapshot = await api.getPresence();
+			const map = new Map<string, PresenceEntry>();
+			for (const e of snapshot) map.set(e.user_id, e);
+			entries = map;
 		} finally {
 			loading = false;
 		}
+
+		socket = connectPresence(
+			() => get(auth).accessToken,
+			(entry) => {
+				const next = new Map(entries);
+				next.set(entry.user_id, entry);
+				entries = next;
+			},
+			() => {}
+		);
 	});
+
+	onDestroy(() => socket?.close());
 </script>
 
 <div class="mb-5 flex items-center justify-between gap-4">
