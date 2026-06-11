@@ -19,6 +19,7 @@ type LinkedAccount struct {
 	AccessTokenEnc  []byte
 	RefreshTokenEnc []byte
 	TokenExpiresAt  *time.Time
+	Scopes          []string
 	CreatedAt       time.Time
 }
 
@@ -28,8 +29,8 @@ func (s *Store) UpsertLinkedAccount(ctx context.Context, userID string, a Linked
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO linked_accounts
 			(user_id, provider, provider_user_id, display_name, avatar_url, profile_url,
-			 access_token_enc, refresh_token_enc, token_expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			 access_token_enc, refresh_token_enc, token_expires_at, scopes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (user_id, provider) DO UPDATE SET
 			provider_user_id  = EXCLUDED.provider_user_id,
 			display_name      = EXCLUDED.display_name,
@@ -38,9 +39,10 @@ func (s *Store) UpsertLinkedAccount(ctx context.Context, userID string, a Linked
 			access_token_enc  = EXCLUDED.access_token_enc,
 			refresh_token_enc = EXCLUDED.refresh_token_enc,
 			token_expires_at  = EXCLUDED.token_expires_at,
+			scopes            = EXCLUDED.scopes,
 			updated_at        = now()`,
 		userID, a.Provider, a.ProviderUserID, a.DisplayName, a.AvatarURL, a.ProfileURL,
-		a.AccessTokenEnc, a.RefreshTokenEnc, a.TokenExpiresAt)
+		a.AccessTokenEnc, a.RefreshTokenEnc, a.TokenExpiresAt, a.Scopes)
 	return err
 }
 
@@ -108,4 +110,27 @@ func (s *Store) ProviderLinkedToOther(ctx context.Context, provider, providerUse
 		return false, err
 	}
 	return other != userID, nil
+}
+
+// LinkedToken is a member's stored OAuth token and granted scopes for a provider.
+type LinkedToken struct {
+	ProviderUserID string
+	DisplayName    *string
+	AccessTokenEnc []byte
+	TokenExpiresAt *time.Time
+	Scopes         []string
+}
+
+// GetLinkedToken returns the stored token material for (user, provider).
+func (s *Store) GetLinkedToken(ctx context.Context, userID, provider string) (LinkedToken, error) {
+	var t LinkedToken
+	err := s.pool.QueryRow(ctx, `
+		SELECT provider_user_id, display_name, access_token_enc, token_expires_at, scopes
+		FROM linked_accounts WHERE user_id = $1 AND provider = $2`,
+		userID, provider).
+		Scan(&t.ProviderUserID, &t.DisplayName, &t.AccessTokenEnc, &t.TokenExpiresAt, &t.Scopes)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return t, ErrNotFound
+	}
+	return t, err
 }
