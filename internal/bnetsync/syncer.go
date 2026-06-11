@@ -63,9 +63,9 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 	if err != nil {
 		return
 	}
-	// Throttle once per game: skip if this game's data was refreshed recently.
-	if _, newest, err := s.store.WowCharactersByGame(ctx, game.ID); err == nil &&
-		!newest.IsZero() && time.Since(newest) < throttle {
+	// Throttle per user+game: skip if this member refreshed recently.
+	if synced, err := s.store.WowSyncedAt(ctx, userID, game.ID); err == nil &&
+		!synced.IsZero() && time.Since(synced) < throttle {
 		return
 	}
 
@@ -108,6 +108,10 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 	if anyOK {
 		if err := s.store.ReplaceWowCharacters(ctx, userID, game.ID, rows); err != nil {
 			slog.Error("bnetsync: replace", "user_id", userID, "err", err)
+			return
+		}
+		if err := s.store.MarkWowSynced(ctx, userID, game.ID); err != nil {
+			slog.Warn("bnetsync: mark synced", "user_id", userID, "err", err)
 		}
 	}
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -83,4 +84,27 @@ func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCh
 		}
 	}
 	return out, newest, rows.Err()
+}
+
+// WowSyncedAt returns when this member's WoW characters for a game were last
+// refreshed (zero time if never).
+func (s *Store) WowSyncedAt(ctx context.Context, userID, gameID string) (time.Time, error) {
+	var t time.Time
+	err := s.pool.QueryRow(ctx,
+		`SELECT synced_at FROM bnet_wow_sync WHERE user_id = $1 AND game_id = $2`,
+		userID, gameID).Scan(&t)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, nil
+	}
+	return t, err
+}
+
+// MarkWowSynced records that this member's WoW characters for a game were just
+// refreshed (used to throttle on-view refreshes per user).
+func (s *Store) MarkWowSynced(ctx context.Context, userID, gameID string) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO bnet_wow_sync (user_id, game_id, synced_at) VALUES ($1, $2, now())
+		 ON CONFLICT (user_id, game_id) DO UPDATE SET synced_at = now()`,
+		userID, gameID)
+	return err
 }

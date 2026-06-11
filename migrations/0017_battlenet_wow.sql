@@ -31,4 +31,13 @@ CREATE TABLE bnet_wow_characters (
 CREATE INDEX bnet_wow_characters_game_ilvl_idx
     ON bnet_wow_characters (game_id, item_level DESC);
 
+-- Per-user, per-game last refresh time (independent of character count) so the
+-- on-view refresh throttle is scoped to the viewer, not the whole org.
+CREATE TABLE bnet_wow_sync (
+    user_id   uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game_id   uuid NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    synced_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, game_id)
+);
+
 COMMIT;
