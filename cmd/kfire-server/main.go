@@ -17,11 +17,13 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/games"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
+	"github.com/knightsofeternity/kfire-server/internal/xboxsync"
 	"github.com/knightsofeternity/kfire-server/web"
 )
 
@@ -84,6 +86,10 @@ func main() {
 
 	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL)
 
+	// Shared context for all background pollers.
+	pollCtx, cancelPoll := context.WithCancel(context.Background())
+	defer cancelPoll()
+
 	// Steam connector + background library/achievement poller.
 	steamConn := steam.New(cfg.SteamAPIKey)
 	if cfg.SteamLoginBase != "" {
@@ -94,8 +100,6 @@ func main() {
 	}
 	syncer := steamsync.New(st, steamConn)
 	if steamConn.Enabled() {
-		pollCtx, cancelPoll := context.WithCancel(context.Background())
-		defer cancelPoll()
 		go syncer.Run(pollCtx, 6*time.Hour)
 	}
 
@@ -104,6 +108,16 @@ func main() {
 	if err != nil {
 		slog.Error("master key error", "err", err)
 		os.Exit(1)
+	}
+
+	// Xbox connector + presence poller (dormant until KFIRE_XBL_APP_KEY is set).
+	xblConn := xbox.New(cfg.XblAppKey)
+	if cfg.XblAPIBase != "" {
+		xblConn.APIBase = cfg.XblAPIBase
+	}
+	if xblConn.Enabled() {
+		xs := xboxsync.New(st, xblConn, cipher, hub)
+		go xs.Run(pollCtx, cfg.XboxPollInterval)
 	}
 
 	api.Register(app, cfg, st, hub, steamConn, syncer, cipher)

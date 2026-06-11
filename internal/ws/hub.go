@@ -226,35 +226,29 @@ func (h *Hub) connect(c *client) bool {
 }
 
 // BroadcastPresence recomputes a user's presence and broadcasts it to the org.
-// When the user disabled activity visibility, the game is hidden and the
-// status is capped at "online".
+// An open session (any source) counts as in_game when visible, so console
+// players with no WebSocket connection appear live. A hidden open session does
+// not reveal the game and only yields online when WS-connected.
 func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
-	entry := map[string]any{
-		"user_id":  u.ID,
-		"username": u.Username,
-		"status":   "offline",
-		"game":     nil,
+	online := h.OnlineSince(u.ID)
+	var sess *store.Session
+	if s, err := h.store.LatestOpenSession(ctx, u.ID); err == nil {
+		sess = s
+	} else {
+		slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
 	}
+	status := store.PresenceStatus(sess != nil, sess != nil && u.ActivityVisible, online != nil)
+
+	entry := map[string]any{"user_id": u.ID, "username": u.Username, "status": status, "game": nil}
 	if u.AvatarURL != nil {
 		entry["avatar_url"] = *u.AvatarURL
 	}
-
-	if since := h.OnlineSince(u.ID); since != nil {
-		entry["status"] = "online"
-		entry["since"] = since
-
-		if u.ActivityVisible {
-			sess, err := h.store.LatestOpenSession(ctx, u.ID)
-			if err != nil {
-				slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
-			} else if sess != nil {
-				entry["status"] = "in_game"
-				entry["since"] = sess.StartedAt
-				entry["game"] = h.gameJSON(sess.Game)
-			}
-		}
+	if status == "in_game" && sess != nil {
+		entry["since"] = sess.StartedAt
+		entry["game"] = h.gameJSON(sess.Game)
+	} else if status == "online" && online != nil {
+		entry["since"] = online
 	}
-
 	h.Broadcast("presence_update", entry)
 }
 
