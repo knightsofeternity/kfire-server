@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 
@@ -64,6 +65,30 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		return err
 	}
 
+	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
+		h.bnetSync.RefreshWoW(c.Context(), mustClaims(c).UserID, g.Slug)
+	}
+
+	wowChars, wowSynced, err := h.store.WowCharactersByGame(c.Context(), g.ID)
+	if err != nil {
+		return err
+	}
+	cards := make([]fiber.Map, len(wowChars))
+	for i, ch := range wowChars {
+		m := fiber.Map{
+			"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
+			"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
+			"level": ch.Level, "item_level": ch.ItemLevel,
+		}
+		if ch.MythicRating != nil {
+			m["mythic_rating"] = *ch.MythicRating
+		}
+		if len(ch.RaidSummary) > 0 {
+			m["raid_summary"] = json.RawMessage(ch.RaidSummary)
+		}
+		cards[i] = m
+	}
+
 	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
 	if err != nil {
 		return err
@@ -99,11 +124,13 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"game":          h.gameJSON(g),
-		"total_seconds": totalSeconds,
-		"player_count":  players,
-		"leaderboard":   board,
-		"achievements":  achs,
+		"game":           h.gameJSON(g),
+		"total_seconds":  totalSeconds,
+		"player_count":   players,
+		"leaderboard":    board,
+		"achievements":   achs,
+		"wow_characters": cards,
+		"wow_synced_at":  wowSynced,
 	})
 }
 

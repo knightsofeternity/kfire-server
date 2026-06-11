@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -62,6 +63,7 @@ func (h *handlers) connectBattlenetCallback(c *fiber.Ctx) error {
 	}
 
 	account := store.LinkedAccount{Provider: "battlenet", ProviderUserID: info.Sub}
+	account.Scopes = strings.Fields(token.Scope)
 	if info.BattleTag != "" {
 		account.DisplayName = strPtr(info.BattleTag)
 	}

@@ -162,6 +162,9 @@ func connectionJSON(a store.LinkedAccount) fiber.Map {
 	if a.ProfileURL != nil {
 		m["profile_url"] = *a.ProfileURL
 	}
+	if a.Scopes != nil {
+		m["scopes"] = a.Scopes
+	}
 	return m
 }
 

@@ -49,7 +49,7 @@ func (s *Store) UpsertLinkedAccount(ctx context.Context, userID string, a Linked
 // ListLinkedAccounts returns a user's linked external accounts.
 func (s *Store) ListLinkedAccounts(ctx context.Context, userID string) ([]LinkedAccount, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT provider, provider_user_id, display_name, avatar_url, profile_url, created_at
+		SELECT provider, provider_user_id, display_name, avatar_url, profile_url, scopes, created_at
 		FROM linked_accounts WHERE user_id = $1
 		ORDER BY created_at`, userID)
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *Store) ListLinkedAccounts(ctx context.Context, userID string) ([]Linked
 	for rows.Next() {
 		var a LinkedAccount
 		if err := rows.Scan(&a.Provider, &a.ProviderUserID, &a.DisplayName,
-			&a.AvatarURL, &a.ProfileURL, &a.CreatedAt); err != nil {
+			&a.AvatarURL, &a.ProfileURL, &a.Scopes, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
