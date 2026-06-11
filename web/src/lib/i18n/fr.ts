@@ -111,7 +111,9 @@ export const fr: Catalog = {
 		noPlayers: "Personne n'a encore joué à ce jeu.",
 		achievements: 'Succès',
 		noAchievements: "Aucun succès débloqué pour l'instant.",
-		unlockedBy: '{count} membres'
+		unlockedBy: '{count} membres',
+		wowCharacters: 'Personnages WoW',
+		ilvl: 'ilvl'
 	},
 	gamesList: {
 		title: 'Jeux',
@@ -179,7 +181,8 @@ export const fr: Catalog = {
 		},
 		battlenet: {
 			link: 'Lier Battle.net'
-		}
+		},
+		bnetReconnectStats: 'Reconnecte Battle.net pour activer tes stats de jeu'
 	},
 	admin: {
 		title: 'Admin',

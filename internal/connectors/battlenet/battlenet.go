@@ -17,12 +17,14 @@ import (
 )
 
 const defaultOAuthBase = "https://oauth.battle.net"
+const defaultAPIBaseTmpl = "https://%s.api.blizzard.com"
 
 // Token is the result of exchanging an authorization code.
 type Token struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresIn    int // seconds
+	Scope        string
 }
 
 // UserInfo is the linked account's identity.
@@ -31,11 +33,12 @@ type UserInfo struct {
 	BattleTag string // e.g. "Player#1234"
 }
 
-// Connector talks to Battle.net OAuth. OAuthBase is overridable for tests.
+// Connector talks to Battle.net OAuth. OAuthBase and APIBase are overridable for tests.
 type Connector struct {
 	ClientID     string
 	ClientSecret string
 	OAuthBase    string
+	APIBase      string
 	HTTP         *http.Client
 }
 
@@ -58,7 +61,7 @@ func (c *Connector) AuthURL(state, redirectURI string) string {
 		"response_type": {"code"},
 		"client_id":     {c.ClientID},
 		"redirect_uri":  {redirectURI},
-		"scope":         {"openid"},
+		"scope":         {"openid wow.profile sc2.profile d3.profile"},
 		"state":         {state},
 	}
 	return c.OAuthBase + "/authorize?" + q.Encode()
@@ -93,6 +96,7 @@ func (c *Connector) ExchangeCode(ctx context.Context, code, redirectURI string) 
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 		ExpiresIn    int    `json:"expires_in"`
+		Scope        string `json:"scope"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return Token{}, fmt.Errorf("battlenet token decode: %w", err)
@@ -104,6 +108,7 @@ func (c *Connector) ExchangeCode(ctx context.Context, code, redirectURI string) 
 		AccessToken:  payload.AccessToken,
 		RefreshToken: payload.RefreshToken,
 		ExpiresIn:    payload.ExpiresIn,
+		Scope:        payload.Scope,
 	}, nil
 }
 

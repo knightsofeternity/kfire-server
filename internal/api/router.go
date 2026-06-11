@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 
+	"github.com/knightsofeternity/kfire-server/internal/bnetsync"
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
@@ -31,6 +32,7 @@ type handlers struct {
 	steam     *steam.Connector
 	steamSync *steamsync.Syncer
 	battlenet *battlenet.Connector
+	bnetSync  *bnetsync.Syncer
 	cipher    *crypto.Cipher
 }
 
@@ -57,7 +59,9 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	if cfg.BattlenetOAuthBase != "" {
 		bnConn.OAuthBase = cfg.BattlenetOAuthBase
 	}
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, cipher: cipher}
+	bnConn.APIBase = cfg.BattlenetAPIBase
+	bnetSync := bnetsync.New(st, bnConn, cipher, cfg.BattlenetRegion)
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, cipher: cipher}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
