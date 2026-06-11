@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 // Config holds all runtime configuration. Every value comes from the
@@ -43,6 +44,12 @@ type Config struct {
 	BattlenetRegion string
 	// BattlenetAPIBase overrides the profile API host (tests only).
 	BattlenetAPIBase string
+	// XblAppKey enables the Xbox connector (OpenXBL Application Key). Empty = disabled.
+	XblAppKey string
+	// XblAPIBase overrides the OpenXBL base URL (tests only).
+	XblAPIBase string
+	// XboxPollInterval is how often the Xbox presence poller runs.
+	XboxPollInterval time.Duration
 }
 
 // Load reads configuration from the environment. Required variables that are
@@ -66,6 +73,8 @@ func Load() (*Config, error) {
 		BattlenetOAuthBase:    os.Getenv("KFIRE_BATTLENET_OAUTH_BASE"),
 		BattlenetRegion:       getEnv("KFIRE_BATTLENET_REGION", "eu"),
 		BattlenetAPIBase:      os.Getenv("KFIRE_BATTLENET_API_BASE"),
+		XblAppKey:             os.Getenv("KFIRE_XBL_APP_KEY"),
+		XblAPIBase:            os.Getenv("KFIRE_XBL_API_BASE"),
 	}
 
 	for name, val := range map[string]string{
@@ -75,6 +84,13 @@ func Load() (*Config, error) {
 	} {
 		if val == "" {
 			return nil, fmt.Errorf("missing required environment variable %s", name)
+		}
+	}
+
+	cfg.XboxPollInterval = 2 * time.Minute
+	if v := os.Getenv("KFIRE_XBOX_POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
+			cfg.XboxPollInterval = d
 		}
 	}
 
