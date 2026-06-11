@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -65,28 +66,30 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		return err
 	}
 
+	var wowCards []fiber.Map
+	var wowSynced time.Time
 	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
 		h.bnetSync.RefreshWoW(c.Context(), mustClaims(c).UserID, g.Slug)
-	}
-
-	wowChars, wowSynced, err := h.store.WowCharactersByGame(c.Context(), g.ID)
-	if err != nil {
-		return err
-	}
-	cards := make([]fiber.Map, len(wowChars))
-	for i, ch := range wowChars {
-		m := fiber.Map{
-			"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
-			"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
-			"level": ch.Level, "item_level": ch.ItemLevel,
+		wowChars, synced, err := h.store.WowCharactersByGame(c.Context(), g.ID)
+		if err != nil {
+			return err
 		}
-		if ch.MythicRating != nil {
-			m["mythic_rating"] = *ch.MythicRating
+		wowSynced = synced
+		wowCards = make([]fiber.Map, len(wowChars))
+		for i, ch := range wowChars {
+			m := fiber.Map{
+				"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
+				"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
+				"level": ch.Level, "item_level": ch.ItemLevel,
+			}
+			if ch.MythicRating != nil {
+				m["mythic_rating"] = *ch.MythicRating
+			}
+			if len(ch.RaidSummary) > 0 {
+				m["raid_summary"] = json.RawMessage(ch.RaidSummary)
+			}
+			wowCards[i] = m
 		}
-		if len(ch.RaidSummary) > 0 {
-			m["raid_summary"] = json.RawMessage(ch.RaidSummary)
-		}
-		cards[i] = m
 	}
 
 	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
@@ -123,15 +126,18 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		achs[i] = m
 	}
 
-	return c.JSON(fiber.Map{
-		"game":           h.gameJSON(g),
-		"total_seconds":  totalSeconds,
-		"player_count":   players,
-		"leaderboard":    board,
-		"achievements":   achs,
-		"wow_characters": cards,
-		"wow_synced_at":  wowSynced,
-	})
+	resp := fiber.Map{
+		"game":          h.gameJSON(g),
+		"total_seconds": totalSeconds,
+		"player_count":  players,
+		"leaderboard":   board,
+		"achievements":  achs,
+	}
+	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
+		resp["wow_characters"] = wowCards
+		resp["wow_synced_at"] = wowSynced
+	}
+	return c.JSON(resp)
 }
 
 // GET /api/v1/achievements?user_id=&game_id=&limit=&offset=  (authenticated)

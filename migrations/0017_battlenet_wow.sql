@@ -5,14 +5,17 @@
 
 BEGIN;
 
+-- Nullable (not NOT NULL): callers that don't grant scopes (e.g. Steam links)
+-- pass nil, which pgx encodes as NULL; the DEFAULT only backfills existing rows.
 ALTER TABLE linked_accounts
-    ADD COLUMN scopes text[] NOT NULL DEFAULT '{}';
+    ADD COLUMN scopes text[] DEFAULT '{}';
 
 CREATE TABLE bnet_wow_characters (
     user_id        uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     game_id        uuid NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     region         text NOT NULL,
     realm_slug     text NOT NULL,
+    realm_name     text,
     name           text NOT NULL,
     faction        text,
     race           text,

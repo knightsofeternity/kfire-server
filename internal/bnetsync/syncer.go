@@ -58,30 +58,39 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 	if !hasScope(tok.Scopes, "wow.profile") {
 		return
 	}
+
+	game, err := s.store.GetGameBySlug(ctx, gameSlug)
+	if err != nil {
+		return
+	}
+	// Throttle once per game: skip if this game's data was refreshed recently.
+	if _, newest, err := s.store.WowCharactersByGame(ctx, game.ID); err == nil &&
+		!newest.IsZero() && time.Since(newest) < throttle {
+		return
+	}
+
 	access, err := s.cipher.OpenString(tok.AccessTokenEnc)
 	if err != nil {
 		return
 	}
 
+	// A catalog slug can map to several Blizzard namespaces (Classic has two:
+	// classic1x and classic). Gather characters from all of them, then replace
+	// the game's set ONCE so the namespaces don't clobber each other. Only
+	// replace if at least one namespace fetch succeeded, so a transient API
+	// error doesn't wipe previously-synced characters.
+	var rows []store.WowCharacterRow
+	anyOK := false
 	for _, ns := range s.namespaces() {
 		if ns.slug != gameSlug {
 			continue
 		}
-		game, err := s.store.GetGameBySlug(ctx, ns.slug)
-		if err != nil {
-			continue
-		}
-		// Throttle: skip if the freshest character row for this game is recent.
-		_, newest, err := s.store.WowCharactersByGame(ctx, game.ID)
-		if err == nil && !newest.IsZero() && time.Since(newest) < throttle {
-			return
-		}
 		chars, err := s.bnet.WowAccountCharacters(ctx, access, ns.namespace)
 		if err != nil {
 			slog.Warn("bnetsync: wow account", "user_id", userID, "ns", ns.namespace, "err", err)
-			return
+			continue
 		}
-		rows := make([]store.WowCharacterRow, 0, len(chars))
+		anyOK = true
 		for i := range chars {
 			if err := s.bnet.EnrichWowCharacter(ctx, access, ns.namespace, &chars[i]); err != nil {
 				slog.Warn("bnetsync: enrich", "char", chars[i].Name, "err", err)
@@ -95,6 +104,8 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 				RaidSummary: rawOrNil(c.RaidSummary),
 			})
 		}
+	}
+	if anyOK {
 		if err := s.store.ReplaceWowCharacters(ctx, userID, game.ID, rows); err != nil {
 			slog.Error("bnetsync: replace", "user_id", userID, "err", err)
 		}

@@ -42,10 +42,10 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 	for _, ch := range chars {
 		batch.Queue(`
 			INSERT INTO bnet_wow_characters
-				(user_id, game_id, region, realm_slug, name, faction, race, class,
+				(user_id, game_id, region, realm_slug, realm_name, name, faction, race, class,
 				 level, item_level, mythic_rating, raid_summary, last_synced_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())`,
-			userID, gameID, ch.Region, ch.RealmSlug, ch.Name, ch.Faction, ch.Race,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())`,
+			userID, gameID, ch.Region, ch.RealmSlug, ch.RealmName, ch.Name, ch.Faction, ch.Race,
 			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary)
 	}
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
@@ -58,7 +58,7 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 // item level first (for the game page), plus the newest last_synced_at.
 func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCharacterRow, time.Time, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT user_id, region, realm_slug, name, faction, race, class,
+		SELECT user_id, region, realm_slug, realm_name, name, faction, race, class,
 		       level, item_level, mythic_rating, raid_summary, last_synced_at
 		FROM bnet_wow_characters WHERE game_id = $1
 		ORDER BY item_level DESC, name ASC`, gameID)
@@ -72,7 +72,7 @@ func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCh
 	for rows.Next() {
 		var r WowCharacterRow
 		r.GameID = gameID
-		if err := rows.Scan(&r.UserID, &r.Region, &r.RealmSlug, &r.Name, &r.Faction,
+		if err := rows.Scan(&r.UserID, &r.Region, &r.RealmSlug, &r.RealmName, &r.Name, &r.Faction,
 			&r.Race, &r.Class, &r.Level, &r.ItemLevel, &r.MythicRating,
 			&r.RaidSummary, &r.LastSyncedAt); err != nil {
 			return nil, time.Time{}, err
