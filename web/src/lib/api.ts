@@ -32,12 +32,26 @@ export type GameAchievement = {
 	unlocks: number;
 };
 
+export type WowCharacter = {
+	user_id: string;
+	name: string;
+	realm?: string;
+	class?: string;
+	race?: string;
+	faction?: string;
+	level: number;
+	item_level: number;
+	mythic_rating?: number;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
 	player_count: number;
 	leaderboard: LeaderboardEntry[];
 	achievements: GameAchievement[];
+	wow_characters?: WowCharacter[];
+	wow_synced_at?: string;
 };
 
 export type AchievementGameOption = { game: Game; count: number };
@@ -90,6 +104,7 @@ export type Connection = {
 	avatar_url?: string;
 	profile_url?: string;
 	linked_at: string;
+	scopes?: string[];
 };
 
 export type Achievement = {

@@ -110,7 +110,9 @@ export const en = {
 		noPlayers: 'Nobody has played this yet.',
 		achievements: 'Achievements',
 		noAchievements: 'No achievements unlocked yet.',
-		unlockedBy: '{count} members'
+		unlockedBy: '{count} members',
+		wowCharacters: 'WoW characters',
+		ilvl: 'ilvl'
 	},
 	gamesList: {
 		title: 'Games',
@@ -177,7 +179,8 @@ export const en = {
 		},
 		battlenet: {
 			link: 'Link Battle.net'
-		}
+		},
+		bnetReconnectStats: 'Reconnect Battle.net to enable your game stats'
 	},
 	admin: {
 		title: 'Admin',

@@ -174,4 +174,22 @@
 			{/each}
 		</div>
 	{/if}
+
+	<!-- WoW Characters -->
+	{#if detail.wow_characters?.length}
+		<section class="mt-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('game.wowCharacters')}
+			</h2>
+			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+				{#each detail.wow_characters as ch}
+					<div class="pd-cut-sm px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+						<p class="font-display font-semibold text-[var(--color-text)]">{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> — {ch.realm}</span>{/if}</p>
+						<p class="text-sm text-[var(--color-muted)]">{ch.race} {ch.class} · {t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}</p>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 {/if}
