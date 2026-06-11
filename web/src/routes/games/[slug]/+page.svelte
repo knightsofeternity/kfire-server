@@ -192,4 +192,23 @@
 			</div>
 		</section>
 	{/if}
+
+	<!-- Battle.net Profiles -->
+	{#if detail.bnet_profiles?.length}
+		<section class="mt-6">
+			<h2 class="pd-heading mb-3 text-xs text-[var(--color-brand-bright)]">{t('game.bnetProfiles')}</h2>
+			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+				{#each detail.bnet_profiles as p}
+					<div class="pd-cut-sm px-3 py-2">
+						<p class="font-display font-semibold text-[var(--color-text)]">{p.username}</p>
+						{#if slug === 'diablo-iii'}
+							<p class="text-sm text-[var(--color-muted)]">{t('game.paragon')} {Number(p.data.paragon ?? 0)}{#if Array.isArray(p.data.heroes)} · {(p.data.heroes as unknown[]).length} {t('game.heroes')}{/if}</p>
+						{:else if slug === 'starcraft-ii-battle-chest'}
+							<p class="text-sm text-[var(--color-muted)]">{String(p.data.race ?? '')}{#if p.data.league} · {String(p.data.league)}{/if}</p>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 {/if}

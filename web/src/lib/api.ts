@@ -52,6 +52,8 @@ export type GameDetail = {
 	achievements: GameAchievement[];
 	wow_characters?: WowCharacter[];
 	wow_synced_at?: string;
+	bnet_profiles?: { user_id: string; username: string; data: Record<string, unknown> }[];
+	bnet_synced_at?: string;
 };
 
 export type AchievementGameOption = { game: Game; count: number };

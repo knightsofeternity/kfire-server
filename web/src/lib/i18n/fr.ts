@@ -113,7 +113,10 @@ export const fr: Catalog = {
 		noAchievements: "Aucun succès débloqué pour l'instant.",
 		unlockedBy: '{count} membres',
 		wowCharacters: 'Personnages WoW',
-		ilvl: 'ilvl'
+		ilvl: 'ilvl',
+		bnetProfiles: 'Profils Battle.net',
+		paragon: 'Parangon',
+		heroes: 'héros'
 	},
 	gamesList: {
 		title: 'Jeux',
