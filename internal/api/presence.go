@@ -25,26 +25,20 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 	for _, r := range rows {
 		online := h.hub.OnlineSince(r.UserID)
 		showGame := r.ActivityVisible || r.UserID == claims.UserID || claims.Role == "admin"
+		hasOpen := r.Game != nil
+		status := store.PresenceStatus(hasOpen, hasOpen && showGame, online != nil)
 
-		entry := fiber.Map{
-			"user_id":  r.UserID,
-			"username": r.Username,
-			"status":   "offline",
-			"game":     nil,
-		}
+		entry := fiber.Map{"user_id": r.UserID, "username": r.Username, "status": status, "game": nil}
 		if r.AvatarURL != nil {
 			entry["avatar_url"] = *r.AvatarURL
 		}
-		if online != nil {
-			entry["status"] = "online"
-			entry["since"] = online.UTC()
-			if r.Game != nil && showGame {
-				entry["status"] = "in_game"
-				entry["game"] = h.gameJSON(*r.Game)
-				if r.StartedAt != nil {
-					entry["since"] = r.StartedAt.UTC()
-				}
+		if status == "in_game" {
+			entry["game"] = h.gameJSON(*r.Game)
+			if r.StartedAt != nil {
+				entry["since"] = r.StartedAt.UTC()
 			}
+		} else if status == "online" && online != nil {
+			entry["since"] = online.UTC()
 		}
 		entries = append(entries, entry)
 	}
@@ -54,29 +48,22 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 
 // userPresence builds a single presence entry for a profile page.
 func (h *handlers) userPresence(c *fiber.Ctx, u store.User, showGame bool) fiber.Map {
-	entry := fiber.Map{
-		"user_id":  u.ID,
-		"username": u.Username,
-		"status":   "offline",
-		"game":     nil,
+	online := h.hub.OnlineSince(u.ID)
+	var sess *store.Session
+	if s, err := h.store.LatestOpenSession(c.Context(), u.ID); err == nil {
+		sess = s
 	}
+	status := store.PresenceStatus(sess != nil, sess != nil && showGame, online != nil)
+
+	entry := fiber.Map{"user_id": u.ID, "username": u.Username, "status": status, "game": nil}
 	if u.AvatarURL != nil {
 		entry["avatar_url"] = *u.AvatarURL
 	}
-
-	since := h.hub.OnlineSince(u.ID)
-	if since == nil {
-		return entry
-	}
-	entry["status"] = "online"
-	entry["since"] = since.UTC()
-
-	if showGame {
-		if sess, err := h.store.LatestOpenSession(c.Context(), u.ID); err == nil && sess != nil {
-			entry["status"] = "in_game"
-			entry["game"] = h.gameJSON(sess.Game)
-			entry["since"] = sess.StartedAt.UTC()
-		}
+	if status == "in_game" && sess != nil {
+		entry["game"] = h.gameJSON(sess.Game)
+		entry["since"] = sess.StartedAt.UTC()
+	} else if status == "online" && online != nil {
+		entry["since"] = online.UTC()
 	}
 	return entry
 }
