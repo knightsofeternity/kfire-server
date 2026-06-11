@@ -112,7 +112,10 @@ export const en = {
 		noAchievements: 'No achievements unlocked yet.',
 		unlockedBy: '{count} members',
 		wowCharacters: 'WoW characters',
-		ilvl: 'ilvl'
+		ilvl: 'ilvl',
+		bnetProfiles: 'Battle.net profiles',
+		paragon: 'Paragon',
+		heroes: 'heroes'
 	},
 	gamesList: {
 		title: 'Games',

@@ -138,3 +138,92 @@ func rawOrNil(r json.RawMessage) []byte {
 	}
 	return r
 }
+
+// RefreshBnetGame refreshes a member's Diablo III or StarCraft II profile for
+// the given game slug, on demand and per-user throttled. Safe to call on every
+// page view. No-op for other slugs.
+func (s *Syncer) RefreshBnetGame(ctx context.Context, userID, gameSlug string) {
+	scope := map[string]string{
+		"diablo-iii":                "d3.profile",
+		"starcraft-ii-battle-chest": "sc2.profile",
+	}[gameSlug]
+	if scope == "" {
+		return // not a generic-profile game
+	}
+
+	tok, err := s.store.GetLinkedToken(ctx, userID, "battlenet")
+	if err != nil {
+		return
+	}
+	if tok.TokenExpiresAt == nil || tok.TokenExpiresAt.Before(time.Now()) {
+		return
+	}
+	if !hasScope(tok.Scopes, scope) {
+		return
+	}
+
+	game, err := s.store.GetGameBySlug(ctx, gameSlug)
+	if err != nil {
+		return
+	}
+	if synced, err := s.store.BnetSyncedAt(ctx, userID, game.ID); err == nil &&
+		!synced.IsZero() && time.Since(synced) < throttle {
+		return
+	}
+
+	access, err := s.cipher.OpenString(tok.AccessTokenEnc)
+	if err != nil {
+		return
+	}
+
+	var data []byte
+	switch gameSlug {
+	case "diablo-iii":
+		battleTag := ""
+		if tok.DisplayName != nil {
+			battleTag = *tok.DisplayName
+		}
+		if battleTag == "" {
+			return // D3 endpoint is keyed by BattleTag; nothing to query without it
+		}
+		p, err := s.bnet.D3Profile(ctx, access, battleTag, s.region)
+		if err != nil {
+			slog.Warn("bnetsync: d3", "user_id", userID, "err", err)
+			return
+		}
+		if p == nil {
+			// No D3/SC2 profile for this member; mark synced anyway so we don't
+			// re-hit Blizzard on every page view (throttled like a real sync).
+			_ = s.store.MarkBnetSynced(ctx, userID, game.ID)
+			return
+		}
+		data, err = json.Marshal(p)
+		if err != nil {
+			return
+		}
+	case "starcraft-ii-battle-chest":
+		p, err := s.bnet.SC2Profile(ctx, access, tok.ProviderUserID, s.region)
+		if err != nil {
+			slog.Warn("bnetsync: sc2", "user_id", userID, "err", err)
+			return
+		}
+		if p == nil {
+			// No D3/SC2 profile for this member; mark synced anyway so we don't
+			// re-hit Blizzard on every page view (throttled like a real sync).
+			_ = s.store.MarkBnetSynced(ctx, userID, game.ID)
+			return
+		}
+		data, err = json.Marshal(p)
+		if err != nil {
+			return
+		}
+	}
+
+	if err := s.store.UpsertGameProfile(ctx, userID, game.ID, data); err != nil {
+		slog.Error("bnetsync: upsert game profile", "user_id", userID, "err", err)
+		return
+	}
+	if err := s.store.MarkBnetSynced(ctx, userID, game.ID); err != nil {
+		slog.Warn("bnetsync: mark synced", "user_id", userID, "err", err)
+	}
+}
