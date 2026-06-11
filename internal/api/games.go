@@ -92,6 +92,25 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		}
 	}
 
+	var bnetProfiles []fiber.Map
+	var bnetSynced time.Time
+	if g.Slug == "diablo-iii" || g.Slug == "starcraft-ii-battle-chest" {
+		h.bnetSync.RefreshBnetGame(c.Context(), mustClaims(c).UserID, g.Slug)
+		profs, synced, err := h.store.GameProfilesByGame(c.Context(), g.ID)
+		if err != nil {
+			return err
+		}
+		bnetSynced = synced
+		bnetProfiles = make([]fiber.Map, len(profs))
+		for i, p := range profs {
+			bnetProfiles[i] = fiber.Map{
+				"user_id":  p.UserID,
+				"username": p.Username,
+				"data":     json.RawMessage(p.Data),
+			}
+		}
+	}
+
 	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
 	if err != nil {
 		return err
@@ -136,6 +155,10 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
 		resp["wow_characters"] = wowCards
 		resp["wow_synced_at"] = wowSynced
+	}
+	if g.Slug == "diablo-iii" || g.Slug == "starcraft-ii-battle-chest" {
+		resp["bnet_profiles"] = bnetProfiles
+		resp["bnet_synced_at"] = bnetSynced
 	}
 	return c.JSON(resp)
 }
