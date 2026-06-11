@@ -65,17 +65,22 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			WHERE s.game_id = $1 AND s.started_at > ext.synced
 			GROUP BY s.user_id
 		),
-		players AS (SELECT user_id FROM sess UNION SELECT user_id FROM ext)
-		SELECT u.id, u.username, u.avatar_url,
-		       (CASE WHEN ext.user_id IS NOT NULL
-		             THEN ext.base + COALESCE(sess_since.secs,0)
-		             ELSE COALESCE(sess.secs,0) END)::bigint AS total,
-		       COALESCE(sess.cnt,0) AS cnt
-		FROM players p
-		JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
-		LEFT JOIN sess ON sess.user_id = p.user_id
-		LEFT JOIN ext  ON ext.user_id  = p.user_id
-		LEFT JOIN sess_since ON sess_since.user_id = p.user_id
+		players AS (SELECT user_id FROM sess UNION SELECT user_id FROM ext),
+		board AS (
+			SELECT u.id, u.username, u.avatar_url,
+			       (CASE WHEN ext.user_id IS NOT NULL
+			             THEN ext.base + COALESCE(sess_since.secs,0)
+			             ELSE COALESCE(sess.secs,0) END)::bigint AS total,
+			       COALESCE(sess.cnt,0) AS cnt
+			FROM players p
+			JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
+			LEFT JOIN sess ON sess.user_id = p.user_id
+			LEFT JOIN ext  ON ext.user_id  = p.user_id
+			LEFT JOIN sess_since ON sess_since.user_id = p.user_id
+		)
+		-- Exclude owned-but-unplayed entries (zero playtime), matching ListPlayedGames.
+		SELECT id, username, avatar_url, total, cnt
+		FROM board WHERE total > 0
 		ORDER BY total DESC, cnt DESC
 		LIMIT $2`, gameID, limit)
 	if err != nil {
@@ -121,7 +126,7 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			LEFT JOIN ext  ON ext.user_id  = u.user_id
 			LEFT JOIN sess_since ss ON ss.user_id = u.user_id
 		)
-		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p`,
+		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p WHERE secs > 0`,
 		gameID).Scan(&totalSeconds, &players)
 	return out, totalSeconds, players, err
 }

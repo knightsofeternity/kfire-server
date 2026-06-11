@@ -109,6 +109,23 @@ func TestNormalizeFiltersGenericExecutables(t *testing.T) {
 	}
 }
 
+func TestNormalizeAddsCuratedExeForGameDiscordMisses(t *testing.T) {
+	// Discord lists Vampire Crawlers (steam 3265700) with an empty executables
+	// array, so without a curated entry normalize() drops it and the client can
+	// never detect it. The curated exe must bring it back into the catalog.
+	apps := []detectableApp{
+		{ID: "vc", Name: "Vampire Crawlers: The Turbo Wildcard from Vampire Survivors"},
+	}
+
+	seeds := normalize(apps)
+	if len(seeds) != 1 {
+		t.Fatalf("expected Vampire Crawlers seeded via curated exe, got %d seeds", len(seeds))
+	}
+	if got, want := seeds[0].ExecutableNames, []string{"vampire crawlers.exe"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("executables = %v, want %v", got, want)
+	}
+}
+
 func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 	apps := []detectableApp{
 		{ID: "pubg", Name: "PUBG: BATTLEGROUNDS", Executables: exeList("TslGame.exe")},

@@ -120,6 +120,10 @@ var testVariant = regexp.MustCompile(
 // These bypass the generic/short/frequency filters since they are vetted.
 var extraExecutables = map[string][]string{
 	"palia": {"paliaclientsteam-win64-shipping.exe"},
+	// Discord lists Vampire Crawlers (steam 3265700) with no executables at all,
+	// so the game was dropped from the catalog and never detected. Its binary is
+	// "Vampire Crawlers.exe".
+	"vampire-crawlers-the-turbo-wildcard-from-vampire-survivors": {"vampire crawlers.exe"},
 }
 
 // maxGamesPerExecutable bounds how many distinct games may share an executable

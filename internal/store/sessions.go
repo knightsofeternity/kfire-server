@@ -173,22 +173,28 @@ func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, e
 			FROM game_sessions s JOIN ext ON ext.game_id = s.game_id
 			WHERE s.user_id = $1 AND s.started_at > ext.synced
 			GROUP BY s.game_id
+		),
+		stats AS (
+			SELECT g.id, g.name, g.slug, g.icon_url,
+			       (CASE WHEN ext.game_id IS NOT NULL
+			             THEN ext.base + COALESCE(sess_since.secs, 0)
+			             ELSE COALESCE(sess.secs, 0) END)::bigint AS total,
+			       COALESCE(sess.cnt, 0) AS cnt,
+			       COALESCE(sess.last_played, ext.synced) AS last_at
+			FROM games g
+			JOIN (
+				SELECT game_id FROM sess
+				UNION
+				SELECT game_id FROM ext
+			) played ON played.game_id = g.id
+			LEFT JOIN sess ON sess.game_id = g.id
+			LEFT JOIN ext  ON ext.game_id = g.id
+			LEFT JOIN sess_since ON sess_since.game_id = g.id
 		)
-		SELECT g.id, g.name, g.slug, g.icon_url,
-		       (CASE WHEN ext.game_id IS NOT NULL
-		             THEN ext.base + COALESCE(sess_since.secs, 0)
-		             ELSE COALESCE(sess.secs, 0) END)::bigint AS total,
-		       COALESCE(sess.cnt, 0) AS cnt,
-		       COALESCE(sess.last_played, ext.synced) AS last_at
-		FROM games g
-		JOIN (
-			SELECT game_id FROM sess
-			UNION
-			SELECT game_id FROM ext
-		) played ON played.game_id = g.id
-		LEFT JOIN sess ON sess.game_id = g.id
-		LEFT JOIN ext  ON ext.game_id = g.id
-		LEFT JOIN sess_since ON sess_since.game_id = g.id
+		-- Exclude games with no actual playtime (e.g. owned-but-unplayed Steam
+		-- games the library import brings in at zero), matching ListPlayedGames.
+		SELECT id, name, slug, icon_url, total, cnt, last_at
+		FROM stats WHERE total > 0
 		ORDER BY total DESC, cnt DESC`,
 		userID)
 	if err != nil {
