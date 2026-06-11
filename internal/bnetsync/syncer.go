@@ -192,6 +192,9 @@ func (s *Syncer) RefreshBnetGame(ctx context.Context, userID, gameSlug string) {
 			return
 		}
 		if p == nil {
+			// No D3/SC2 profile for this member; mark synced anyway so we don't
+			// re-hit Blizzard on every page view (throttled like a real sync).
+			_ = s.store.MarkBnetSynced(ctx, userID, game.ID)
 			return
 		}
 		data, err = json.Marshal(p)
@@ -205,6 +208,9 @@ func (s *Syncer) RefreshBnetGame(ctx context.Context, userID, gameSlug string) {
 			return
 		}
 		if p == nil {
+			// No D3/SC2 profile for this member; mark synced anyway so we don't
+			// re-hit Blizzard on every page view (throttled like a real sync).
+			_ = s.store.MarkBnetSynced(ctx, userID, game.ID)
 			return
 		}
 		data, err = json.Marshal(p)
