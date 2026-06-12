@@ -81,6 +81,7 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 				"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
 				"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
 				"level": ch.Level, "item_level": ch.ItemLevel,
+				"achievement_points": ch.AchievementPoints,
 			}
 			if ch.MythicRating != nil {
 				m["mythic_rating"] = *ch.MythicRating
