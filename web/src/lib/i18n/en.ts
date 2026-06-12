@@ -101,6 +101,7 @@ export const en = {
 		loadMore: 'Load more',
 		loadingMore: 'Loading...',
 		allOwnedGames: 'See all games',
+		playedBadge: 'Played',
 		ownedFrom: 'via {source}'
 	},
 	game: {

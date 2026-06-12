@@ -102,6 +102,7 @@ export const fr: Catalog = {
 		loadMore: 'Charger plus',
 		loadingMore: 'Chargement...',
 		allOwnedGames: 'Voir tous les jeux',
+		playedBadge: 'Joué',
 		ownedFrom: 'via {source}'
 	},
 	game: {
