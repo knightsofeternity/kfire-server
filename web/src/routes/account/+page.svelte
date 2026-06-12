@@ -403,6 +403,7 @@
 						</p>
 					{:else}
 						<p class="text-sm text-[var(--color-muted)]">{t('account.notLinked')}</p>
+						<p class="mt-1 text-xs text-[var(--color-muted)]/80">{t('account.xbox.slowHint')}</p>
 					{/if}
 				</div>
 			</div>
@@ -420,7 +421,7 @@
 					disabled={xboxBusy}
 					class="btn-pd disabled:opacity-60"
 				>
-					{xboxBusy ? '...' : t('account.xbox.link')}
+					{xboxBusy ? t('account.xbox.linking') : t('account.xbox.link')}
 				</button>
 			{/if}
 		</div>

@@ -184,7 +184,9 @@ export const en = {
 			link: 'Link Battle.net'
 		},
 		xbox: {
-			link: 'Link Xbox'
+			link: 'Link Xbox',
+			linking: 'Linking… (~30s)',
+			slowHint: 'Linking can take ~30s after the Microsoft sign-in — don’t close the tab.'
 		},
 		bnetReconnectStats: 'Reconnect Battle.net to enable your game stats'
 	},
