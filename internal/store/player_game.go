@@ -31,6 +31,20 @@ func (s *Store) WowCharactersForUserGame(ctx context.Context, userID, gameID str
 	return out, rows.Err()
 }
 
+// WowCharacterAchievements returns one character's cached achievements JSONB
+// (the raw [] of {id,name,completed_at}), or nil if absent.
+func (s *Store) WowCharacterAchievements(ctx context.Context, userID, realmSlug, name string) ([]byte, error) {
+	var data []byte
+	err := s.pool.QueryRow(ctx, `
+		SELECT achievements FROM bnet_wow_characters
+		WHERE user_id = $1 AND realm_slug = $2 AND lower(name) = lower($3)`,
+		userID, realmSlug, name).Scan(&data)
+	if err != nil {
+		return nil, nil // not found / no data -> empty
+	}
+	return data, nil
+}
+
 // GameProfileForUserGame returns one member's bnet profile blob for a game (nil if none).
 func (s *Store) GameProfileForUserGame(ctx context.Context, userID, gameID string) ([]byte, error) {
 	var data []byte
