@@ -126,6 +126,26 @@ func TestNormalizeAddsCuratedExeForGameDiscordMisses(t *testing.T) {
 	}
 }
 
+func TestNormalizeExcludesWrongGameExecutable(t *testing.T) {
+	// Discord lists Enlisted's binary (enlisted.exe) under CRSED: F.O.A.D.;
+	// it must be dropped from CRSED while a real exe is kept.
+	apps := []detectableApp{
+		{ID: "crsed", Name: "CRSED: F.O.A.D.", Executables: exeList("win64/enlisted.exe", "win64/cuisine_royale.exe")},
+	}
+	seeds := normalize(apps)
+	if len(seeds) != 1 {
+		t.Fatalf("expected CRSED seeded (keeps cuisine_royale.exe), got %d", len(seeds))
+	}
+	for _, e := range seeds[0].ExecutableNames {
+		if e == "enlisted.exe" {
+			t.Errorf("CRSED must not carry enlisted.exe: %v", seeds[0].ExecutableNames)
+		}
+	}
+	if want := []string{"cuisine_royale.exe"}; !reflect.DeepEqual(seeds[0].ExecutableNames, want) {
+		t.Errorf("executables = %v, want %v", seeds[0].ExecutableNames, want)
+	}
+}
+
 func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 	apps := []detectableApp{
 		{ID: "pubg", Name: "PUBG: BATTLEGROUNDS", Executables: exeList("TslGame.exe")},
