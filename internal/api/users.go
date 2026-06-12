@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -75,14 +76,18 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 	// thundering herd); the syncer no-ops when not linked / scope missing /
 	// throttled, and uses a detached context so it outlives the request.
 	if h.bnetSync != nil && mustClaims(c).UserID == id {
-		go func(uid string) {
+		// c.Params returns a string backed by Fiber's per-request buffer, which
+		// is recycled once the handler returns; clone it so the detached
+		// goroutine doesn't read a value overwritten by a later request.
+		uid := strings.Clone(id)
+		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer cancel()
 			h.bnetSync.RefreshWoW(ctx, uid, "world-of-warcraft")
 			h.bnetSync.RefreshWoW(ctx, uid, "world-of-warcraft-classic")
 			h.bnetSync.RefreshBnetGame(ctx, uid, "diablo-iii")
 			h.bnetSync.RefreshBnetGame(ctx, uid, "starcraft-ii-battle-chest")
-		}(id)
+		}()
 	}
 
 	stats, err := h.store.UserGameStats(c.Context(), id)
