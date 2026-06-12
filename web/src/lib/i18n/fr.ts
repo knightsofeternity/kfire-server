@@ -134,7 +134,7 @@ export const fr: Catalog = {
 		notLinked: 'Non lié',
 		unlink: 'Délier',
 		connectedAccounts: 'Comptes connectés',
-		comingNext: 'Riot, Epic, Xbox et PlayStation arrivent bientôt.',
+		comingNext: 'Riot, Epic et PlayStation arrivent bientôt.',
 		privacy: {
 			title: 'Confidentialité',
 			toggleLabel: 'Afficher mon activité de jeu',
@@ -184,6 +184,9 @@ export const fr: Catalog = {
 		},
 		battlenet: {
 			link: 'Lier Battle.net'
+		},
+		xbox: {
+			link: 'Lier Xbox'
 		},
 		bnetReconnectStats: 'Reconnecte Battle.net pour activer tes stats de jeu'
 	},
