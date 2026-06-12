@@ -52,6 +52,11 @@ func fakeWowAPI(t *testing.T) *httptest.Server {
 				"instances":[{"instance":{"name":"Nerub-ar Palace"},
 				"modes":[{"difficulty":{"type":"MYTHIC"},
 				"progress":{"completed_count":3,"total_count":8}}]}]}]}`))
+		case strings.HasSuffix(r.URL.Path, "/achievements"):
+			w.Write([]byte(`{"achievements":[
+				{"id":6,"achievement":{"name":"Level 10"},"completed_timestamp":1700000000000},
+				{"id":7,"achievement":{"name":"Not Done Yet"}}
+			]}`))
 		case strings.Contains(r.URL.Path, "/profile/wow/character/"):
 			w.Write([]byte(`{"name":"Tankette","equipped_item_level":639,"level":80,"achievement_points":18540}`))
 		default:
@@ -98,5 +103,27 @@ func TestEnrichWowCharacter(t *testing.T) {
 	}
 	if ch.AchievementPoints != 18540 {
 		t.Errorf("achievement points = %d, want 18540", ch.AchievementPoints)
+	}
+}
+
+func TestWowAchievements(t *testing.T) {
+	srv := fakeWowAPI(t)
+	defer srv.Close()
+	c := New("id", "secret")
+	c.APIBase = srv.URL
+
+	achs, err := c.WowAchievements(context.Background(), "tok", "profile-eu", "hyjal", "Tankette")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the one with completed_timestamp should be returned.
+	if len(achs) != 1 {
+		t.Fatalf("got %d achievements, want 1", len(achs))
+	}
+	if achs[0].Name != "Level 10" {
+		t.Errorf("name = %q, want %q", achs[0].Name, "Level 10")
+	}
+	if achs[0].CompletedAt != 1700000000000 {
+		t.Errorf("completed_at = %d, want 1700000000000", achs[0].CompletedAt)
 	}
 }

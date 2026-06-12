@@ -24,6 +24,7 @@ type WowCharacterRow struct {
 	MythicRating      *float64
 	RaidSummary       []byte
 	AchievementPoints int
+	Achievements      []byte
 	LastSyncedAt      time.Time
 }
 
@@ -45,10 +46,10 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 		batch.Queue(`
 			INSERT INTO bnet_wow_characters
 				(user_id, game_id, region, realm_slug, realm_name, name, faction, race, class,
-				 level, item_level, mythic_rating, raid_summary, achievement_points, last_synced_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now())`,
+				 level, item_level, mythic_rating, raid_summary, achievement_points, achievements, last_synced_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())`,
 			userID, gameID, ch.Region, ch.RealmSlug, ch.RealmName, ch.Name, ch.Faction, ch.Race,
-			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary, ch.AchievementPoints)
+			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary, ch.AchievementPoints, ch.Achievements)
 	}
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 		return err

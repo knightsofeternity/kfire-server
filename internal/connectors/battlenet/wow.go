@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -154,4 +155,45 @@ func namespaceRegion(namespace string) string {
 		return namespace
 	}
 	return namespace[i+1:]
+}
+
+// WowAchievement is one completed achievement on a character.
+type WowAchievement struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	CompletedAt int64  `json:"completed_at"` // epoch ms
+}
+
+// WowAchievements returns a character's COMPLETED achievements (those with a
+// completion timestamp), newest first. Endpoint:
+// /profile/wow/character/{realm}/{name}/achievements?namespace=...&locale=en_US
+func (c *Connector) WowAchievements(ctx context.Context, token, namespace, realmSlug, name string) ([]WowAchievement, error) {
+	region := namespaceRegion(namespace)
+	base := c.apiBase(region)
+	path := fmt.Sprintf("/profile/wow/character/%s/%s/achievements",
+		url.PathEscape(realmSlug), url.PathEscape(strings.ToLower(name)))
+	q := "?" + url.Values{"namespace": {namespace}, "locale": {"en_US"}}.Encode()
+
+	var payload struct {
+		Achievements []struct {
+			ID          int `json:"id"`
+			Achievement struct {
+				Name string `json:"name"`
+			} `json:"achievement"`
+			CompletedTimestamp int64 `json:"completed_timestamp"`
+		} `json:"achievements"`
+	}
+	found, err := c.getProfileJSON(ctx, base+path+q, token, &payload)
+	if err != nil || !found {
+		return nil, err
+	}
+	out := make([]WowAchievement, 0, len(payload.Achievements))
+	for _, a := range payload.Achievements {
+		if a.CompletedTimestamp == 0 {
+			continue // not completed
+		}
+		out = append(out, WowAchievement{ID: a.ID, Name: a.Achievement.Name, CompletedAt: a.CompletedTimestamp})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CompletedAt > out[j].CompletedAt })
+	return out, nil
 }
