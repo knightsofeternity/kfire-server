@@ -11,7 +11,7 @@ import (
 func (s *Store) WowCharactersForUserGame(ctx context.Context, userID, gameID string) ([]WowCharacterRow, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT user_id, region, realm_slug, realm_name, name, faction, race, class,
-		       level, item_level, mythic_rating, raid_summary, last_synced_at
+		       level, item_level, mythic_rating, raid_summary, achievement_points, last_synced_at
 		FROM bnet_wow_characters WHERE user_id = $1 AND game_id = $2
 		ORDER BY item_level DESC, name ASC`, userID, gameID)
 	if err != nil {
@@ -23,7 +23,7 @@ func (s *Store) WowCharactersForUserGame(ctx context.Context, userID, gameID str
 		var r WowCharacterRow
 		r.GameID = gameID
 		if err := rows.Scan(&r.UserID, &r.Region, &r.RealmSlug, &r.RealmName, &r.Name, &r.Faction,
-			&r.Race, &r.Class, &r.Level, &r.ItemLevel, &r.MythicRating, &r.RaidSummary, &r.LastSyncedAt); err != nil {
+			&r.Race, &r.Class, &r.Level, &r.ItemLevel, &r.MythicRating, &r.RaidSummary, &r.AchievementPoints, &r.LastSyncedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
