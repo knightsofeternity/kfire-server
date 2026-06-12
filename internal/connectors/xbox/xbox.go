@@ -48,8 +48,9 @@ func (c *Connector) claimBase() string {
 }
 
 // AuthURL returns the OpenXBL "Sign in with Xbox" URL for our app's public key.
+// Auth and claim live on the API host (api.xbl.io); only data calls use xbl.io.
 func (c *Connector) AuthURL(publicKey string) string {
-	return c.base() + "/app/auth/" + publicKey
+	return c.claimBase() + "/app/auth/" + publicKey
 }
 
 // ExchangeCode claims an OpenXBL authorization code for the member's secret key
