@@ -99,7 +99,9 @@ export const en = {
 		recentSessions: 'Recent sessions',
 		noSessions: 'No sessions yet.',
 		loadMore: 'Load more',
-		loadingMore: 'Loading...'
+		loadingMore: 'Loading...',
+		allOwnedGames: 'See all games',
+		ownedFrom: 'via {source}'
 	},
 	game: {
 		loading: 'Loading...',
