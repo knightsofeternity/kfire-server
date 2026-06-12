@@ -63,7 +63,11 @@ func (c *Connector) ExchangeCode(ctx context.Context, code, publicKey string) (s
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	resp, err := c.HTTP.Do(req)
+	// The claim is slow: OpenXBL performs the full Microsoft/XSTS exchange
+	// server-side (even a bogus claim takes ~9s), so it needs a much longer
+	// timeout than the snappy data calls handled by c.HTTP.
+	claimHTTP := &http.Client{Timeout: 60 * time.Second}
+	resp, err := claimHTTP.Do(req)
 	if err != nil {
 		return "", err
 	}
