@@ -12,16 +12,17 @@ import (
 // WowCharacter is one of a member's WoW characters, enriched with item level,
 // Mythic+ rating and raid progress.
 type WowCharacter struct {
-	Name         string
-	RealmSlug    string
-	RealmName    string
-	Class        string
-	Race         string
-	Faction      string
-	Level        int
-	ItemLevel    int
-	MythicRating *float64
-	RaidSummary  json.RawMessage
+	Name              string
+	RealmSlug         string
+	RealmName         string
+	Class             string
+	Race              string
+	Faction           string
+	Level             int
+	ItemLevel         int
+	MythicRating      *float64
+	RaidSummary       json.RawMessage
+	AchievementPoints int
 }
 
 func (c *Connector) apiBase(region string) string {
@@ -116,11 +117,13 @@ func (c *Connector) EnrichWowCharacter(ctx context.Context, token, namespace str
 
 	var summary struct {
 		EquippedItemLevel int `json:"equipped_item_level"`
+		AchievementPoints int `json:"achievement_points"`
 	}
 	if _, err := c.getProfileJSON(ctx, base+charPath+q, token, &summary); err != nil {
 		return err
 	}
 	ch.ItemLevel = summary.EquippedItemLevel
+	ch.AchievementPoints = summary.AchievementPoints
 
 	var mplus struct {
 		CurrentMythicRating struct {

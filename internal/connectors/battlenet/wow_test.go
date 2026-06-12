@@ -53,7 +53,7 @@ func fakeWowAPI(t *testing.T) *httptest.Server {
 				"modes":[{"difficulty":{"type":"MYTHIC"},
 				"progress":{"completed_count":3,"total_count":8}}]}]}]}`))
 		case strings.Contains(r.URL.Path, "/profile/wow/character/"):
-			w.Write([]byte(`{"name":"Tankette","equipped_item_level":639,"level":80}`))
+			w.Write([]byte(`{"name":"Tankette","equipped_item_level":639,"level":80,"achievement_points":18540}`))
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
 			w.WriteHeader(404)
@@ -95,5 +95,8 @@ func TestEnrichWowCharacter(t *testing.T) {
 	}
 	if ch.RaidSummary == nil {
 		t.Error("raid summary not populated")
+	}
+	if ch.AchievementPoints != 18540 {
+		t.Errorf("achievement points = %d, want 18540", ch.AchievementPoints)
 	}
 }
