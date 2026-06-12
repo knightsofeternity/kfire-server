@@ -241,7 +241,12 @@
 			{:else}
 				<div class="pd-card grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each library as entry (entry.game.id)}
-						{@const sourceLabel = entry.source === 'steam' ? 'Steam' : 'Battle.net'}
+						{@const badge =
+							entry.source === 'steam'
+								? { label: 'Steam', color: '#66c0f4', bg: 'rgba(102,192,244,0.15)' }
+								: entry.source === 'battlenet'
+									? { label: 'Battle.net', color: '#148EFF', bg: 'rgba(20,142,255,0.15)' }
+									: { label: t('profile.playedBadge'), color: 'var(--color-muted)', bg: 'var(--color-surface-2)' }}
 						<a
 							href="/players/{id}/games/{entry.game.slug}"
 							class="flex items-center gap-3 rounded px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
@@ -256,8 +261,8 @@
 							<span class="min-w-0 flex-1 truncate text-sm">{entry.game.name}</span>
 							<span
 								class="shrink-0 pd-cut-sm px-1.5 py-0.5 font-display text-xs font-bold italic"
-								style="background: {entry.source === 'steam' ? 'rgba(102,192,244,0.15)' : 'rgba(20,142,255,0.15)'}; color: {entry.source === 'steam' ? '#66c0f4' : '#148EFF'}"
-							>{sourceLabel}</span>
+								style="background: {badge.bg}; color: {badge.color}"
+							>{badge.label}</span>
 						</a>
 					{/each}
 				</div>

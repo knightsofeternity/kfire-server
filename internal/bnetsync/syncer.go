@@ -71,6 +71,7 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 
 	access, err := s.cipher.OpenString(tok.AccessTokenEnc)
 	if err != nil {
+		slog.Warn("bnetsync: decrypt token (wow)", "user_id", userID, "err", err)
 		return
 	}
 
@@ -90,6 +91,7 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 			slog.Warn("bnetsync: wow account", "user_id", userID, "ns", ns.namespace, "err", err)
 			continue
 		}
+		slog.Info("bnetsync: wow fetched", "user_id", userID, "ns", ns.namespace, "count", len(chars))
 		anyOK = true
 		for i := range chars {
 			if err := s.bnet.EnrichWowCharacter(ctx, access, ns.namespace, &chars[i]); err != nil {
@@ -173,6 +175,7 @@ func (s *Syncer) RefreshBnetGame(ctx context.Context, userID, gameSlug string) {
 
 	access, err := s.cipher.OpenString(tok.AccessTokenEnc)
 	if err != nil {
+		slog.Warn("bnetsync: decrypt token (game)", "user_id", userID, "slug", gameSlug, "err", err)
 		return
 	}
 
