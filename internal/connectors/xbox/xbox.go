@@ -53,50 +53,51 @@ func (c *Connector) AuthURL(publicKey string) string {
 	return c.claimBase() + "/app/auth/" + publicKey
 }
 
-// ExchangeCode claims an OpenXBL authorization code for the member's secret key
-// (used thereafter as X-Authorization for their data calls).
-func (c *Connector) ExchangeCode(ctx context.Context, code, publicKey string) (string, error) {
+// ClaimResult is the outcome of claiming an OpenXBL authorization code: the
+// member's secret key (used as X-Authorization for their data calls) plus the
+// identity OpenXBL returns alongside it, so no extra /account call is needed
+// (that endpoint returns an empty profile for app-scoped member keys).
+type ClaimResult struct {
+	Key      string
+	XUID     string
+	Gamertag string
+}
+
+// ExchangeCode claims an OpenXBL authorization code, returning the member's key
+// and identity. The claim is slow (OpenXBL runs the full Microsoft/XSTS
+// exchange server-side, ~10-30s), so it uses a dedicated long timeout rather
+// than the snappy c.HTTP used for data calls.
+func (c *Connector) ExchangeCode(ctx context.Context, code, publicKey string) (ClaimResult, error) {
 	body, _ := json.Marshal(map[string]string{"code": code, "app_key": publicKey})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.claimBase()+"/app/claim", bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return ClaimResult{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	// The claim is slow: OpenXBL performs the full Microsoft/XSTS exchange
-	// server-side (even a bogus claim takes ~9s), so it needs a much longer
-	// timeout than the snappy data calls handled by c.HTTP.
 	claimHTTP := &http.Client{Timeout: 60 * time.Second}
 	resp, err := claimHTTP.Do(req)
 	if err != nil {
-		return "", err
+		return ClaimResult{}, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("openxbl claim: HTTP %d: %s", resp.StatusCode, raw)
+		return ClaimResult{}, fmt.Errorf("openxbl claim: HTTP %d: %s", resp.StatusCode, raw)
 	}
-	var obj map[string]any
-	if err := json.Unmarshal(raw, &obj); err != nil {
-		return "", fmt.Errorf("openxbl claim: decode: %w", err)
+	var payload struct {
+		AppKey   string `json:"app_key"`
+		XUID     string `json:"xuid"`
+		Gamertag string `json:"gamertag"`
 	}
-	// Log only the keys (the value is a secret) so we can confirm the field name.
-	keys := make([]string, 0, len(obj))
-	for k := range obj {
-		keys = append(keys, k)
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ClaimResult{}, fmt.Errorf("openxbl claim: decode: %w", err)
 	}
-	slog.Info("xbox claim response", "keys", keys)
-	for _, field := range []string{"app_key", "key", "token", "secret", "X-Authorization"} {
-		if v, ok := obj[field].(string); ok && v != "" {
-			return v, nil
-		}
+	if payload.AppKey == "" {
+		return ClaimResult{}, fmt.Errorf("openxbl claim: no app_key in response")
 	}
-	for _, v := range obj { // fallback: first non-empty string value
-		if s, ok := v.(string); ok && s != "" {
-			return s, nil
-		}
-	}
-	return "", fmt.Errorf("openxbl claim: no key in response")
+	slog.Info("xbox: claim ok", "xuid", payload.XUID, "gamertag", payload.Gamertag)
+	return ClaimResult{Key: payload.AppKey, XUID: payload.XUID, Gamertag: payload.Gamertag}, nil
 }
 
 // Account is the linked identity.

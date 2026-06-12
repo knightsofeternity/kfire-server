@@ -71,11 +71,13 @@ func TestExchangeCode(t *testing.T) {
 			t.Errorf("unexpected claim body: %s", strings.TrimSpace(string(raw)))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"app_key":"MEMBERKEY"}`))
+		w.Write([]byte(`{"app_key":"MEMBERKEY","xuid":"2535","gamertag":"Ouranos"}`))
 	}))
 	defer srv.Close()
 	c := New("appkey"); c.ClaimBase = srv.URL; c.APIBase = srv.URL
-	key, err := c.ExchangeCode(context.Background(), "thecode", "pubkey")
+	res, err := c.ExchangeCode(context.Background(), "thecode", "pubkey")
 	if err != nil { t.Fatal(err) }
-	if key != "MEMBERKEY" { t.Fatalf("ExchangeCode = %q, want MEMBERKEY", key) }
+	if res.Key != "MEMBERKEY" || res.XUID != "2535" || res.Gamertag != "Ouranos" {
+		t.Fatalf("ExchangeCode = %+v, want {MEMBERKEY 2535 Ouranos}", res)
+	}
 }
