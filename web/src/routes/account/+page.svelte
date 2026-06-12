@@ -22,10 +22,13 @@
 		!!battlenet && !(battlenet.scopes ?? []).includes('wow.profile')
 	);
 	let bnBusy = $state(false);
+	let xbox = $derived(connections.find((c) => c.provider === 'xbox'));
+	let xboxBusy = $state(false);
 
-	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=…).
+	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
+	const xboxResult = $derived(page.url.searchParams.get('xbox'));
 	const linkMessageKeys: Record<string, string> = {
 		linked: 'account.linkResult.linked',
 		denied: 'account.linkResult.denied',
@@ -133,6 +136,26 @@
 			connections = connections.filter((c) => c.provider !== 'battlenet');
 		} finally {
 			bnBusy = false;
+		}
+	}
+
+	async function linkXbox() {
+		xboxBusy = true;
+		try {
+			window.location.href = await api.startXboxLink();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Xbox is not configured on this instance';
+			xboxBusy = false;
+		}
+	}
+
+	async function unlinkXbox() {
+		xboxBusy = true;
+		try {
+			await api.unlinkXbox();
+			connections = connections.filter((c) => c.provider !== 'xbox');
+		} finally {
+			xboxBusy = false;
 		}
 	}
 </script>
@@ -356,6 +379,51 @@
 				{t('account.bnetReconnectStats')}
 			</button>
 		{/if}
+
+		{#if xboxResult}
+			<p
+				class="mt-3 px-3 py-2 text-sm pd-cut-sm {xboxResult === 'linked'
+					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
+					: 'bg-red-500/10 text-red-400'}"
+			>
+				{linkMessageKeys[xboxResult] ? t(linkMessageKeys[xboxResult]) : t('common.unknownResult')}
+				<button class="ml-2 underline" onclick={() => goto('/account')}>{t('common.dismiss')}</button>
+			</p>
+		{/if}
+
+		<!-- Xbox -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[var(--color-online)]/15 text-xs font-bold text-[var(--color-online)]">X</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">Xbox</p>
+					{#if xbox}
+						<p class="text-sm text-[var(--color-muted)]">
+							{xbox.display_name ?? xbox.provider_user_id}
+						</p>
+					{:else}
+						<p class="text-sm text-[var(--color-muted)]">{t('account.notLinked')}</p>
+					{/if}
+				</div>
+			</div>
+			{#if xbox}
+				<button
+					onclick={unlinkXbox}
+					disabled={xboxBusy}
+					class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+				>
+					{t('account.unlink')}
+				</button>
+			{:else}
+				<button
+					onclick={linkXbox}
+					disabled={xboxBusy}
+					class="btn-pd disabled:opacity-60"
+				>
+					{xboxBusy ? '...' : t('account.xbox.link')}
+				</button>
+			{/if}
+		</div>
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">
 			{t('account.comingNext')}

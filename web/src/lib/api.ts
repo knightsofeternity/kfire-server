@@ -283,6 +283,17 @@ export const api = {
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
 	},
 
+	/** Returns the OpenXBL "Sign in with Xbox" URL to navigate to. */
+	async startXboxLink(): Promise<string> {
+		const data = await json<{ url: string }>(await authFetch('/api/v1/connect/xbox'));
+		return data.url;
+	},
+
+	async unlinkXbox(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/xbox', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
 	// --- admin ---------------------------------------------------------------
 
 	async getMembers(): Promise<Member[]> {

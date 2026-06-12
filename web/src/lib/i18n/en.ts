@@ -133,7 +133,7 @@ export const en = {
 		notLinked: 'Not linked',
 		unlink: 'Unlink',
 		connectedAccounts: 'Connected accounts',
-		comingNext: 'Riot, Epic, Xbox and PlayStation are coming next.',
+		comingNext: 'Riot, Epic and PlayStation are coming next.',
 		privacy: {
 			title: 'Privacy',
 			toggleLabel: 'Show my game activity',
@@ -182,6 +182,9 @@ export const en = {
 		},
 		battlenet: {
 			link: 'Link Battle.net'
+		},
+		xbox: {
+			link: 'Link Xbox'
 		},
 		bnetReconnectStats: 'Reconnect Battle.net to enable your game stats'
 	},

@@ -18,6 +18,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -33,6 +34,7 @@ type handlers struct {
 	steamSync *steamsync.Syncer
 	battlenet *battlenet.Connector
 	bnetSync  *bnetsync.Syncer
+	xbox      *xbox.Connector
 	cipher    *crypto.Cipher
 }
 
@@ -61,7 +63,11 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	}
 	bnConn.APIBase = cfg.BattlenetAPIBase
 	bnetSync := bnetsync.New(st, bnConn, cipher, cfg.BattlenetRegion)
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, cipher: cipher}
+	xblConn := xbox.New(cfg.XblAppKey)
+	if cfg.XblAPIBase != "" {
+		xblConn.APIBase = cfg.XblAPIBase
+	}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, cipher: cipher}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -111,6 +117,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/connect/battlenet", h.requireAuth, h.connectBattlenetStart)
 	v1.Get("/connect/battlenet/callback", h.connectBattlenetCallback)
 	v1.Delete("/connect/battlenet", h.requireAuth, h.disconnectBattlenet)
+
+	v1.Get("/connect/xbox", h.requireAuth, h.connectXboxStart)
+	v1.Get("/connect/xbox/callback", h.connectXboxCallback)
+	v1.Delete("/connect/xbox", h.requireAuth, h.disconnectXbox)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Post("/games/sync", h.syncGames)

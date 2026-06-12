@@ -4,24 +4,31 @@
 package xbox
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-const defaultAPIBase = "https://xbl.io"
+const (
+	defaultAPIBase   = "https://xbl.io"
+	defaultClaimBase = "https://api.xbl.io"
+)
 
 type Connector struct {
-	AppKey  string
-	APIBase string
-	HTTP    *http.Client
+	AppKey    string
+	APIBase   string
+	ClaimBase string
+	HTTP      *http.Client
 }
 
 func New(appKey string) *Connector {
-	return &Connector{AppKey: appKey, APIBase: defaultAPIBase, HTTP: &http.Client{Timeout: 15 * time.Second}}
+	return &Connector{AppKey: appKey, APIBase: defaultAPIBase, ClaimBase: defaultClaimBase, HTTP: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (c *Connector) Enabled() bool { return c.AppKey != "" }
@@ -31,6 +38,60 @@ func (c *Connector) base() string {
 		return c.APIBase
 	}
 	return defaultAPIBase
+}
+
+func (c *Connector) claimBase() string {
+	if c.ClaimBase != "" {
+		return c.ClaimBase
+	}
+	return defaultClaimBase
+}
+
+// AuthURL returns the OpenXBL "Sign in with Xbox" URL for our app's public key.
+func (c *Connector) AuthURL(publicKey string) string {
+	return c.base() + "/app/auth/" + publicKey
+}
+
+// ExchangeCode claims an OpenXBL authorization code for the member's secret key
+// (used thereafter as X-Authorization for their data calls).
+func (c *Connector) ExchangeCode(ctx context.Context, code, publicKey string) (string, error) {
+	body, _ := json.Marshal(map[string]string{"code": code, "app_key": publicKey})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.claimBase()+"/app/claim", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("openxbl claim: HTTP %d: %s", resp.StatusCode, raw)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return "", fmt.Errorf("openxbl claim: decode: %w", err)
+	}
+	// Log only the keys (the value is a secret) so we can confirm the field name.
+	keys := make([]string, 0, len(obj))
+	for k := range obj {
+		keys = append(keys, k)
+	}
+	slog.Info("xbox claim response", "keys", keys)
+	for _, field := range []string{"app_key", "key", "token", "secret", "X-Authorization"} {
+		if v, ok := obj[field].(string); ok && v != "" {
+			return v, nil
+		}
+	}
+	for _, v := range obj { // fallback: first non-empty string value
+		if s, ok := v.(string); ok && s != "" {
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("openxbl claim: no key in response")
 }
 
 // Account is the linked identity.
@@ -47,17 +108,14 @@ type Presence struct {
 	TitleName string
 }
 
-// get performs an authenticated GET. token is the user's OpenXBL token; the app
-// key is sent as X-Authorization. A 404 yields found=false (no error).
+// get performs an authenticated GET. token is the member's OpenXBL secret key,
+// sent as X-Authorization. A 404 yields found=false (no error).
 func (c *Connector) get(ctx context.Context, path, token string, dst any) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base()+path, nil)
 	if err != nil {
 		return false, err
 	}
-	req.Header.Set("X-Authorization", c.AppKey)
-	if token != "" {
-		req.Header.Set("Authorization", token)
-	}
+	req.Header.Set("X-Authorization", token)
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
