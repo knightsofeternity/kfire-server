@@ -43,6 +43,7 @@ func (h *handlers) userGameDetail(c *fiber.Ctx) error {
 			m := fiber.Map{
 				"name":               ch.Name,
 				"realm":              ch.RealmName,
+				"realm_slug":         ch.RealmSlug,
 				"class":              ch.Class,
 				"race":               ch.Race,
 				"faction":            ch.Faction,
