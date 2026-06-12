@@ -45,28 +45,27 @@ func (h *handlers) connectXboxCallback(c *fiber.Ctx) error {
 	if code == "" {
 		return c.Redirect("/account?xbox=denied")
 	}
-	memberKey, err := h.xbox.ExchangeCode(c.UserContext(), code, h.cfg.XblAppKey)
+	claim, err := h.xbox.ExchangeCode(c.UserContext(), code, h.cfg.XblAppKey)
 	if err != nil {
 		slog.Warn("xbox claim failed", "err", err)
 		return c.Redirect("/account?xbox=denied")
 	}
-	acc, err := h.xbox.Account(c.UserContext(), memberKey)
-	if err != nil || acc.XUID == "" {
+	if claim.XUID == "" {
 		return c.Redirect("/account?xbox=error")
 	}
-	taken, err := h.store.ProviderLinkedToOther(c.Context(), "xbox", acc.XUID, userID)
+	taken, err := h.store.ProviderLinkedToOther(c.Context(), "xbox", claim.XUID, userID)
 	if err != nil {
 		return err
 	}
 	if taken {
 		return c.Redirect("/account?xbox=conflict")
 	}
-	account := store.LinkedAccount{Provider: "xbox", ProviderUserID: acc.XUID}
-	if acc.Gamertag != "" {
-		account.DisplayName = strPtr(acc.Gamertag)
+	account := store.LinkedAccount{Provider: "xbox", ProviderUserID: claim.XUID}
+	if claim.Gamertag != "" {
+		account.DisplayName = strPtr(claim.Gamertag)
 	}
 	if h.cipher != nil {
-		if enc, err := h.cipher.SealString(memberKey); err == nil {
+		if enc, err := h.cipher.SealString(claim.Key); err == nil {
 			account.AccessTokenEnc = enc
 		}
 	}
