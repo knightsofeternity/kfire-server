@@ -39,9 +39,10 @@ export type WowCharacter = {
 	class?: string;
 	race?: string;
 	faction?: string;
-	level: number;
+	level?: number;
 	item_level: number;
 	mythic_rating?: number;
+	achievement_points?: number;
 };
 
 export type GameDetail = {
@@ -69,9 +70,10 @@ export type PlayerWowCharacter = {
 	class?: string;
 	race?: string;
 	faction?: string;
-	level: number;
+	level?: number;
 	item_level: number;
 	mythic_rating?: number;
+	achievement_points?: number;
 };
 
 export type PlayerGameDetail = {

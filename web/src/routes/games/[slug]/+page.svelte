@@ -5,6 +5,7 @@
 	import { formatDuration } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
+	import { wowClassColor, wowClassIcon } from '$lib/wow';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -184,9 +185,22 @@
 			</h2>
 			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 				{#each detail.wow_characters as ch}
-					<div class="pd-cut-sm px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-						<p class="font-display font-semibold text-[var(--color-text)]">{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> — {ch.realm}</span>{/if}</p>
-						<p class="text-sm text-[var(--color-muted)]">{ch.race} {ch.class} · {t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}</p>
+					<div class="pd-cut-sm flex items-center gap-3 px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+						{#if wowClassIcon(ch.class)}
+							<img
+								src={wowClassIcon(ch.class)}
+								alt={ch.class ?? ''}
+								class="h-8 w-8 shrink-0 rounded"
+								loading="lazy"
+								onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+							/>
+						{/if}
+						<div class="min-w-0 flex-1">
+							<p class="font-display font-semibold text-[var(--color-text)]">{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> - {ch.realm}</span>{/if}</p>
+							<p class="text-sm text-[var(--color-muted)]">
+								{#if ch.level}{t('game.level')} {ch.level} · {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.race || ch.class} · {/if}{t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} · {t('game.achievementPoints')} {ch.achievement_points}{/if}
+							</p>
+						</div>
 					</div>
 				{/each}
 			</div>
