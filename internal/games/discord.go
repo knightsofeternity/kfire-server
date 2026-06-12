@@ -126,6 +126,15 @@ var extraExecutables = map[string][]string{
 	"vampire-crawlers-the-turbo-wildcard-from-vampire-survivors": {"vampire crawlers.exe"},
 }
 
+// wrongExecutables drops process names Discord lists under the WRONG game,
+// keyed by the game's slug. Example: Discord lists Enlisted's binary
+// (enlisted.exe) under CRSED: F.O.A.D. (same studio), so playing Enlisted was
+// falsely detected as CRSED. Removed only from that game; the correct game
+// (Enlisted) keeps it.
+var wrongExecutables = map[string][]string{
+	"crsed-f-o-a-d": {"enlisted.exe"},
+}
+
 // maxGamesPerExecutable bounds how many distinct games may share an executable
 // basename before it's considered non-discriminating and dropped from matching.
 // e.g. "hl2.exe" ships with ~34 Source games - it can't identify any one of them.
@@ -184,6 +193,11 @@ func normalize(apps []detectableApp) []store.GameSeed {
 		}
 		exes := make([]string, 0, len(app.Executables))
 		seen := map[string]struct{}{}
+		// Pre-mark executables Discord lists under the wrong game so the loop
+		// skips them (also keeps them out of the curated additions below).
+		for _, w := range wrongExecutables[Slugify(app.Name)] {
+			seen[w] = struct{}{}
+		}
 		for _, exe := range app.Executables {
 			if exe.IsLauncher {
 				// "Playing Battle.net" is noise, not presence.
