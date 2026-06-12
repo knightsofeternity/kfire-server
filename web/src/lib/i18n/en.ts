@@ -119,6 +119,14 @@ export const en = {
 		paragon: 'Paragon',
 		heroes: 'heroes'
 	},
+	playerGame: {
+		loading: 'Loading...',
+		loadError: 'failed to load game data',
+		backToProfile: 'Back to profile',
+		noPlaytime: 'No playtime recorded.',
+		playtime: 'Playtime',
+		sessions: 'sessions'
+	},
 	gamesList: {
 		title: 'Games',
 		search: 'Search games...',

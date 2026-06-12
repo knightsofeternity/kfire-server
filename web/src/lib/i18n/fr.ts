@@ -120,6 +120,14 @@ export const fr: Catalog = {
 		paragon: 'Parangon',
 		heroes: 'héros'
 	},
+	playerGame: {
+		loading: 'Chargement...',
+		loadError: 'impossible de charger les données du jeu',
+		backToProfile: 'Retour au profil',
+		noPlaytime: 'Aucun temps de jeu enregistré.',
+		playtime: 'Temps de jeu',
+		sessions: 'sessions'
+	},
 	gamesList: {
 		title: 'Jeux',
 		search: 'Rechercher un jeu...',

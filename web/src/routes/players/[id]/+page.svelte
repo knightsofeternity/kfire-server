@@ -243,7 +243,7 @@
 					{#each library as entry (entry.game.id)}
 						{@const sourceLabel = entry.source === 'steam' ? 'Steam' : 'Battle.net'}
 						<a
-							href="/games/{entry.game.slug}"
+							href="/players/{id}/games/{entry.game.slug}"
 							class="flex items-center gap-3 rounded px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
 						>
 							{#if entry.game.icon_url}

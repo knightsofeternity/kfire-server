@@ -56,6 +56,34 @@ export type GameDetail = {
 	bnet_synced_at?: string;
 };
 
+export type PlayerGameAchievement = {
+	api_name: string;
+	display_name?: string;
+	icon_url?: string;
+	unlocked_at: string;
+};
+
+export type PlayerWowCharacter = {
+	name: string;
+	realm?: string;
+	class?: string;
+	race?: string;
+	faction?: string;
+	level: number;
+	item_level: number;
+	mythic_rating?: number;
+};
+
+export type PlayerGameDetail = {
+	game: Game;
+	total_seconds?: number;
+	session_count?: number;
+	last_played_at?: string;
+	wow_characters?: PlayerWowCharacter[];
+	bnet_profile?: Record<string, unknown>;
+	achievements?: PlayerGameAchievement[];
+};
+
 export type AchievementGameOption = { game: Game; count: number };
 
 export type UserAchievements = {
@@ -213,6 +241,12 @@ export const api = {
 
 	async userGames(id: string): Promise<{ games: { game: Game; source: string }[] }> {
 		return json(await authFetch(`/api/v1/users/${encodeURIComponent(id)}/games`));
+	},
+
+	async userGameDetail(id: string, slug: string): Promise<PlayerGameDetail> {
+		return json(
+			await authFetch(`/api/v1/users/${encodeURIComponent(id)}/games/${encodeURIComponent(slug)}`)
+		);
 	},
 
 	async getGame(slug: string): Promise<GameDetail> {

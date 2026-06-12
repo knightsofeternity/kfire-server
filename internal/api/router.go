@@ -93,6 +93,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Patch("/users/me", h.requireAuth, h.updateMe)
 	v1.Get("/users/:id", h.requireAuth, h.userProfile)
 	v1.Get("/users/:id/games", h.requireAuth, h.userGames)
+	v1.Get("/users/:id/games/:slug", h.requireAuth, h.userGameDetail)
 	v1.Get("/games", h.requireAuth, h.listGames)
 	v1.Get("/games/played", h.requireAuth, h.listPlayedGames)
 	v1.Get("/games/:slug", h.requireAuth, h.gameDetail)
