@@ -98,12 +98,21 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 				slog.Warn("bnetsync: enrich", "char", chars[i].Name, "err", err)
 				continue
 			}
+			achs, err := s.bnet.WowAchievements(ctx, access, ns.namespace, chars[i].RealmSlug, chars[i].Name)
+			if err != nil {
+				slog.Warn("bnetsync: wow achievements", "char", chars[i].Name, "err", err)
+			}
+			var achJSON []byte
+			if len(achs) > 0 {
+				achJSON, _ = json.Marshal(achs)
+			}
 			c := chars[i]
 			rows = append(rows, store.WowCharacterRow{
 				Region: s.region, RealmSlug: c.RealmSlug, Name: c.Name, RealmName: c.RealmName,
 				Faction: strPtr(c.Faction), Race: strPtr(c.Race), Class: strPtr(c.Class),
 				Level: c.Level, ItemLevel: c.ItemLevel, MythicRating: c.MythicRating,
 				RaidSummary: rawOrNil(c.RaidSummary), AchievementPoints: c.AchievementPoints,
+				Achievements: achJSON,
 			})
 		}
 	}
