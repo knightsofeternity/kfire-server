@@ -10,20 +10,21 @@ import (
 
 // WowCharacterRow is one stored WoW character.
 type WowCharacterRow struct {
-	UserID       string
-	GameID       string
-	Region       string
-	RealmSlug    string
-	Name         string
-	RealmName    string
-	Faction      *string
-	Race         *string
-	Class        *string
-	Level        int
-	ItemLevel    int
-	MythicRating *float64
-	RaidSummary  []byte
-	LastSyncedAt time.Time
+	UserID            string
+	GameID            string
+	Region            string
+	RealmSlug         string
+	Name              string
+	RealmName         string
+	Faction           *string
+	Race              *string
+	Class             *string
+	Level             int
+	ItemLevel         int
+	MythicRating      *float64
+	RaidSummary       []byte
+	AchievementPoints int
+	LastSyncedAt      time.Time
 }
 
 // ReplaceWowCharacters atomically replaces a member's WoW characters for one
@@ -44,10 +45,10 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 		batch.Queue(`
 			INSERT INTO bnet_wow_characters
 				(user_id, game_id, region, realm_slug, realm_name, name, faction, race, class,
-				 level, item_level, mythic_rating, raid_summary, last_synced_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())`,
+				 level, item_level, mythic_rating, raid_summary, achievement_points, last_synced_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now())`,
 			userID, gameID, ch.Region, ch.RealmSlug, ch.RealmName, ch.Name, ch.Faction, ch.Race,
-			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary)
+			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary, ch.AchievementPoints)
 	}
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 		return err
@@ -60,7 +61,7 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCharacterRow, time.Time, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT user_id, region, realm_slug, realm_name, name, faction, race, class,
-		       level, item_level, mythic_rating, raid_summary, last_synced_at
+		       level, item_level, mythic_rating, raid_summary, achievement_points, last_synced_at
 		FROM bnet_wow_characters WHERE game_id = $1
 		ORDER BY item_level DESC, name ASC`, gameID)
 	if err != nil {
@@ -75,7 +76,7 @@ func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCh
 		r.GameID = gameID
 		if err := rows.Scan(&r.UserID, &r.Region, &r.RealmSlug, &r.RealmName, &r.Name, &r.Faction,
 			&r.Race, &r.Class, &r.Level, &r.ItemLevel, &r.MythicRating,
-			&r.RaidSummary, &r.LastSyncedAt); err != nil {
+			&r.RaidSummary, &r.AchievementPoints, &r.LastSyncedAt); err != nil {
 			return nil, time.Time{}, err
 		}
 		out = append(out, r)

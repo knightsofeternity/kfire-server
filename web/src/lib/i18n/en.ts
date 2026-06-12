@@ -116,6 +116,8 @@ export const en = {
 		unlockedBy: '{count} members',
 		wowCharacters: 'WoW characters',
 		ilvl: 'ilvl',
+		level: 'Lvl',
+		achievementPoints: 'AP',
 		bnetProfiles: 'Battle.net profiles',
 		paragon: 'Paragon',
 		heroes: 'heroes'

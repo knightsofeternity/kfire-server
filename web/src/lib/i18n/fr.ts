@@ -117,6 +117,8 @@ export const fr: Catalog = {
 		unlockedBy: '{count} membres',
 		wowCharacters: 'Personnages WoW',
 		ilvl: 'ilvl',
+		level: 'Niv',
+		achievementPoints: 'PA',
 		bnetProfiles: 'Profils Battle.net',
 		paragon: 'Parangon',
 		heroes: 'héros'

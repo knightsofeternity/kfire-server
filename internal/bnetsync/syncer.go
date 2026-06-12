@@ -103,7 +103,7 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 				Region: s.region, RealmSlug: c.RealmSlug, Name: c.Name, RealmName: c.RealmName,
 				Faction: strPtr(c.Faction), Race: strPtr(c.Race), Class: strPtr(c.Class),
 				Level: c.Level, ItemLevel: c.ItemLevel, MythicRating: c.MythicRating,
-				RaidSummary: rawOrNil(c.RaidSummary),
+				RaidSummary: rawOrNil(c.RaidSummary), AchievementPoints: c.AchievementPoints,
 			})
 		}
 	}
