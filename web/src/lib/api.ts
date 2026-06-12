@@ -211,6 +211,10 @@ export const api = {
 		return json(await authFetch(`/api/v1/users/${id}`));
 	},
 
+	async userGames(id: string): Promise<{ games: { game: Game; source: string }[] }> {
+		return json(await authFetch(`/api/v1/users/${encodeURIComponent(id)}/games`));
+	},
+
 	async getGame(slug: string): Promise<GameDetail> {
 		return json(await authFetch(`/api/v1/games/${encodeURIComponent(slug)}`));
 	},

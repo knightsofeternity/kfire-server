@@ -22,6 +22,10 @@
 	let achLoading = $state(false);
 	const ACH_LIMIT = 24;
 
+	let libraryOpen = $state(false);
+	let library = $state<{ game: Game; source: string }[]>([]);
+	let libraryLoading = $state(false);
+
 	const id = $derived(page.params.id ?? '');
 	let topSeconds = $derived(Math.max(1, ...(profile?.game_stats ?? []).map((g) => g.total_seconds)));
 
@@ -72,6 +76,22 @@
 			achOffset = off + r.achievements.length;
 		} finally {
 			achLoading = false;
+		}
+	}
+
+	async function toggleLibrary() {
+		if (libraryOpen) {
+			libraryOpen = false;
+			return;
+		}
+		libraryOpen = true;
+		if (library.length > 0) return; // already loaded
+		libraryLoading = true;
+		try {
+			const res = await api.userGames(id);
+			library = res.games;
+		} finally {
+			libraryLoading = false;
 		}
 	}
 
@@ -192,6 +212,56 @@
 					</a>
 				{/each}
 			</div>
+		{/if}
+	</section>
+
+	<!-- Full owned game library -->
+	<section class="mb-6">
+		<button
+			onclick={toggleLibrary}
+			class="btn-pd btn-pd-ghost mb-4 flex w-full items-center justify-between px-4 py-2.5 text-left"
+		>
+			<span class="pd-heading text-sm text-[var(--color-brand-bright)]">{t('profile.allOwnedGames')}</span>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				class="h-4 w-4 shrink-0 text-[var(--color-muted)] transition-transform {libraryOpen ? 'rotate-180' : ''}"
+				aria-hidden="true"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+			</svg>
+		</button>
+		{#if libraryOpen}
+			{#if libraryLoading}
+				<p class="text-sm text-[var(--color-muted)]">{t('common.loading')}</p>
+			{:else if library.length === 0}
+				<p class="text-sm text-[var(--color-muted)]">{t('profile.noSessionsYet')}</p>
+			{:else}
+				<div class="pd-card grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each library as entry (entry.game.id)}
+						{@const sourceLabel = entry.source === 'steam' ? 'Steam' : 'Battle.net'}
+						<a
+							href="/games/{entry.game.slug}"
+							class="flex items-center gap-3 rounded px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-2)]"
+						>
+							{#if entry.game.icon_url}
+								<img src={entry.game.icon_url} alt="" class="h-7 w-7 shrink-0 rounded" />
+							{:else}
+								<span class="grid h-7 w-7 shrink-0 place-items-center rounded bg-[var(--color-bg)] text-[var(--color-muted)]">
+									<svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true"><path d="M21 6H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm-1 10H4V8h16v8zm-8-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-5 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>
+								</span>
+							{/if}
+							<span class="min-w-0 flex-1 truncate text-sm">{entry.game.name}</span>
+							<span
+								class="shrink-0 pd-cut-sm px-1.5 py-0.5 font-display text-xs font-bold italic"
+								style="background: {entry.source === 'steam' ? 'rgba(102,192,244,0.15)' : 'rgba(20,142,255,0.15)'}; color: {entry.source === 'steam' ? '#66c0f4' : '#148EFF'}"
+							>{sourceLabel}</span>
+						</a>
+					{/each}
+				</div>
+			{/if}
 		{/if}
 	</section>
 

@@ -100,7 +100,9 @@ export const fr: Catalog = {
 		recentSessions: 'Sessions récentes',
 		noSessions: "Aucune session pour l'instant.",
 		loadMore: 'Charger plus',
-		loadingMore: 'Chargement...'
+		loadingMore: 'Chargement...',
+		allOwnedGames: 'Voir tous les jeux',
+		ownedFrom: 'via {source}'
 	},
 	game: {
 		loading: 'Chargement...',
