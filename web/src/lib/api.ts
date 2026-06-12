@@ -67,6 +67,7 @@ export type PlayerGameAchievement = {
 export type PlayerWowCharacter = {
 	name: string;
 	realm?: string;
+	realm_slug?: string;
 	class?: string;
 	race?: string;
 	faction?: string;
@@ -74,6 +75,12 @@ export type PlayerWowCharacter = {
 	item_level: number;
 	mythic_rating?: number;
 	achievement_points?: number;
+};
+
+export type WowAchievementEntry = {
+	id: number;
+	name: string;
+	completed_at: number; // epoch ms
 };
 
 export type PlayerGameDetail = {
@@ -248,6 +255,18 @@ export const api = {
 	async userGameDetail(id: string, slug: string): Promise<PlayerGameDetail> {
 		return json(
 			await authFetch(`/api/v1/users/${encodeURIComponent(id)}/games/${encodeURIComponent(slug)}`)
+		);
+	},
+
+	async wowAchievements(
+		id: string,
+		realm: string,
+		name: string
+	): Promise<{ achievements: WowAchievementEntry[] }> {
+		return json(
+			await authFetch(
+				`/api/v1/users/${encodeURIComponent(id)}/wow/${encodeURIComponent(realm)}/${encodeURIComponent(name)}/achievements`
+			)
 		);
 	},
 

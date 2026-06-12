@@ -120,7 +120,10 @@ export const en = {
 		achievementPoints: 'AP',
 		bnetProfiles: 'Battle.net profiles',
 		paragon: 'Paragon',
-		heroes: 'heroes'
+		heroes: 'heroes',
+		searchAchievements: 'Search achievements...',
+		showMore: 'Show more',
+		wowAchievements: 'Achievements'
 	},
 	playerGame: {
 		loading: 'Loading...',

@@ -121,7 +121,10 @@ export const fr: Catalog = {
 		achievementPoints: 'PA',
 		bnetProfiles: 'Profils Battle.net',
 		paragon: 'Parangon',
-		heroes: 'héros'
+		heroes: 'héros',
+		searchAchievements: 'Rechercher des hauts faits...',
+		showMore: 'Voir plus',
+		wowAchievements: 'Hauts faits'
 	},
 	playerGame: {
 		loading: 'Chargement...',

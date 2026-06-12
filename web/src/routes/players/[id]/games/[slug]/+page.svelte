@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { api, type PlayerGameDetail } from '$lib/api';
+	import { api, type PlayerGameDetail, type WowAchievementEntry } from '$lib/api';
 	import { formatDuration, timeAgo } from '$lib/format';
 	import { t } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon } from '$lib/wow';
@@ -12,6 +12,91 @@
 
 	const id = $derived(page.params.id ?? '');
 	const slug = $derived(page.params.slug ?? '');
+
+	// Per-character achievements state, keyed by realm_slug+"|"+name
+	type AchievementState = {
+		open: boolean;
+		loading: boolean;
+		list: WowAchievementEntry[];
+		search: string;
+		shown: number; // how many items to show (pagination step 50)
+	};
+	let achStates = $state<Map<string, AchievementState>>(new Map());
+
+	function achKey(realmSlug: string, name: string): string {
+		return `${realmSlug}|${name}`;
+	}
+
+	function getAchState(realmSlug: string, name: string): AchievementState {
+		const k = achKey(realmSlug, name);
+		let s = achStates.get(k);
+		if (!s) {
+			s = { open: false, loading: false, list: [], search: '', shown: 50 };
+			achStates.set(k, s);
+		}
+		return s;
+	}
+
+	async function toggleAchievements(realmSlug: string, name: string) {
+		const k = achKey(realmSlug, name);
+		let s = achStates.get(k);
+		if (!s) {
+			s = { open: false, loading: false, list: [], search: '', shown: 50 };
+		}
+		if (s.open) {
+			// close
+			achStates.set(k, { ...s, open: false });
+			achStates = new Map(achStates);
+			return;
+		}
+		// open: load if not loaded
+		if (s.list.length === 0 && !s.loading) {
+			achStates.set(k, { ...s, open: true, loading: true });
+			achStates = new Map(achStates);
+			try {
+				const data = await api.wowAchievements(id, realmSlug, name);
+				const cur = achStates.get(k)!;
+				achStates.set(k, { ...cur, loading: false, list: data.achievements });
+				achStates = new Map(achStates);
+			} catch {
+				const cur = achStates.get(k)!;
+				achStates.set(k, { ...cur, loading: false });
+				achStates = new Map(achStates);
+			}
+		} else {
+			achStates.set(k, { ...s, open: true });
+			achStates = new Map(achStates);
+		}
+	}
+
+	function setSearch(realmSlug: string, name: string, value: string) {
+		const k = achKey(realmSlug, name);
+		const s = achStates.get(k)!;
+		achStates.set(k, { ...s, search: value, shown: 50 });
+		achStates = new Map(achStates);
+	}
+
+	function showMore(realmSlug: string, name: string) {
+		const k = achKey(realmSlug, name);
+		const s = achStates.get(k)!;
+		achStates.set(k, { ...s, shown: s.shown + 50 });
+		achStates = new Map(achStates);
+	}
+
+	function filteredAchs(s: AchievementState): WowAchievementEntry[] {
+		if (!s.search.trim()) return s.list;
+		const q = s.search.toLowerCase();
+		return s.list.filter((a) => a.name.toLowerCase().includes(q));
+	}
+
+	/** Format epoch ms as a short date string. */
+	function achDate(ms: number): string {
+		return new Date(ms).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
+	}
 
 	onMount(load);
 	async function load() {
@@ -115,24 +200,81 @@
 			</h2>
 			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 				{#each detail.wow_characters as ch}
-					<div class="pd-cut-sm flex items-center gap-3 px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-						{#if wowClassIcon(ch.class)}
-							<img
-								src={wowClassIcon(ch.class)}
-								alt={ch.class ?? ''}
-								class="h-8 w-8 shrink-0 rounded"
-								loading="lazy"
-								onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-							/>
-						{/if}
-						<div class="min-w-0 flex-1">
-							<p class="font-display font-semibold text-[var(--color-text)]">
-								{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> - {ch.realm}</span>{/if}
-							</p>
-							<p class="text-sm text-[var(--color-muted)]">
-								{#if ch.level}{t('game.level')} {ch.level} · {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.race || ch.class} · {/if}{t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} · {t('game.achievementPoints')} {ch.achievement_points}{/if}
-							</p>
+					{@const rs = ch.realm_slug ?? ''}
+					{@const s = getAchState(rs, ch.name)}
+					<div class="pd-cut-sm border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+						<!-- Character row -->
+						<div class="flex items-center gap-3 px-3 py-2">
+							{#if wowClassIcon(ch.class)}
+								<img
+									src={wowClassIcon(ch.class)}
+									alt={ch.class ?? ''}
+									class="h-8 w-8 shrink-0 rounded"
+									loading="lazy"
+									onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+								/>
+							{/if}
+							<div class="min-w-0 flex-1">
+								<p class="font-display font-semibold text-[var(--color-text)]">
+									{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> - {ch.realm}</span>{/if}
+								</p>
+								<p class="text-sm text-[var(--color-muted)]">
+									{#if ch.level}{t('game.level')} {ch.level} · {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.race || ch.class} · {/if}{t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} · {t('game.achievementPoints')} {ch.achievement_points}{/if}
+								</p>
+							</div>
+							{#if rs}
+								<button
+									onclick={() => toggleAchievements(rs, ch.name)}
+									class="ml-auto shrink-0 rounded px-2 py-1 text-xs text-[var(--color-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-brand-bright)]"
+									aria-expanded={s.open}
+								>
+									{t('game.wowAchievements')}
+									{s.open ? '▾' : '▸'}
+								</button>
+							{/if}
 						</div>
+
+						<!-- Expandable achievements panel -->
+						{#if s.open}
+							<div class="border-t border-[var(--color-border)] px-3 py-2">
+								{#if s.loading}
+									<p class="py-2 text-xs text-[var(--color-muted)]">{t('common.loading')}</p>
+								{:else if s.list.length === 0}
+									<p class="py-2 text-xs text-[var(--color-muted)]">{t('game.noAchievements')}</p>
+								{:else}
+									<!-- Search -->
+									<input
+										type="search"
+										placeholder={t('game.searchAchievements')}
+										value={s.search}
+										oninput={(e) => setSearch(rs, ch.name, (e.currentTarget as HTMLInputElement).value)}
+										class="mb-2 w-full rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]"
+									/>
+									{@const filtered = filteredAchs(s)}
+									{@const visible = filtered.slice(0, s.shown)}
+									{#if visible.length === 0}
+										<p class="py-2 text-xs text-[var(--color-muted)]">{t('game.noAchievements')}</p>
+									{:else}
+										<ul class="divide-y divide-[var(--color-border)]">
+											{#each visible as a (a.id)}
+												<li class="flex items-center justify-between gap-2 py-1.5">
+													<span class="min-w-0 truncate text-xs text-[var(--color-text)]">{a.name}</span>
+													<span class="shrink-0 text-xs text-[var(--color-muted)]">{achDate(a.completed_at)}</span>
+												</li>
+											{/each}
+										</ul>
+										{#if filtered.length > s.shown}
+											<button
+												onclick={() => showMore(rs, ch.name)}
+												class="mt-2 w-full rounded border border-[var(--color-border)] py-1 text-xs text-[var(--color-muted)] transition-colors hover:text-[var(--color-brand-bright)]"
+											>
+												{t('game.showMore')} ({filtered.length - s.shown} {t('game.wowAchievements').toLowerCase()})
+											</button>
+										{/if}
+									{/if}
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/each}
 			</div>
