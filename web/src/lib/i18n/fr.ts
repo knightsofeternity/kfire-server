@@ -186,7 +186,9 @@ export const fr: Catalog = {
 			link: 'Lier Battle.net'
 		},
 		xbox: {
-			link: 'Lier Xbox'
+			link: 'Lier Xbox',
+			linking: 'Liaison… (~30s)',
+			slowHint: 'La liaison peut prendre ~30s après la connexion Microsoft — ne ferme pas l’onglet.'
 		},
 		bnetReconnectStats: 'Reconnecte Battle.net pour activer tes stats de jeu'
 	},
