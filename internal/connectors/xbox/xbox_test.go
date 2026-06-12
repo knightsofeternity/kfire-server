@@ -2,15 +2,18 @@ package xbox
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func fakeXBL(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Authorization") == "" {
-			t.Errorf("missing X-Authorization on %s", r.URL.Path)
+		if got := r.Header.Get("X-Authorization"); got != "usertoken" {
+			t.Errorf("X-Authorization = %q, want member token %q on %s", got, "usertoken", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
@@ -52,4 +55,27 @@ func TestPresenceNotPlaying(t *testing.T) {
 	p, err := c.Presence(context.Background(), "usertoken", "000")
 	if err != nil { t.Fatal(err) }
 	if p.Playing { t.Fatalf("expected not playing: %+v", p) }
+}
+
+func TestExchangeCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/app/claim" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path); w.WriteHeader(404); return
+		}
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]string
+		if err := json.Unmarshal(raw, &body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		if body["code"] != "thecode" || body["app_key"] != "pubkey" {
+			t.Errorf("unexpected claim body: %s", strings.TrimSpace(string(raw)))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"app_key":"MEMBERKEY"}`))
+	}))
+	defer srv.Close()
+	c := New("appkey"); c.ClaimBase = srv.URL; c.APIBase = srv.URL
+	key, err := c.ExchangeCode(context.Background(), "thecode", "pubkey")
+	if err != nil { t.Fatal(err) }
+	if key != "MEMBERKEY" { t.Fatalf("ExchangeCode = %q, want MEMBERKEY", key) }
 }
