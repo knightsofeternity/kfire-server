@@ -48,6 +48,9 @@ func (s *Syncer) namespaces() []wowNamespace {
 // their token is fresh and the throttle window has elapsed. Safe to call on
 // every page view.
 func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
+	if s.bnet == nil || !s.bnet.Enabled() {
+		return // connector not configured on this instance
+	}
 	tok, err := s.store.GetLinkedToken(ctx, userID, "battlenet")
 	if err != nil {
 		return // not linked, or no token
@@ -154,6 +157,9 @@ func rawOrNil(r json.RawMessage) []byte {
 // the given game slug, on demand and per-user throttled. Safe to call on every
 // page view. No-op for other slugs.
 func (s *Syncer) RefreshBnetGame(ctx context.Context, userID, gameSlug string) {
+	if s.bnet == nil || !s.bnet.Enabled() {
+		return // connector not configured on this instance
+	}
 	scope := map[string]string{
 		"diablo-iii":                "d3.profile",
 		"starcraft-ii-battle-chest": "sc2.profile",
