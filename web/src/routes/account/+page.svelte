@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api, type Connection } from '$lib/api';
+	import { api, getConfig, type Connection } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -25,6 +25,14 @@
 	let xbox = $derived(connections.find((c) => c.provider === 'xbox'));
 	let xboxBusy = $state(false);
 
+	// Which connectors this instance has configured. A card is shown when its
+	// connector is enabled OR the member already linked it (so they can still
+	// unlink an account after an admin disables the connector).
+	let connectors = $state({ steam: true, battlenet: true, xbox: true });
+	let showSteam = $derived(connectors.steam || !!steam);
+	let showBattlenet = $derived(connectors.battlenet || !!battlenet);
+	let showXbox = $derived(connectors.xbox || !!xbox);
+
 	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
@@ -37,7 +45,12 @@
 		error: 'account.linkResult.error'
 	};
 
-	onMount(loadConnections);
+	onMount(() => {
+		loadConnections();
+		getConfig()
+			.then((cfg) => (connectors = cfg.connectors))
+			.catch(() => {});
+	});
 
 	async function loadConnections() {
 		if (!user) return;
@@ -245,6 +258,7 @@
 			</p>
 		{/if}
 
+		{#if showSteam}
 		<!-- Steam -->
 		<div class="flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
 			<div class="flex items-center gap-3">
@@ -329,6 +343,7 @@
 				</ol>
 			</div>
 		{/if}
+		{/if}
 
 		{#if battlenetResult}
 			<p
@@ -341,6 +356,7 @@
 			</p>
 		{/if}
 
+		{#if showBattlenet}
 		<!-- Battle.net -->
 		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
 			<div class="flex items-center gap-3">
@@ -379,6 +395,7 @@
 				{t('account.bnetReconnectStats')}
 			</button>
 		{/if}
+		{/if}
 
 		{#if xboxResult}
 			<p
@@ -391,6 +408,7 @@
 			</p>
 		{/if}
 
+		{#if showXbox}
 		<!-- Xbox -->
 		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
 			<div class="flex items-center gap-3">
@@ -425,6 +443,8 @@
 				</button>
 			{/if}
 		</div>
+
+		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">
 			{t('account.comingNext')}

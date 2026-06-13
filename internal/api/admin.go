@@ -33,6 +33,13 @@ func (h *handlers) publicConfig(c *fiber.Ctx) error {
 		// Branding the SPA applies before/at load.
 		"accent":   branding.Accent,
 		"has_logo": branding.HasLogo,
+		// Which account connectors are configured on this instance, so the SPA
+		// only offers the link buttons it can actually fulfil.
+		"connectors": fiber.Map{
+			"steam":     h.steam != nil && h.steam.Enabled(),
+			"battlenet": h.battlenet != nil && h.battlenet.Enabled(),
+			"xbox":      h.xbox != nil && h.xbox.Enabled(),
+		},
 	})
 }
 

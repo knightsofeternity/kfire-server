@@ -416,6 +416,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean };
 }> {
 	const res = await fetch('/api/v1/config');
 	return res.ok
@@ -425,7 +426,10 @@ export async function getConfig(): Promise<{
 				org_name: 'KFIRE',
 				needs_setup: false,
 				accent: 'orange',
-				has_logo: false
+				has_logo: false,
+				// Fail open: if config can't be loaded, still offer the connectors
+				// rather than hiding working ones on a transient error.
+				connectors: { steam: true, battlenet: true, xbox: true }
 			};
 }
 
