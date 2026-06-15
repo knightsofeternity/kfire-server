@@ -406,6 +406,33 @@ export const api = {
 	async deleteLogo(): Promise<void> {
 		const res = await authFetch('/api/v1/admin/branding/logo', { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to remove logo');
+	},
+
+	async listApiKeys(): Promise<{
+		keys: Array<{
+			id: string;
+			label: string;
+			key_prefix: string;
+			created_at: string;
+			last_used_at?: string;
+			revoked: boolean;
+		}>;
+	}> {
+		return json(await authFetch('/api/v1/admin/api-keys'));
+	},
+
+	async createApiKey(label: string): Promise<{ id: string; label: string; key_prefix: string; key: string }> {
+		return json(
+			await authFetch('/api/v1/admin/api-keys', {
+				method: 'POST',
+				body: JSON.stringify({ label })
+			})
+		);
+	},
+
+	async revokeApiKey(id: string): Promise<void> {
+		const res = await authFetch(`/api/v1/admin/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to revoke API key');
 	}
 };
 
