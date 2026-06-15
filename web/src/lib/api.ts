@@ -431,7 +431,7 @@ export const api = {
 	},
 
 	async revokeApiKey(id: string): Promise<void> {
-		const res = await authFetch(`/api/v1/admin/api-keys/${id}`, { method: 'DELETE' });
+		const res = await authFetch(`/api/v1/admin/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to revoke API key');
 	}
 };

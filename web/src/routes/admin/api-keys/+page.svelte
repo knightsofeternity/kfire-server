@@ -46,8 +46,13 @@
 
 	async function revoke(id: string) {
 		if (!confirm('Révoquer cette clé ? Les consommateurs qui l\'utilisent cesseront de fonctionner.')) return;
-		await api.revokeApiKey(id);
-		await load();
+		error = '';
+		try {
+			await api.revokeApiKey(id);
+			await load();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'failed to revoke';
+		}
 	}
 </script>
 
