@@ -23,3 +23,16 @@ func TestParseBearer(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicViewerIsNonPrivileged(t *testing.T) {
+	// A member who hid both toggles must be fully hidden from the public viewer.
+	v := sessionVisibilityFor("", publicViewerRole, "target", false, false)
+	if !v.HideAll || !v.HideOpen {
+		t.Errorf("public viewer must not see hidden member: got %+v", v)
+	}
+	// A member who shares both toggles is fully visible.
+	v = sessionVisibilityFor("", publicViewerRole, "target", true, true)
+	if v.HideAll || v.HideOpen {
+		t.Errorf("public viewer should see opted-in member: got %+v", v)
+	}
+}

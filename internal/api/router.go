@@ -146,6 +146,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	// so member privacy toggles apply. Rate-limited per key.
 	pub := app.Group("/api/public/v1", h.requireAPIKey, apiKeyRateLimiter(120))
 	pub.Get("/presence", h.publicPresence)
+	pub.Get("/members", h.publicMembers)
+	pub.Get("/members/:id", h.publicMemberDetail)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).
