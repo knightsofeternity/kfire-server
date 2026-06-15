@@ -142,6 +142,11 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	admin.Get("/api-keys", h.listAPIKeys)
 	admin.Delete("/api-keys/:id", h.revokeAPIKey)
 
+	// Public read-only API (API-key auth). Evaluated as a non-privileged viewer
+	// so member privacy toggles apply. Rate-limited per key.
+	pub := app.Group("/api/public/v1", h.requireAPIKey, apiKeyRateLimiter(120))
+	pub.Get("/presence", h.publicPresence)
+
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).
 	app.Use("/ws", func(c *fiber.Ctx) error {
