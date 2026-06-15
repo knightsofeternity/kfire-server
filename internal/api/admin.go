@@ -204,7 +204,7 @@ func inviteJSON(publicURL string, inv store.Invite) fiber.Map {
 	m := fiber.Map{
 		"code":       inv.Code,
 		"role":       inv.Role,
-		"url":        publicURL + "/?invite=" + inv.Code,
+		"url":        inviteURL(publicURL, inv.Code),
 		"created_at": inv.CreatedAt.UTC(),
 		"expires_at": inv.ExpiresAt.UTC(),
 	}

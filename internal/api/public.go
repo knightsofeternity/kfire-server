@@ -16,6 +16,13 @@ import (
 // self, never admin, so privacy toggles are honoured.
 const publicViewerRole = "member"
 
+// inviteURL builds the public registration link for an invite code. The shape
+// must match what the SPA reads from the `?invite=` query param; it is shared
+// by the admin and key-authenticated invite paths.
+func inviteURL(publicURL, code string) string {
+	return publicURL + "/?invite=" + code
+}
+
 // GET /api/public/v1/presence
 func (h *handlers) publicPresence(c *fiber.Ctx) error {
 	rows, err := h.store.ListPresence(c.Context())
