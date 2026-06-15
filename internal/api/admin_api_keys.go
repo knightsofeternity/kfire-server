@@ -39,7 +39,7 @@ func (h *handlers) createAPIKey(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	id, err := h.store.CreateAPIKey(c.Context(), req.Label, prefix, hash, mustClaims(c).UserID)
+	id, err := h.store.CreateAPIKey(c.Context(), req.Label, prefix, hash, mustClaims(c).UserID, false)
 	if err != nil {
 		return err
 	}
