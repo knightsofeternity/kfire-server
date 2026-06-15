@@ -15,6 +15,7 @@ func apiKeyJSON(k store.APIKey) fiber.Map {
 		"id":         k.ID,
 		"label":      k.Label,
 		"key_prefix": k.KeyPrefix,
+		"can_invite": k.CanInvite,
 		"created_at": k.CreatedAt.UTC(),
 		"revoked":    k.RevokedAt != nil,
 	}
@@ -27,7 +28,8 @@ func apiKeyJSON(k store.APIKey) fiber.Map {
 // POST /api/v1/admin/api-keys  (admin) - mint a key; the secret is returned once.
 func (h *handlers) createAPIKey(c *fiber.Ctx) error {
 	var req struct {
-		Label string `json:"label"`
+		Label     string `json:"label"`
+		CanInvite bool   `json:"can_invite"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "invalid JSON body")
@@ -39,7 +41,7 @@ func (h *handlers) createAPIKey(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	id, err := h.store.CreateAPIKey(c.Context(), req.Label, prefix, hash, mustClaims(c).UserID, false)
+	id, err := h.store.CreateAPIKey(c.Context(), req.Label, prefix, hash, mustClaims(c).UserID, req.CanInvite)
 	if err != nil {
 		return err
 	}

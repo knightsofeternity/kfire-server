@@ -413,6 +413,7 @@ export const api = {
 			id: string;
 			label: string;
 			key_prefix: string;
+			can_invite: boolean;
 			created_at: string;
 			last_used_at?: string;
 			revoked: boolean;
@@ -421,11 +422,11 @@ export const api = {
 		return json(await authFetch('/api/v1/admin/api-keys'));
 	},
 
-	async createApiKey(label: string): Promise<{ id: string; label: string; key_prefix: string; key: string }> {
+	async createApiKey(label: string, canInvite: boolean): Promise<{ id: string; label: string; key_prefix: string; key: string }> {
 		return json(
 			await authFetch('/api/v1/admin/api-keys', {
 				method: 'POST',
-				body: JSON.stringify({ label })
+				body: JSON.stringify({ label, can_invite: canInvite })
 			})
 		);
 	},
