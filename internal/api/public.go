@@ -4,6 +4,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -105,6 +106,98 @@ func (h *handlers) publicMemberDetail(c *fiber.Ctx) error {
 			resp["game_stats"] = gs
 			resp["total_seconds"] = total
 		}
+	}
+	return c.JSON(resp)
+}
+
+// GET /api/public/v1/members/:id/games — owned/played library.
+func (h *handlers) publicMemberGames(c *fiber.Ctx) error {
+	id := c.Params("id")
+	u, err := h.store.GetUserByID(c.Context(), id)
+	if errors.Is(err, store.ErrNotFound) || (err == nil && u.BannedAt != nil) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "member not found")
+	}
+	if err != nil {
+		return err
+	}
+	// Library is sessions/ownership data: empty when the member hid sessions.
+	if sessionVisibilityFor("", publicViewerRole, id, u.ActivityVisible, u.SessionsVisible).HideAll {
+		return c.JSON(fiber.Map{"games": []fiber.Map{}})
+	}
+	owned, err := h.store.OwnedGames(c.Context(), id)
+	if err != nil {
+		return err
+	}
+	out := make([]fiber.Map, len(owned))
+	for i, og := range owned {
+		out[i] = fiber.Map{"game": h.gameJSON(og.Game), "source": og.Source}
+	}
+	return c.JSON(fiber.Map{"games": out})
+}
+
+// GET /api/public/v1/members/:id/games/:slug — one member's detail for one game.
+// Reads only cached data; never triggers a Battle.net refresh.
+func (h *handlers) publicMemberGameDetail(c *fiber.Ctx) error {
+	id := c.Params("id")
+	u, err := h.store.GetUserByID(c.Context(), id)
+	if errors.Is(err, store.ErrNotFound) || (err == nil && u.BannedAt != nil) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "member not found")
+	}
+	if err != nil {
+		return err
+	}
+	g, err := h.store.GetGameBySlug(c.Context(), c.Params("slug"))
+	if errors.Is(err, store.ErrNotFound) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "game not found")
+	}
+	if err != nil {
+		return err
+	}
+	hideSessions := sessionVisibilityFor("", publicViewerRole, id, u.ActivityVisible, u.SessionsVisible).HideAll
+
+	resp := fiber.Map{"game": h.gameJSON(g)}
+
+	if !hideSessions {
+		if stats, err := h.store.UserGameStats(c.Context(), id); err == nil {
+			for _, st := range stats {
+				if st.Game.ID == g.ID {
+					resp["total_seconds"] = st.TotalSeconds
+					resp["session_count"] = st.SessionCount
+					resp["last_played_at"] = st.LastPlayedAt.UTC()
+					break
+				}
+			}
+		}
+	}
+
+	// WoW characters (account/profile data, not session activity) — always shown.
+	if chars, err := h.store.WowCharactersForUserGame(c.Context(), id, g.ID); err == nil && len(chars) > 0 {
+		cards := make([]fiber.Map, len(chars))
+		for i, ch := range chars {
+			m := fiber.Map{
+				"name":               ch.Name,
+				"realm":              ch.RealmName,
+				"realm_slug":         ch.RealmSlug,
+				"class":              ch.Class,
+				"race":               ch.Race,
+				"faction":            ch.Faction,
+				"level":              ch.Level,
+				"item_level":         ch.ItemLevel,
+				"achievement_points": ch.AchievementPoints,
+			}
+			if ch.MythicRating != nil {
+				m["mythic_rating"] = *ch.MythicRating
+			}
+			if len(ch.RaidSummary) > 0 {
+				m["raid_summary"] = json.RawMessage(ch.RaidSummary)
+			}
+			cards[i] = m
+		}
+		resp["wow_characters"] = cards
+	}
+
+	if data, err := h.store.GameProfileForUserGame(c.Context(), id, g.ID); err == nil && len(data) > 0 {
+		resp["bnet_profile"] = json.RawMessage(data)
 	}
 	return c.JSON(resp)
 }
