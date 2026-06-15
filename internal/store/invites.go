@@ -17,8 +17,9 @@ type Invite struct {
 	ExpiresAt time.Time
 }
 
-// CreateInvite stores a new pending invite.
-func (s *Store) CreateInvite(ctx context.Context, code, note, role, createdBy string, expiresAt time.Time) error {
+// CreateInvite stores a new pending invite. createdBy may be nil (e.g. an invite
+// minted by an API key whose creating admin was deleted), stored as NULL.
+func (s *Store) CreateInvite(ctx context.Context, code, note, role string, createdBy *string, expiresAt time.Time) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO invites (code, note, role, created_by, expires_at)
 		VALUES ($1, NULLIF($2, ''), $3, $4, $5)`,

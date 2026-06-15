@@ -171,8 +171,9 @@ func (h *handlers) createInvite(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	uid := mustClaims(c).UserID
 	if err := h.store.CreateInvite(c.Context(), code, req.Note, req.Role,
-		mustClaims(c).UserID, time.Now().Add(inviteTTL)); err != nil {
+		&uid, time.Now().Add(inviteTTL)); err != nil {
 		return err
 	}
 	inv := store.Invite{
