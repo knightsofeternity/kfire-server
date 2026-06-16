@@ -19,3 +19,25 @@ func TestPresenceStatus(t *testing.T) {
 		t.Errorf("open+hidden+no-ws: got %q want offline", got)
 	}
 }
+
+func TestApplyPresenceOverride(t *testing.T) {
+	cases := []struct {
+		chosen, computed, want string
+	}{
+		{"invisible", "in_game", "offline"},
+		{"invisible", "online", "offline"},
+		{"offline", "in_game", "offline"},
+		{"offline", "online", "offline"},
+		{"online", "online", "online"},
+		{"online", "in_game", "in_game"},
+		{"online", "offline", "offline"},
+		// Unknown/empty chosen status passes the computed value through unchanged.
+		{"", "online", "online"},
+	}
+	for _, tc := range cases {
+		if got := ApplyPresenceOverride(tc.chosen, tc.computed); got != tc.want {
+			t.Errorf("ApplyPresenceOverride(%q, %q) = %q want %q",
+				tc.chosen, tc.computed, got, tc.want)
+		}
+	}
+}

@@ -74,6 +74,7 @@ type PresenceUser struct {
 	Username        string
 	AvatarURL       *string
 	ActivityVisible bool
+	PresenceStatus  string
 }
 
 func (c *client) presenceUser() PresenceUser {
@@ -238,6 +239,9 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 		slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
 	}
 	status := store.PresenceStatus(sess != nil, sess != nil && u.ActivityVisible, online != nil)
+	// A chosen invisible/offline status forces offline for all viewers, dropping
+	// the game/since fields below since they gate on in_game/online.
+	status = store.ApplyPresenceOverride(u.PresenceStatus, status)
 
 	entry := map[string]any{"user_id": u.ID, "username": u.Username, "status": status, "game": nil}
 	if u.AvatarURL != nil {

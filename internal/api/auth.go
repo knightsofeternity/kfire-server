@@ -58,6 +58,7 @@ func userJSON(u store.User, includeEmail bool) fiber.Map {
 		m["email"] = u.Email
 		m["activity_visible"] = u.ActivityVisible
 		m["sessions_visible"] = u.SessionsVisible
+		m["presence_status"] = u.PresenceStatus
 	}
 	return m
 }

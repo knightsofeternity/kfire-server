@@ -25,14 +25,31 @@ func (h *handlers) me(c *fiber.Ctx) error {
 // Updates the owner's account settings. Currently the activity privacy toggle.
 func (h *handlers) updateMe(c *fiber.Ctx) error {
 	var req struct {
-		ActivityVisible *bool `json:"activity_visible"`
-		SessionsVisible *bool `json:"sessions_visible"`
+		ActivityVisible *bool   `json:"activity_visible"`
+		SessionsVisible *bool   `json:"sessions_visible"`
+		PresenceStatus  *string `json:"presence_status"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "invalid JSON body")
 	}
 
 	claims := mustClaims(c)
+	if req.PresenceStatus != nil {
+		switch *req.PresenceStatus {
+		case "online", "invisible", "offline":
+		default:
+			return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed",
+				"presence_status must be one of online, invisible, offline")
+		}
+		if err := h.store.SetPresenceStatus(c.Context(), claims.UserID, *req.PresenceStatus); err != nil {
+			return err
+		}
+		// A chosen-status change must reflect immediately in live presence.
+		u, err := h.store.GetUserByID(c.Context(), claims.UserID)
+		if err == nil {
+			h.hub.BroadcastPresence(c.Context(), presenceUser(u))
+		}
+	}
 	if req.ActivityVisible != nil {
 		if err := h.store.SetActivityVisible(c.Context(), claims.UserID, *req.ActivityVisible); err != nil {
 			return err
