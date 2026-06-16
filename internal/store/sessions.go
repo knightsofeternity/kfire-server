@@ -190,6 +190,7 @@ func (s *Store) UserGameStats(ctx context.Context, userID string) ([]GameStat, e
 			LEFT JOIN sess ON sess.game_id = g.id
 			LEFT JOIN ext  ON ext.game_id = g.id
 			LEFT JOIN sess_since ON sess_since.game_id = g.id
+			WHERE NOT g.hidden
 		)
 		-- Exclude games with no actual playtime (e.g. owned-but-unplayed Steam
 		-- games the library import brings in at zero), matching ListPlayedGames.

@@ -17,6 +17,7 @@ type Game struct {
 	Platform        string
 	IconURL         *string
 	CoverURL        *string
+	Hidden          bool
 }
 
 // GameSeed is a normalized entry from an external catalog (Discord).
@@ -176,6 +177,7 @@ func (s *Store) ListPlayedGames(ctx context.Context) ([]GameSummary, error) {
 		)
 		SELECT g.id, g.name, g.slug, g.icon_url, g.cover_url, a.players, a.total
 		FROM agg a JOIN games g ON g.id = a.game_id
+		WHERE NOT g.hidden
 		ORDER BY g.name ASC`)
 	if err != nil {
 		return nil, err
@@ -227,9 +229,9 @@ func (s *Store) ListGames(ctx context.Context) ([]Game, error) {
 func (s *Store) GetGameBySlug(ctx context.Context, slug string) (Game, error) {
 	var g Game
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, slug, executable_names, platform, icon_url, cover_url
+		SELECT id, name, slug, executable_names, platform, icon_url, cover_url, hidden
 		FROM games WHERE slug = $1`, slug).
-		Scan(&g.ID, &g.Name, &g.Slug, &g.ExecutableNames, &g.Platform, &g.IconURL, &g.CoverURL)
+		Scan(&g.ID, &g.Name, &g.Slug, &g.ExecutableNames, &g.Platform, &g.IconURL, &g.CoverURL, &g.Hidden)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Game{}, ErrNotFound
 	}
@@ -247,6 +249,20 @@ func (s *Store) GetGameByID(ctx context.Context, id string) (Game, error) {
 		return Game{}, ErrNotFound
 	}
 	return g, err
+}
+
+// SetGameHidden toggles a game's hidden flag. Hidden games are excluded from
+// playtime stats and the community games list. Returns ErrNotFound if no row
+// matches the id.
+func (s *Store) SetGameHidden(ctx context.Context, gameID string, hidden bool) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE games SET hidden = $2 WHERE id = $1`, gameID, hidden)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UpsertGames inserts or updates seeded games keyed on discord_app_id.

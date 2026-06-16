@@ -126,7 +126,10 @@ export const fr: Catalog = {
 		heroes: 'héros',
 		searchAchievements: 'Rechercher des hauts faits...',
 		showMore: 'Voir plus',
-		wowAchievements: 'Hauts faits'
+		wowAchievements: 'Hauts faits',
+		hide: 'Masquer ce jeu',
+		show: 'Afficher ce jeu',
+		hiddenNotice: 'Ce jeu est masqué : exclu des statistiques et de la liste des jeux.'
 	},
 	playerGame: {
 		loading: 'Chargement...',

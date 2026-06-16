@@ -15,7 +15,7 @@ export type User = {
 	created_at: string;
 };
 
-export type Game = { id: string; name: string; slug: string; icon_url?: string; cover_url?: string };
+export type Game = { id: string; name: string; slug: string; icon_url?: string; cover_url?: string; hidden?: boolean };
 
 export type LeaderboardEntry = {
 	user_id: string;
@@ -272,6 +272,16 @@ export const api = {
 
 	async getGame(slug: string): Promise<GameDetail> {
 		return json(await authFetch(`/api/v1/games/${encodeURIComponent(slug)}`));
+	},
+
+	async setGameHidden(id: string, hidden: boolean): Promise<{ hidden: boolean }> {
+		return json(
+			await authFetch(`/api/v1/admin/games/${encodeURIComponent(id)}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ hidden })
+			})
+		);
 	},
 
 	async getPlayedGames(): Promise<PlayedGame[]> {
