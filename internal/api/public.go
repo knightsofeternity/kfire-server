@@ -24,7 +24,7 @@ func inviteURL(publicURL, code string) string {
 	return publicURL + "/?invite=" + code
 }
 
-// POST /api/public/v1/invites — create a registration invite (requires a key
+// POST /api/public/v1/invites - create a registration invite (requires a key
 // with can_invite). Role is always "member"; admin invites are not issuable over
 // the public API. Returns 201 {code, url, expires_at}.
 func (h *handlers) publicCreateInvite(c *fiber.Ctx) error {

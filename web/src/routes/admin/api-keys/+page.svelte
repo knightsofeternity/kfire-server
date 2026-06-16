@@ -64,7 +64,7 @@
 {#if freshKey}
 	<div class="pd-card mb-4 border border-[var(--color-gold)]/40 p-4">
 		<p class="mb-2 font-display font-bold text-[var(--color-gold)]">
-			Copiez cette clé maintenant — elle ne sera plus affichée.
+			Copiez cette clé maintenant, elle ne sera plus affichée.
 		</p>
 		<code class="block break-all rounded bg-[var(--color-bg)] p-2 text-sm">{freshKey}</code>
 		<div class="mt-2 flex gap-2">
