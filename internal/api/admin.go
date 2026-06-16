@@ -171,8 +171,9 @@ func (h *handlers) createInvite(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	uid := mustClaims(c).UserID
 	if err := h.store.CreateInvite(c.Context(), code, req.Note, req.Role,
-		mustClaims(c).UserID, time.Now().Add(inviteTTL)); err != nil {
+		&uid, time.Now().Add(inviteTTL)); err != nil {
 		return err
 	}
 	inv := store.Invite{
@@ -203,7 +204,7 @@ func inviteJSON(publicURL string, inv store.Invite) fiber.Map {
 	m := fiber.Map{
 		"code":       inv.Code,
 		"role":       inv.Role,
-		"url":        publicURL + "/?invite=" + inv.Code,
+		"url":        inviteURL(publicURL, inv.Code),
 		"created_at": inv.CreatedAt.UTC(),
 		"expires_at": inv.ExpiresAt.UTC(),
 	}

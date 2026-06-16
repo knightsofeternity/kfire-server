@@ -6,6 +6,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -15,6 +16,45 @@ import (
 // publicViewerRole is the role used for all key-authenticated reads: never
 // self, never admin, so privacy toggles are honoured.
 const publicViewerRole = "member"
+
+// inviteURL builds the public registration link for an invite code. The shape
+// must match what the SPA reads from the `?invite=` query param; it is shared
+// by the admin and key-authenticated invite paths.
+func inviteURL(publicURL, code string) string {
+	return publicURL + "/?invite=" + code
+}
+
+// POST /api/public/v1/invites - create a registration invite (requires a key
+// with can_invite). Role is always "member"; admin invites are not issuable over
+// the public API. Returns 201 {code, url, expires_at}.
+func (h *handlers) publicCreateInvite(c *fiber.Ctx) error {
+	if !apiKeyCanInvite(c) {
+		return errorJSON(c, fiber.StatusForbidden, "forbidden",
+			"this API key cannot create invites")
+	}
+
+	// Body is optional and tolerated; role is forced to member regardless.
+	var req struct {
+		Role string `json:"role"`
+	}
+	_ = c.BodyParser(&req)
+
+	code, err := newInviteCode()
+	if err != nil {
+		return err
+	}
+	var createdBy *string // public path has no user identity → created_by NULL
+	expiresAt := time.Now().Add(inviteTTL)
+	if err := h.store.CreateInvite(c.Context(), code, "via API key", publicViewerRole,
+		createdBy, expiresAt); err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"code":       code,
+		"url":        inviteURL(h.cfg.PublicURL, code),
+		"expires_at": expiresAt.UTC(),
+	})
+}
 
 // GET /api/public/v1/presence
 func (h *handlers) publicPresence(c *fiber.Ctx) error {

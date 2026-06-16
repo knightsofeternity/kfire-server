@@ -7,6 +7,7 @@
 		id: string;
 		label: string;
 		key_prefix: string;
+		can_invite: boolean;
 		created_at: string;
 		last_used_at?: string;
 		revoked: boolean;
@@ -14,6 +15,7 @@
 
 	let keys = $state<KeyRow[]>([]);
 	let label = $state('');
+	let canInvite = $state(false);
 	let creating = $state(false);
 	let error = $state('');
 	let freshKey = $state(''); // the full secret, shown once after creation
@@ -33,9 +35,10 @@
 		creating = true;
 		error = '';
 		try {
-			const r = await api.createApiKey(label.trim());
+			const r = await api.createApiKey(label.trim(), canInvite);
 			freshKey = r.key;
 			label = '';
+			canInvite = false;
 			await load();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'failed to create';
@@ -61,7 +64,7 @@
 {#if freshKey}
 	<div class="pd-card mb-4 border border-[var(--color-gold)]/40 p-4">
 		<p class="mb-2 font-display font-bold text-[var(--color-gold)]">
-			Copiez cette clé maintenant — elle ne sera plus affichée.
+			Copiez cette clé maintenant, elle ne sera plus affichée.
 		</p>
 		<code class="block break-all rounded bg-[var(--color-bg)] p-2 text-sm">{freshKey}</code>
 		<div class="mt-2 flex gap-2">
@@ -82,6 +85,10 @@
 			{creating ? '...' : 'Créer'}
 		</button>
 	</div>
+	<label class="mt-2 flex items-center gap-2 text-sm text-[var(--color-muted)]">
+		<input type="checkbox" bind:checked={canInvite} />
+		Peut créer des invitations
+	</label>
 	{#if error}<p class="mt-2 text-sm text-red-500">{error}</p>{/if}
 </div>
 
@@ -95,6 +102,7 @@
 					<div>
 						<p class="font-display font-semibold text-[var(--color-text)]">
 							{k.label}
+							{#if k.can_invite}<span class="ml-2 text-xs text-[var(--color-gold)]">invite</span>{/if}
 							{#if k.revoked}<span class="ml-2 text-xs text-red-400">révoquée</span>{/if}
 						</p>
 						<p class="text-xs text-[var(--color-muted)]">

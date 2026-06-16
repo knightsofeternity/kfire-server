@@ -150,6 +150,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	pub.Get("/members/:id", h.publicMemberDetail)
 	pub.Get("/members/:id/games", h.publicMemberGames)
 	pub.Get("/members/:id/games/:slug", h.publicMemberGameDetail)
+	pub.Post("/invites", h.publicCreateInvite)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
 	// the connection via the `hello` handshake (see kfire-protocol).

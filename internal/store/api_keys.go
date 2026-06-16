@@ -14,20 +14,22 @@ type APIKey struct {
 	ID         string
 	Label      string
 	KeyPrefix  string
+	CanInvite  bool
 	CreatedBy  *string
 	CreatedAt  time.Time
 	LastUsedAt *time.Time
 	RevokedAt  *time.Time
 }
 
-// CreateAPIKey inserts a new key and returns its generated id.
-func (s *Store) CreateAPIKey(ctx context.Context, label, keyPrefix string, keyHash []byte, createdBy string) (string, error) {
+// CreateAPIKey inserts a new key and returns its generated id. canInvite grants
+// the key permission to create invites via the public API.
+func (s *Store) CreateAPIKey(ctx context.Context, label, keyPrefix string, keyHash []byte, createdBy string, canInvite bool) (string, error) {
 	var id string
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO api_keys (label, key_prefix, key_hash, created_by)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO api_keys (label, key_prefix, key_hash, created_by, can_invite)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id`,
-		label, keyPrefix, keyHash, createdBy).Scan(&id)
+		label, keyPrefix, keyHash, createdBy, canInvite).Scan(&id)
 	return id, err
 }
 
@@ -36,10 +38,10 @@ func (s *Store) CreateAPIKey(ctx context.Context, label, keyPrefix string, keyHa
 func (s *Store) LookupAPIKey(ctx context.Context, keyHash []byte) (APIKey, error) {
 	var k APIKey
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, label, key_prefix, created_by, created_at, last_used_at, revoked_at
+		SELECT id, label, key_prefix, can_invite, created_by, created_at, last_used_at, revoked_at
 		FROM api_keys
 		WHERE key_hash = $1 AND revoked_at IS NULL`, keyHash).
-		Scan(&k.ID, &k.Label, &k.KeyPrefix, &k.CreatedBy, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt)
+		Scan(&k.ID, &k.Label, &k.KeyPrefix, &k.CanInvite, &k.CreatedBy, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return APIKey{}, ErrNotFound
 	}
@@ -49,7 +51,7 @@ func (s *Store) LookupAPIKey(ctx context.Context, keyHash []byte) (APIKey, error
 // ListAPIKeys returns all keys (including revoked, for audit), newest first.
 func (s *Store) ListAPIKeys(ctx context.Context) ([]APIKey, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, label, key_prefix, created_by, created_at, last_used_at, revoked_at
+		SELECT id, label, key_prefix, can_invite, created_by, created_at, last_used_at, revoked_at
 		FROM api_keys
 		ORDER BY created_at DESC`)
 	if err != nil {
@@ -59,7 +61,7 @@ func (s *Store) ListAPIKeys(ctx context.Context) ([]APIKey, error) {
 	var out []APIKey
 	for rows.Next() {
 		var k APIKey
-		if err := rows.Scan(&k.ID, &k.Label, &k.KeyPrefix, &k.CreatedBy,
+		if err := rows.Scan(&k.ID, &k.Label, &k.KeyPrefix, &k.CanInvite, &k.CreatedBy,
 			&k.CreatedAt, &k.LastUsedAt, &k.RevokedAt); err != nil {
 			return nil, err
 		}

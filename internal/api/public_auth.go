@@ -15,6 +15,16 @@ import (
 // localsAPIKeyID is the Fiber locals slot holding the authenticated key id.
 const localsAPIKeyID = "api_key_id"
 
+// localsAPIKeyCanInvite is the Fiber locals slot holding the authenticated key's
+// invite permission, set by requireAPIKey and read by apiKeyCanInvite.
+const localsAPIKeyCanInvite = "api_key_can_invite"
+
+// apiKeyCanInvite reports whether the authenticated key may create invites.
+func apiKeyCanInvite(c *fiber.Ctx) bool {
+	v, _ := c.Locals(localsAPIKeyCanInvite).(bool)
+	return v
+}
+
 // parseBearer extracts the token from an "Authorization: Bearer <token>" header.
 // The scheme is case-insensitive; surrounding whitespace is trimmed.
 func parseBearer(header string) (string, bool) {
@@ -44,6 +54,7 @@ func (h *handlers) requireAPIKey(c *fiber.Ctx) error {
 		return err
 	}
 	c.Locals(localsAPIKeyID, key.ID)
+	c.Locals(localsAPIKeyCanInvite, key.CanInvite)
 	// Refresh last_used_at without blocking the response. The id is a value copy
 	// (not backed by Fiber's request buffer), so it's safe in a detached goroutine.
 	id := key.ID

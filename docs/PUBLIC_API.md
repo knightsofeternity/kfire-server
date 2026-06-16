@@ -1,6 +1,7 @@
 # KFIRE Public API
 
-Read-only HTTP API for external consumers (e.g. the knights-of-eternity site).
+HTTP API for external consumers (e.g. the knights-of-eternity site): read-only,
+plus one invite-creation endpoint for invite-enabled keys.
 
 ## Authentication
 
@@ -53,3 +54,22 @@ empty if the member hid their sessions.
 ### GET /members/{id}/games/{slug}
 Per-game detail: playtime (if shared), WoW characters, and the Diablo III /
 StarCraft II profile blob (`bnet_profile`) when present. Serves cached data only.
+
+### POST /invites
+Create a single-use KFIRE registration invite, so you can onboard a guild member
+who does not have a KFIRE profile yet.
+
+Requires an **invite-enabled** key (one created with "Peut créer des invitations"
+checked). Ordinary read-only keys get `403 {"code":"forbidden"}`. This is the only
+write endpoint on the public API.
+
+Request body is optional and ignored; invites are always created with the
+`member` role (admin invites cannot be issued over the public API).
+
+    POST /invites
+    -> 201 { "code": "Yx3…", "url": "https://kfire.io/?invite=Yx3…", "expires_at": "2026-06-29T10:00:00Z" }
+
+The link stays valid for 14 days and behaves exactly like an admin-created invite:
+the recipient opens `url`, registers, and joins as a member. Errors: `403
+{"code":"forbidden"}` (read-only key), `401 {"code":"invalid_api_key"}` (bad key),
+`429 {"code":"rate_limited"}` (over the per-key limit).
