@@ -107,6 +107,11 @@ var genericExecutables = map[string]struct{}{
 	"start_protected_game.exe": {}, // Easy Anti-Cheat launcher
 	"easyanticheat.exe": {}, "easyanticheat_setup.exe": {}, "easyanticheat_eos_setup.exe": {},
 	"beservice.exe": {}, "bedaisy.exe": {}, "battleye.exe": {}, "be_setup.exe": {}, // BattlEye
+	// Ambiguous short names that collide across unrelated processes/games and
+	// can't identify any one of them. "lms.exe" is the only exe of the delisted
+	// "Last Man Standing" but also matches other processes (it flickered "Last
+	// Man Standing" for a member playing a different, uninstalled-LMS game).
+	"lms.exe": {},
 }
 
 // minExeStem is the shortest executable stem (the name without its extension) we
