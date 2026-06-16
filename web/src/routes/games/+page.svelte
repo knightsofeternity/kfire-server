@@ -8,10 +8,14 @@
 	let loading = $state(true);
 	let query = $state('');
 
+	// Sort by player count (most-played-in-common first), then by total hours.
 	let filtered = $derived(
-		query.trim()
+		(query.trim()
 			? games.filter((g) => g.name.toLowerCase().includes(query.trim().toLowerCase()))
 			: games
+		)
+			.slice()
+			.sort((a, b) => b.player_count - a.player_count || b.total_seconds - a.total_seconds)
 	);
 
 	onMount(async () => {
