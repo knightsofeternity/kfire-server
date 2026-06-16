@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { api, type GameDetail } from '$lib/api';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { formatDuration } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -10,8 +11,23 @@
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
 	let error = $state('');
+	let toggling = $state(false);
 
 	const slug = $derived(page.params.slug ?? '');
+	const isAdmin = $derived($auth.user?.role === 'admin');
+
+	async function toggleHidden() {
+		if (!detail || toggling) return;
+		toggling = true;
+		try {
+			const res = await api.setGameHidden(detail.game.id, !detail.game.hidden);
+			detail = { ...detail, game: { ...detail.game, hidden: res.hidden } };
+		} catch (e) {
+			error = e instanceof Error ? e.message : t('game.loadError');
+		} finally {
+			toggling = false;
+		}
+	}
 	let topSeconds = $derived(
 		Math.max(1, ...(detail?.leaderboard ?? []).map((e) => e.total_seconds))
 	);
@@ -87,6 +103,24 @@
 				<p class="font-display text-xl font-bold text-[var(--color-cyan)]">{detail.player_count}</p>
 				<p class="text-xs text-[var(--color-muted)] uppercase tracking-wide">{t('game.players', { count: detail.player_count })}</p>
 			</div>
+			{#if isAdmin}
+				<div class="ml-auto flex flex-col items-end justify-center gap-1">
+					<button
+						type="button"
+						class="pd-cut-sm px-3 py-1.5 text-sm font-display border transition-colors disabled:opacity-50
+							{detail.game.hidden
+								? 'border-[var(--color-brand)] text-[var(--color-brand-bright)] hover:bg-[var(--color-surface)]'
+								: 'border-[var(--color-magenta)] text-[var(--color-magenta)] hover:bg-[var(--color-surface)]'}"
+						disabled={toggling}
+						onclick={toggleHidden}
+					>
+						{detail.game.hidden ? t('game.show') : t('game.hide')}
+					</button>
+					{#if detail.game.hidden}
+						<p class="max-w-xs text-right text-xs text-[var(--color-muted)]">{t('game.hiddenNotice')}</p>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 

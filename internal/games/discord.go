@@ -100,6 +100,13 @@ var genericExecutables = map[string]struct{}{
 	"rundll32.exe": {}, "svchost.exe": {}, "conhost.exe": {}, "dllhost.exe": {},
 	"werfault.exe": {}, "explorer.exe": {}, "notepad.exe": {}, "mmc.exe": {},
 	"powershell.exe": {}, "pwsh.exe": {}, "wscript.exe": {}, "cscript.exe": {}, "mshta.exe": {},
+	// Anti-cheat bootstrappers ship with many unrelated games and run briefly at
+	// launch under a shared name, so they cross-attribute presence (e.g. launching
+	// any Easy Anti-Cheat game flashed "VRChat" via start_protected_game.exe).
+	// The frequency filter misses them because only a handful of games list them.
+	"start_protected_game.exe": {}, // Easy Anti-Cheat launcher
+	"easyanticheat.exe": {}, "easyanticheat_setup.exe": {}, "easyanticheat_eos_setup.exe": {},
+	"beservice.exe": {}, "bedaisy.exe": {}, "battleye.exe": {}, "be_setup.exe": {}, // BattlEye
 }
 
 // minExeStem is the shortest executable stem (the name without its extension) we

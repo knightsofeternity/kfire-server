@@ -125,7 +125,10 @@ export const en = {
 		heroes: 'heroes',
 		searchAchievements: 'Search achievements...',
 		showMore: 'Show more',
-		wowAchievements: 'Achievements'
+		wowAchievements: 'Achievements',
+		hide: 'Hide this game',
+		show: 'Show this game',
+		hiddenNotice: 'This game is hidden: excluded from stats and the games list.'
 	},
 	playerGame: {
 		loading: 'Loading...',

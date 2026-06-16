@@ -127,6 +127,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Post("/games/sync", h.syncGames)
+	admin.Patch("/games/:id", h.setGameHidden)
 	admin.Get("/members", h.listMembers)
 	admin.Patch("/members/:id", h.patchMember)
 	admin.Post("/members/:id/reset", h.adminResetPassword)

@@ -146,8 +146,10 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		achs[i] = m
 	}
 
+	gj := h.gameJSON(g)
+	gj["hidden"] = g.Hidden
 	resp := fiber.Map{
-		"game":          h.gameJSON(g),
+		"game":          gj,
 		"total_seconds": totalSeconds,
 		"player_count":  players,
 		"leaderboard":   board,
@@ -162,6 +164,28 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		resp["bnet_synced_at"] = bnetSynced
 	}
 	return c.JSON(resp)
+}
+
+// PATCH /api/v1/admin/games/:id  (admin)
+//
+// Toggles a game's hidden flag. Hidden games are excluded from per-member
+// playtime stats and the community games list (used to drop test-server or
+// misdetected entries).
+func (h *handlers) setGameHidden(c *fiber.Ctx) error {
+	var req struct {
+		Hidden bool `json:"hidden"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "invalid JSON body")
+	}
+	err := h.store.SetGameHidden(c.Context(), c.Params("id"), req.Hidden)
+	if errors.Is(err, store.ErrNotFound) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "game not found")
+	}
+	if err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{"hidden": req.Hidden})
 }
 
 // GET /api/v1/achievements?user_id=&game_id=&limit=&offset=  (authenticated)
