@@ -65,6 +65,10 @@ type client struct {
 	// the REST API rebroadcasts presence itself, so a stale value here only
 	// affects the next game event, which is acceptable.
 	activityVisible bool
+	// presenceStatus is the user's chosen status (online/invisible/offline),
+	// cached at hello so connect/disconnect broadcasts honor an invisible/offline
+	// member (otherwise they would pop back online on every reconnect).
+	presenceStatus string
 }
 
 // PresenceUser is the minimal identity the hub needs to build a presence
@@ -83,6 +87,7 @@ func (c *client) presenceUser() PresenceUser {
 		Username:        c.username,
 		AvatarURL:       c.avatarURL,
 		ActivityVisible: c.activityVisible,
+		PresenceStatus:  c.presenceStatus,
 	}
 }
 
@@ -346,6 +351,7 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 	c.username = u.Username
 	c.avatarURL = u.AvatarURL
 	c.activityVisible = u.ActivityVisible
+	c.presenceStatus = u.PresenceStatus
 	c.authenticated.Store(true)
 	firstConn := h.connect(c)
 	_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))
