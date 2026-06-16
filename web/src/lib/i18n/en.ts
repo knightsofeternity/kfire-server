@@ -97,6 +97,8 @@ export const en = {
 		allGames: 'All games',
 		noAchievements: 'No achievements yet.',
 		recentSessions: 'Recent sessions',
+		today: 'Today',
+		yesterday: 'Yesterday',
 		noSessions: 'No sessions yet.',
 		loadMore: 'Load more',
 		loadingMore: 'Loading...',
