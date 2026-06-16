@@ -65,6 +65,10 @@ type client struct {
 	// the REST API rebroadcasts presence itself, so a stale value here only
 	// affects the next game event, which is acceptable.
 	activityVisible bool
+	// presenceStatus is the user's chosen status (online/invisible/offline),
+	// cached at hello so connect/disconnect broadcasts honor an invisible/offline
+	// member (otherwise they would pop back online on every reconnect).
+	presenceStatus string
 }
 
 // PresenceUser is the minimal identity the hub needs to build a presence
@@ -74,6 +78,7 @@ type PresenceUser struct {
 	Username        string
 	AvatarURL       *string
 	ActivityVisible bool
+	PresenceStatus  string
 }
 
 func (c *client) presenceUser() PresenceUser {
@@ -82,6 +87,7 @@ func (c *client) presenceUser() PresenceUser {
 		Username:        c.username,
 		AvatarURL:       c.avatarURL,
 		ActivityVisible: c.activityVisible,
+		PresenceStatus:  c.presenceStatus,
 	}
 }
 
@@ -238,6 +244,9 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 		slog.Error("ws: latest open session", "user_id", u.ID, "err", err)
 	}
 	status := store.PresenceStatus(sess != nil, sess != nil && u.ActivityVisible, online != nil)
+	// A chosen invisible/offline status forces offline for all viewers, dropping
+	// the game/since fields below since they gate on in_game/online.
+	status = store.ApplyPresenceOverride(u.PresenceStatus, status)
 
 	entry := map[string]any{"user_id": u.ID, "username": u.Username, "status": status, "game": nil}
 	if u.AvatarURL != nil {
@@ -342,6 +351,7 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 	c.username = u.Username
 	c.avatarURL = u.AvatarURL
 	c.activityVisible = u.ActivityVisible
+	c.presenceStatus = u.PresenceStatus
 	c.authenticated.Store(true)
 	firstConn := h.connect(c)
 	_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))

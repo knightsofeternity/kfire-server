@@ -15,3 +15,12 @@ func PresenceStatus(hasOpenSession, sessionVisible, wsConnected bool) string {
 	}
 	return "offline"
 }
+
+// ApplyPresenceOverride forces "offline" when the member chose to hide their
+// presence (invisible/offline), regardless of the computed status.
+func ApplyPresenceOverride(chosen, computed string) string {
+	if chosen == "invisible" || chosen == "offline" {
+		return "offline"
+	}
+	return computed
+}

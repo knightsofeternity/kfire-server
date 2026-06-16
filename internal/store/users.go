@@ -22,14 +22,15 @@ type User struct {
 	SessionsVisible bool
 	BannedAt        *time.Time
 	CreatedAt       time.Time
+	PresenceStatus  string
 }
 
-const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, activity_visible, sessions_visible, banned_at, created_at`
+const userColumns = `id, org_id, username, email, password_hash, role, avatar_url, activity_visible, sessions_visible, banned_at, created_at, presence_status`
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.OrgID, &u.Username, &u.Email, &u.PasswordHash,
-		&u.Role, &u.AvatarURL, &u.ActivityVisible, &u.SessionsVisible, &u.BannedAt, &u.CreatedAt)
+		&u.Role, &u.AvatarURL, &u.ActivityVisible, &u.SessionsVisible, &u.BannedAt, &u.CreatedAt, &u.PresenceStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -40,6 +41,14 @@ func scanUser(row pgx.Row) (User, error) {
 func (s *Store) SetActivityVisible(ctx context.Context, userID string, visible bool) error {
 	_, err := s.pool.Exec(ctx,
 		`UPDATE users SET activity_visible = $2 WHERE id = $1`, userID, visible)
+	return err
+}
+
+// SetPresenceStatus updates a user's chosen presence status (online, invisible,
+// offline). invisible/offline make the member appear offline to other viewers.
+func (s *Store) SetPresenceStatus(ctx context.Context, userID, status string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET presence_status = $2 WHERE id = $1`, userID, status)
 	return err
 }
 

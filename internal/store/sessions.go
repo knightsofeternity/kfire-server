@@ -94,6 +94,7 @@ type PresenceRow struct {
 	Username        string
 	AvatarURL       *string
 	ActivityVisible bool
+	PresenceStatus  string
 	Game            *Game
 	StartedAt       *time.Time
 }
@@ -102,7 +103,7 @@ type PresenceRow struct {
 func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT DISTINCT ON (u.id)
-		       u.id, u.username, u.avatar_url, u.activity_visible,
+		       u.id, u.username, u.avatar_url, u.activity_visible, u.presence_status,
 		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
 		       s.started_at
 		FROM users u
@@ -127,7 +128,7 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 			iconURL   *string
 			startedAt *time.Time
 		)
-		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible,
+		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible, &r.PresenceStatus,
 			&gameID, &gameName, &gameSlug, &exeNames, &platform, &iconURL,
 			&startedAt); err != nil {
 			return nil, err
