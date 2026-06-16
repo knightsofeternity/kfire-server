@@ -98,6 +98,8 @@ export const fr: Catalog = {
 		allGames: 'Tous les jeux',
 		noAchievements: "Aucun succès pour l'instant.",
 		recentSessions: 'Sessions récentes',
+		today: "Aujourd'hui",
+		yesterday: 'Hier',
 		noSessions: "Aucune session pour l'instant.",
 		loadMore: 'Charger plus',
 		loadingMore: 'Chargement...',

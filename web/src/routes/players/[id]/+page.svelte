@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type Profile, type Session, type Achievement, type Game } from '$lib/api';
 	import { formatDuration, timeAgo, formatDate } from '$lib/format';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 
@@ -28,6 +28,37 @@
 
 	const id = $derived(page.params.id ?? '');
 	let topSeconds = $derived(Math.max(1, ...(profile?.game_stats ?? []).map((g) => g.total_seconds)));
+
+	// Recent sessions grouped by local calendar day (the viewer's own timezone,
+	// straight from the browser). Sessions arrive newest-first, so consecutive
+	// runs of the same day stay contiguous and ordered.
+	type SessionGroup = { key: string; iso: string; items: Session[] };
+	const sessionGroups = $derived.by((): SessionGroup[] => {
+		const groups: SessionGroup[] = [];
+		let current: SessionGroup | null = null;
+		for (const s of sessions) {
+			const d = new Date(s.started_at);
+			const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+			if (!current || current.key !== key) {
+				current = { key, iso: s.started_at, items: [] };
+				groups.push(current);
+			}
+			current.items.push(s);
+		}
+		return groups;
+	});
+
+	const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+	function dayLabel(iso: string): string {
+		const d = new Date(iso);
+		const diffDays = Math.round((startOfLocalDay(new Date()) - startOfLocalDay(d)) / 86400000);
+		if (diffDays === 0) return t('profile.today');
+		if (diffDays === 1) return t('profile.yesterday');
+		return d.toLocaleDateString(getLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
+	}
+	function timeOfDay(iso: string): string {
+		return new Date(iso).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
+	}
 
 	const PROVIDER_META: Record<string, { label: string; color: string; path: string }> = {
 		steam: {
@@ -324,22 +355,27 @@
 			<p class="text-sm text-[var(--color-muted)]">{t('profile.noSessions')}</p>
 		{:else}
 			<div class="pd-card overflow-hidden">
-				<ul class="divide-y divide-[var(--color-border)]">
-					{#each sessions as s (s.id)}
-						<li class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--color-surface-2)]">
-							{#if s.game.icon_url}
-								<img src={s.game.icon_url} alt="" class="h-5 w-5 shrink-0 rounded" />
-							{/if}
-							<span class="flex-1 truncate text-sm">{s.game.name}</span>
-							{#if !s.ended_at}
-								<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs font-bold italic uppercase text-[var(--color-online)]">live</span>
-							{:else}
-								<span class="font-display text-sm font-bold italic text-[var(--color-text)]">{formatDuration(s.duration_seconds ?? 0)}</span>
-							{/if}
-							<span class="w-20 text-right text-xs text-[var(--color-muted)]">{timeAgo(s.started_at)}</span>
-						</li>
-					{/each}
-				</ul>
+				{#each sessionGroups as group (group.key)}
+					<div class="bg-[var(--color-surface-2)] px-4 py-1.5 font-display text-xs font-bold uppercase tracking-wide text-[var(--color-muted)]">
+						{dayLabel(group.iso)}
+					</div>
+					<ul class="divide-y divide-[var(--color-border)]">
+						{#each group.items as s (s.id)}
+							<li class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--color-surface-2)]">
+								{#if s.game.icon_url}
+									<img src={s.game.icon_url} alt="" class="h-5 w-5 shrink-0 rounded" />
+								{/if}
+								<span class="flex-1 truncate text-sm">{s.game.name}</span>
+								{#if !s.ended_at}
+									<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs font-bold italic uppercase text-[var(--color-online)]">live</span>
+								{:else}
+									<span class="font-display text-sm font-bold italic text-[var(--color-text)]">{formatDuration(s.duration_seconds ?? 0)}</span>
+								{/if}
+								<span class="w-12 text-right text-xs text-[var(--color-muted)]">{timeOfDay(s.started_at)}</span>
+							</li>
+						{/each}
+					</ul>
+				{/each}
 			</div>
 			{#if nextCursor}
 				<button
