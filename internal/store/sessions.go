@@ -20,19 +20,52 @@ type Session struct {
 	DurationSeconds *int
 }
 
-// StartSession opens a session unless one is already open for this user and
-// game (reconnect dedup via the partial unique index). Returns whether a new
-// session was created.
+// sessionMergeWindow coalesces a start that arrives shortly after the same
+// game's session was closed back into that session, instead of opening a new
+// row. A misbehaving client that rapidly flaps a game on and off (e.g. an
+// anti-cheat-protected process whose CPU reads as idle) would otherwise litter
+// the history with dozens of sub-minute sessions; merging records it as one
+// continuous session with the correct total duration.
+const sessionMergeWindow = 90 * time.Second
+
+// StartSession opens a session for a user and game, returning whether presence
+// changed (a session was opened or reopened). It does nothing when a session is
+// already open (reconnect dedup via the partial unique index). If the same
+// user+game+source was closed within sessionMergeWindow, that session is
+// reopened rather than a new one created, so brief detection flaps collapse
+// into a single continuous session.
 func (s *Store) StartSession(ctx context.Context, userID, gameID, source string) (bool, error) {
-	tag, err := s.pool.Exec(ctx, `
-		INSERT INTO game_sessions (user_id, game_id, source)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, game_id) WHERE ended_at IS NULL DO NOTHING`,
-		userID, gameID, source)
+	var changed bool
+	err := s.pool.QueryRow(ctx, `
+		WITH reopened AS (
+			UPDATE game_sessions SET ended_at = NULL
+			WHERE id = (
+				SELECT id FROM game_sessions
+				WHERE user_id = $1 AND game_id = $2 AND source = $3
+				  AND ended_at IS NOT NULL
+				  AND ended_at > now() - make_interval(secs => $4)
+				ORDER BY ended_at DESC
+				LIMIT 1
+			)
+			AND NOT EXISTS (
+				SELECT 1 FROM game_sessions o
+				WHERE o.user_id = $1 AND o.game_id = $2 AND o.ended_at IS NULL
+			)
+			RETURNING id
+		),
+		inserted AS (
+			INSERT INTO game_sessions (user_id, game_id, source)
+			SELECT $1, $2, $3
+			WHERE NOT EXISTS (SELECT 1 FROM reopened)
+			ON CONFLICT (user_id, game_id) WHERE ended_at IS NULL DO NOTHING
+			RETURNING id
+		)
+		SELECT EXISTS (SELECT 1 FROM reopened) OR EXISTS (SELECT 1 FROM inserted)`,
+		userID, gameID, source, sessionMergeWindow.Seconds()).Scan(&changed)
 	if err != nil {
 		return false, err
 	}
-	return tag.RowsAffected() > 0, nil
+	return changed, nil
 }
 
 // EndSession closes the open session of a user+game pair. Returns whether a
