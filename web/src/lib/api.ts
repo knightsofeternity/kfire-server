@@ -110,6 +110,23 @@ export type PlayedGame = {
 	total_seconds: number;
 };
 
+export type LeaderPlayer = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	total_seconds: number;
+};
+export type LeaderGame = {
+	game: { id: string; name: string; slug: string; icon_url?: string; cover_url?: string };
+	total_seconds: number;
+	player_count: number;
+};
+export type WeeklyLeaderboards = {
+	window_days: number;
+	top_players: LeaderPlayer[];
+	top_games: LeaderGame[];
+};
+
 export type PresenceEntry = {
 	user_id: string;
 	username: string;
@@ -287,6 +304,10 @@ export const api = {
 	async getPlayedGames(): Promise<PlayedGame[]> {
 		const data = await json<{ games: PlayedGame[] }>(await authFetch('/api/v1/games/played'));
 		return data.games;
+	},
+
+	async getWeeklyLeaderboards(): Promise<WeeklyLeaderboards> {
+		return json(await authFetch('/api/v1/leaderboards/weekly'));
 	},
 
 	async getUserAchievements(
