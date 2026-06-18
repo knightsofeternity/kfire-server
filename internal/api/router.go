@@ -99,6 +99,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/games/played", h.requireAuth, h.listPlayedGames)
 	v1.Get("/games/:slug", h.requireAuth, h.gameDetail)
 	v1.Get("/presence", h.requireAuth, h.presence)
+	v1.Get("/leaderboards/weekly", h.requireAuth, h.weeklyLeaderboards)
 	v1.Get("/sessions", h.requireAuth, h.sessions)
 	v1.Get("/achievements", h.requireAuth, h.userAchievements)
 
@@ -151,6 +152,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	pub.Get("/members/:id", h.publicMemberDetail)
 	pub.Get("/members/:id/games", h.publicMemberGames)
 	pub.Get("/members/:id/games/:slug", h.publicMemberGameDetail)
+	pub.Get("/leaderboards/weekly", h.publicWeeklyLeaderboards)
 	pub.Post("/invites", h.publicCreateInvite)
 
 	// WebSocket upgrade for real-time presence. Authentication happens inside
