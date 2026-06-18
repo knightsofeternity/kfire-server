@@ -14,6 +14,7 @@ export const fr: Catalog = {
 	nav: {
 		dashboard: 'Tableau de bord',
 		players: 'Joueurs',
+		leaderboards: 'Classements',
 		games: 'Jeux',
 		download: "Obtenir l'app",
 		admin: 'Admin',
@@ -138,6 +139,16 @@ export const fr: Catalog = {
 		noPlaytime: 'Aucun temps de jeu enregistré.',
 		playtime: 'Temps de jeu',
 		sessions: 'sessions'
+	},
+	leaderboards: {
+		title: 'Classements de la semaine',
+		subtitle: 'Les 7 derniers jours',
+		topPlayers: 'Top joueurs',
+		topGames: 'Top jeux',
+		players: '{count} joueurs',
+		onePlayer: '1 joueur',
+		loading: 'Chargement...',
+		empty: 'Aucune partie suivie ces 7 derniers jours pour le moment.'
 	},
 	gamesList: {
 		title: 'Jeux',

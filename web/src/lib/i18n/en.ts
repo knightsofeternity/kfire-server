@@ -13,6 +13,7 @@ export const en = {
 	nav: {
 		dashboard: 'Dashboard',
 		players: 'Players',
+		leaderboards: 'Leaderboards',
 		games: 'Games',
 		download: 'Get the app',
 		admin: 'Admin',
@@ -137,6 +138,16 @@ export const en = {
 		noPlaytime: 'No playtime recorded.',
 		playtime: 'Playtime',
 		sessions: 'sessions'
+	},
+	leaderboards: {
+		title: 'Weekly leaderboards',
+		subtitle: 'The last 7 days',
+		topPlayers: 'Top players',
+		topGames: 'Top games',
+		players: '{count} players',
+		onePlayer: '1 player',
+		loading: 'Loading...',
+		empty: 'No tracked play in the last 7 days yet.'
 	},
 	gamesList: {
 		title: 'Games',
