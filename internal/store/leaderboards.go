@@ -30,6 +30,12 @@ type WeeklyLeaderboardsResult struct {
 // (sessions_visible = false), and hidden games are excluded, and a hidden
 // member's time never inflates a game total. Only completed sessions count.
 func (s *Store) WeeklyLeaderboards(ctx context.Context, days, limit int) (WeeklyLeaderboardsResult, error) {
+	if days <= 0 {
+		days = 7
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
 	res := WeeklyLeaderboardsResult{WindowDays: days}
 
 	prows, err := s.pool.Query(ctx, `
