@@ -1,6 +1,10 @@
 package api
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 const (
 	leaderboardWindowDays = 7
@@ -32,9 +36,10 @@ func (h *handlers) weeklyLeaderboardsJSON(c *fiber.Ctx) (fiber.Map, error) {
 		}
 	}
 	return fiber.Map{
-		"window_days": res.WindowDays,
-		"top_players": players,
-		"top_games":   games,
+		"window_days":  res.WindowDays,
+		"generated_at": time.Now().UTC(),
+		"top_players":  players,
+		"top_games":    games,
 	}, nil
 }
 
