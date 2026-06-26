@@ -181,6 +181,14 @@ export type Member = {
 	created_at: string;
 };
 
+export type PluginInfo = {
+	id: string;
+	name: string;
+	connector: string;
+	available: boolean;
+	enabled: boolean;
+};
+
 export type Invite = {
 	code: string;
 	role: 'admin' | 'member';
@@ -465,6 +473,19 @@ export const api = {
 	async revokeApiKey(id: string): Promise<void> {
 		const res = await authFetch(`/api/v1/admin/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to revoke API key');
+	},
+
+	async listPlugins(): Promise<{ plugins: PluginInfo[] }> {
+		return json(await authFetch('/api/v1/admin/plugins'));
+	},
+
+	async setPlugin(id: string, enabled: boolean): Promise<{ enabled: boolean }> {
+		return json(
+			await authFetch(`/api/v1/admin/plugins/${encodeURIComponent(id)}`, {
+				method: 'PATCH',
+				body: JSON.stringify({ enabled })
+			})
+		);
 	}
 };
 
