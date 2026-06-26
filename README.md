@@ -31,7 +31,7 @@ This repository is the **backend + admin web UI**. It ships as a single static G
 - 📊 **Profiles & stats** - per-game playtime, session history, achievements
 - 🏆 **Per-game leaderboards** - who plays the most in your org
 - 🗂️ **~10k games catalog** - auto-seeded from Discord's detectable-apps list, with cached artwork
-- 🔗 **Steam & Battle.net connectors** - link your accounts, import Steam library playtime & achievements
+- 🔗 **Steam & Battle.net connectors** - link your accounts, import Steam library playtime & achievements; activatable per-game plugins (WoW, Diablo III, StarCraft II)
 - 🌐 **Multi-guild client** - one desktop app reports to several KFIRE servers at once, one per guild
 - 🔒 **Privacy & status** - go online / invisible / offline from the client (global or per guild), plus per-member web toggles to hide your current game or your recent-sessions history
 - 👑 **Member management** - invite links, roles, ban; invite-only registration
@@ -63,6 +63,7 @@ point them to the **download page** for the desktop client.
 - 📐 [Architecture](./docs/ARCHITECTURE.md)
 - 🚀 [Deployment](./docs/DEPLOYMENT.md)
 - 🧭 [Player onboarding](./docs/ONBOARDING.md)
+- 🎮 [Game plugins](./docs/PLUGINS.md)
 - 📜 [API & protocol](https://github.com/knightsofeternity/kfire-protocol)
 
 ## Related repositories

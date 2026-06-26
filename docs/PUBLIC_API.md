@@ -55,6 +55,19 @@ empty if the member hid their sessions.
 Per-game detail: playtime (if shared), WoW characters, and the Diablo III /
 StarCraft II profile blob (`bnet_profile`) when present. Serves cached data only.
 
+Game-specific blocks (characters, profile blobs) are only present when the
+corresponding game plugin is active on this instance. Before requesting per-game
+detail, check `GET /api/v1/config` (no auth required) for the `game_plugins`
+field -- it lists every currently active plugin and the slugs it covers:
+
+    { "game_plugins": [
+        { "id": "wow", "slugs": ["world-of-warcraft", "world-of-warcraft-classic"] },
+        { "id": "d3",  "slugs": ["diablo-iii"] }
+      ] }
+
+If a plugin is absent from that list, its rich block will not appear in this
+endpoint's response. See [docs/PLUGINS.md](./PLUGINS.md) for details.
+
 ### POST /invites
 Create a single-use KFIRE registration invite, so you can onboard a guild member
 who does not have a KFIRE profile yet.
