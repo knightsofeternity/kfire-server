@@ -182,6 +182,24 @@ func (s *lockedStore) EnsurePluginDefaults(_ context.Context, ids []string) erro
 	return nil
 }
 
+func TestRegistryActivePluginsReturnsActiveOnly(t *testing.T) {
+	wow := &fakePlugin{id: "wow", avail: true, slugs: []string{"world-of-warcraft"}}
+	d3 := &fakePlugin{id: "d3", avail: true, slugs: []string{"diablo-iii"}}
+	lol := &fakePlugin{id: "lol", avail: false, slugs: []string{"league-of-legends"}} // unavailable
+	st := &fakeStore{states: map[string]bool{"wow": true, "d3": false}}                // d3 disabled
+	r := NewRegistry(st)
+	r.Register(wow)
+	r.Register(d3)
+	r.Register(lol)
+	if err := r.Load(context.Background()); err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	active := r.ActivePlugins()
+	if len(active) != 1 || active[0].ID() != "wow" {
+		t.Fatalf("expected only wow active, got %v", active)
+	}
+}
+
 // TestRegistryConcurrentAccess registers before Load (honoring the startup
 // contract), then fires concurrent ForSlug + List readers alongside SetEnabled
 // runtime mutations to exercise the RWMutex under the race detector.

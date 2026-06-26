@@ -125,6 +125,21 @@ func (r *Registry) Active() []ActivePlugin {
 	return out
 }
 
+// ActivePlugins returns every currently active plugin (available + enabled),
+// for callers that must act on each active plugin (e.g. warming a member's data
+// across all enabled games). Returns nil when none are active.
+func (r *Registry) ActivePlugins() []Plugin {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []Plugin
+	for _, p := range r.order {
+		if r.isActive(p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // SetEnabled persists and caches a plugin's enabled flag (immediate effect).
 //
 // Concurrency contract: this is the only intended RUNTIME mutator of enabled
