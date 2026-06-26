@@ -4,8 +4,8 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -176,7 +176,7 @@ func (h *handlers) publicMemberGames(c *fiber.Ctx) error {
 }
 
 // GET /api/public/v1/members/:id/games/:slug — one member's detail for one game.
-// Reads only cached data; never triggers a Battle.net refresh.
+// Reads only cached data; never triggers a connector refresh.
 func (h *handlers) publicMemberGameDetail(c *fiber.Ctx) error {
 	id := c.Params("id")
 	u, err := h.store.GetUserByID(c.Context(), id)
@@ -210,34 +210,17 @@ func (h *handlers) publicMemberGameDetail(c *fiber.Ctx) error {
 		}
 	}
 
-	// WoW characters (account/profile data, not session activity) — always shown.
-	if chars, err := h.store.WowCharactersForUserGame(c.Context(), id, g.ID); err == nil && len(chars) > 0 {
-		cards := make([]fiber.Map, len(chars))
-		for i, ch := range chars {
-			m := fiber.Map{
-				"name":               ch.Name,
-				"realm":              ch.RealmName,
-				"realm_slug":         ch.RealmSlug,
-				"class":              ch.Class,
-				"race":               ch.Race,
-				"faction":            ch.Faction,
-				"level":              ch.Level,
-				"item_level":         ch.ItemLevel,
-				"achievement_points": ch.AchievementPoints,
-			}
-			if ch.MythicRating != nil {
-				m["mythic_rating"] = *ch.MythicRating
-			}
-			if len(ch.RaidSummary) > 0 {
-				m["raid_summary"] = json.RawMessage(ch.RaidSummary)
-			}
-			cards[i] = m
+	// Plugin data (WoW characters, Diablo III / StarCraft II profiles) — reads
+	// only cached data; never triggers a Battle.net refresh (public endpoint).
+	for _, p := range h.plugins.ForSlug(g.Slug) {
+		block, err := p.UserGameDetail(c.Context(), id, g)
+		if err != nil {
+			slog.Warn("publicMemberGameDetail plugin", "plugin", p.ID(), "err", err)
+			continue
 		}
-		resp["wow_characters"] = cards
-	}
-
-	if data, err := h.store.GameProfileForUserGame(c.Context(), id, g.ID); err == nil && len(data) > 0 {
-		resp["bnet_profile"] = json.RawMessage(data)
+		for k, v := range block {
+			resp[k] = v
+		}
 	}
 	return c.JSON(resp)
 }

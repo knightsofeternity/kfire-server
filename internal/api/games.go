@@ -1,10 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -66,52 +64,6 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		return err
 	}
 
-	var wowCards []fiber.Map
-	var wowSynced time.Time
-	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
-		h.bnetSync.RefreshWoW(c.Context(), mustClaims(c).UserID, g.Slug)
-		wowChars, synced, err := h.store.WowCharactersByGame(c.Context(), g.ID)
-		if err != nil {
-			return err
-		}
-		wowSynced = synced
-		wowCards = make([]fiber.Map, len(wowChars))
-		for i, ch := range wowChars {
-			m := fiber.Map{
-				"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
-				"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
-				"level": ch.Level, "item_level": ch.ItemLevel,
-				"achievement_points": ch.AchievementPoints,
-			}
-			if ch.MythicRating != nil {
-				m["mythic_rating"] = *ch.MythicRating
-			}
-			if len(ch.RaidSummary) > 0 {
-				m["raid_summary"] = json.RawMessage(ch.RaidSummary)
-			}
-			wowCards[i] = m
-		}
-	}
-
-	var bnetProfiles []fiber.Map
-	var bnetSynced time.Time
-	if g.Slug == "diablo-iii" || g.Slug == "starcraft-ii-battle-chest" {
-		h.bnetSync.RefreshBnetGame(c.Context(), mustClaims(c).UserID, g.Slug)
-		profs, synced, err := h.store.GameProfilesByGame(c.Context(), g.ID)
-		if err != nil {
-			return err
-		}
-		bnetSynced = synced
-		bnetProfiles = make([]fiber.Map, len(profs))
-		for i, p := range profs {
-			bnetProfiles[i] = fiber.Map{
-				"user_id":  p.UserID,
-				"username": p.Username,
-				"data":     json.RawMessage(p.Data),
-			}
-		}
-	}
-
 	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
 	if err != nil {
 		return err
@@ -155,13 +107,16 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		"leaderboard":   board,
 		"achievements":  achs,
 	}
-	if g.Slug == "world-of-warcraft" || g.Slug == "world-of-warcraft-classic" {
-		resp["wow_characters"] = wowCards
-		resp["wow_synced_at"] = wowSynced
-	}
-	if g.Slug == "diablo-iii" || g.Slug == "starcraft-ii-battle-chest" {
-		resp["bnet_profiles"] = bnetProfiles
-		resp["bnet_synced_at"] = bnetSynced
+	for _, p := range h.plugins.ForSlug(g.Slug) {
+		p.Refresh(c.Context(), mustClaims(c).UserID, g.Slug)
+		block, err := p.GameDetail(c.Context(), mustClaims(c).UserID, g)
+		if err != nil {
+			slog.Warn("gameDetail plugin", "plugin", p.ID(), "err", err)
+			continue
+		}
+		for k, v := range block {
+			resp[k] = v
+		}
 	}
 	return c.JSON(resp)
 }

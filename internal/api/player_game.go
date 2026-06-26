@@ -1,8 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -10,8 +10,8 @@ import (
 )
 
 // GET /api/v1/users/:id/games/:slug  (authenticated)
-// One member's detail for one game: playtime, achievements, and Battle.net data
-// (WoW characters / Diablo III / StarCraft II) when present.
+// One member's detail for one game: playtime, achievements, and any
+// plugin-provided game-specific blocks when present.
 func (h *handlers) userGameDetail(c *fiber.Ctx) error {
 	userID := c.Params("id")
 	g, err := h.store.GetGameBySlug(c.Context(), c.Params("slug"))
@@ -36,37 +36,6 @@ func (h *handlers) userGameDetail(c *fiber.Ctx) error {
 		}
 	}
 
-	// WoW characters for this member+game.
-	if chars, err := h.store.WowCharactersForUserGame(c.Context(), userID, g.ID); err == nil && len(chars) > 0 {
-		cards := make([]fiber.Map, len(chars))
-		for i, ch := range chars {
-			m := fiber.Map{
-				"name":               ch.Name,
-				"realm":              ch.RealmName,
-				"realm_slug":         ch.RealmSlug,
-				"class":              ch.Class,
-				"race":               ch.Race,
-				"faction":            ch.Faction,
-				"level":              ch.Level,
-				"item_level":         ch.ItemLevel,
-				"achievement_points": ch.AchievementPoints,
-			}
-			if ch.MythicRating != nil {
-				m["mythic_rating"] = *ch.MythicRating
-			}
-			if len(ch.RaidSummary) > 0 {
-				m["raid_summary"] = json.RawMessage(ch.RaidSummary)
-			}
-			cards[i] = m
-		}
-		resp["wow_characters"] = cards
-	}
-
-	// Battle.net profile blob (Diablo III / StarCraft II) for this member+game.
-	if data, err := h.store.GameProfileForUserGame(c.Context(), userID, g.ID); err == nil && len(data) > 0 {
-		resp["bnet_profile"] = json.RawMessage(data)
-	}
-
 	// Achievements the member unlocked in this game.
 	if achs, err := h.store.ListUserAchievements(c.Context(), userID, g.ID, 60, 0); err == nil {
 		out := make([]fiber.Map, len(achs))
@@ -81,6 +50,18 @@ func (h *handlers) userGameDetail(c *fiber.Ctx) error {
 			out[i] = m
 		}
 		resp["achievements"] = out
+	}
+
+	for _, p := range h.plugins.ForSlug(g.Slug) {
+		p.Refresh(c.Context(), userID, g.Slug)
+		block, err := p.UserGameDetail(c.Context(), userID, g)
+		if err != nil {
+			slog.Warn("userGameDetail plugin", "plugin", p.ID(), "err", err)
+			continue
+		}
+		for k, v := range block {
+			resp[k] = v
+		}
 	}
 
 	return c.JSON(resp)

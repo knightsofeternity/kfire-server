@@ -4,7 +4,9 @@
 package api
 
 import (
+	"context"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
+	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -36,6 +39,7 @@ type handlers struct {
 	bnetSync  *bnetsync.Syncer
 	xbox      *xbox.Connector
 	cipher    *crypto.Cipher
+	plugins   *gameplugin.Registry
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -63,11 +67,18 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	}
 	bnConn.APIBase = cfg.BattlenetAPIBase
 	bnetSync := bnetsync.New(st, bnConn, cipher, cfg.BattlenetRegion)
+	plugins := gameplugin.NewRegistry(st)
+	plugins.Register(bnetsync.NewWowPlugin(st, bnetSync, bnConn))
+	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "d3", "Diablo III", "diablo-iii"))
+	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "sc2", "StarCraft II", "starcraft-ii-battle-chest"))
+	if err := plugins.Load(context.Background()); err != nil {
+		slog.Error("game plugins load", "err", err)
+	}
 	xblConn := xbox.New(cfg.XblAppKey)
 	if cfg.XblAPIBase != "" {
 		xblConn.APIBase = cfg.XblAPIBase
 	}
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, cipher: cipher}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, cipher: cipher, plugins: plugins}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
