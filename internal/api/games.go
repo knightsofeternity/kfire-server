@@ -64,7 +64,7 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		return err
 	}
 
-	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25)
+	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25, false)
 	if err != nil {
 		return err
 	}
