@@ -125,11 +125,11 @@
 	</div>
 
 	<!-- Recent players (last 7 days) -->
+	<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-cyan)]">
+		<span class="inline-block h-4 w-1 bg-[var(--color-cyan)]"></span>
+		{t('game.recentPlayers')}
+	</h2>
 	{#if detail.recent_players && detail.recent_players.length > 0}
-		<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-cyan)]">
-			<span class="inline-block h-4 w-1 bg-[var(--color-cyan)]"></span>
-			{t('game.recentPlayers')}
-		</h2>
 		<ul class="mb-8 flex flex-col gap-2">
 			{#each detail.recent_players as e, i (e.user_id)}
 				<a
@@ -149,6 +149,8 @@
 				</a>
 			{/each}
 		</ul>
+	{:else}
+		<p class="mb-8 text-sm text-[var(--color-muted)]">{t('game.noRecentPlayers')}</p>
 	{/if}
 
 	<!-- Leaderboard -->

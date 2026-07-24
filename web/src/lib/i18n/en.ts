@@ -114,6 +114,7 @@ export const en = {
 		players: 'Players',
 		leaderboard: 'Leaderboard',
 		recentPlayers: 'This week',
+		noRecentPlayers: 'Nobody has played this in the last 7 days.',
 		allTime: 'All time',
 		noPlayers: 'Nobody has played this yet.',
 		achievements: 'Achievements',

@@ -115,6 +115,7 @@ export const fr: Catalog = {
 		players: 'Joueurs',
 		leaderboard: 'Classement',
 		recentPlayers: 'Cette semaine',
+		noRecentPlayers: "Personne n'y a joué ces 7 derniers jours.",
 		allTime: 'Depuis toujours',
 		noPlayers: "Personne n'a encore joué à ce jeu.",
 		achievements: 'Succès',
