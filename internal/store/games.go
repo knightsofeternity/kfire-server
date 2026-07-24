@@ -328,3 +328,46 @@ func (s *Store) UpsertGames(ctx context.Context, seeds []GameSeed) (int, error) 
 	}
 	return upserted, nil
 }
+
+// GameRecentPlayers returns the members who played this game over the last
+// `days` days, by tracked playtime (completed sessions only). Same privacy rules
+// as WeeklyLeaderboards: banned members, members who hid their sessions
+// (sessions_visible = false), and hidden games are excluded. The undated Steam
+// baseline (external_playtime) is intentionally not counted here.
+func (s *Store) GameRecentPlayers(ctx context.Context, gameID string, days, limit int) ([]LeaderPlayer, error) {
+	if days <= 0 {
+		days = 7
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.id, u.username, u.avatar_url, sum(gs.duration_seconds)::bigint AS secs
+		FROM game_sessions gs
+		JOIN users u ON u.id = gs.user_id
+		JOIN games g ON g.id = gs.game_id
+		WHERE gs.game_id = $1
+		  AND gs.ended_at IS NOT NULL
+		  AND gs.started_at >= now() - make_interval(days => $2)
+		  AND u.banned_at IS NULL
+		  AND u.sessions_visible
+		  AND NOT g.hidden
+		GROUP BY u.id, u.username, u.avatar_url
+		HAVING sum(gs.duration_seconds) > 0
+		ORDER BY secs DESC, u.username ASC
+		LIMIT $3`, gameID, days, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []LeaderPlayer
+	for rows.Next() {
+		var p LeaderPlayer
+		if err := rows.Scan(&p.UserID, &p.Username, &p.AvatarURL, &p.TotalSeconds); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
