@@ -165,6 +165,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	pub.Get("/members/:id", h.publicMemberDetail)
 	pub.Get("/members/:id/games", h.publicMemberGames)
 	pub.Get("/members/:id/games/:slug", h.publicMemberGameDetail)
+	pub.Get("/games/:slug", h.publicGameDetail)
 	pub.Get("/leaderboards/weekly", h.publicWeeklyLeaderboards)
 	pub.Post("/invites", h.publicCreateInvite)
 

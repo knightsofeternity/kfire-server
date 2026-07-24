@@ -68,6 +68,27 @@ field -- it lists every currently active plugin and the slugs it covers:
 If a plugin is absent from that list, its rich block will not appear in this
 endpoint's response. See [docs/PLUGINS.md](./PLUGINS.md) for details.
 
+### GET /games/{slug}
+One game's aggregate: who's been playing it recently, and the all-time
+leaderboard. Privacy is honored server-side: banned members and members who hid
+their sessions are excluded, and hidden games return `404 {"code":"not_found"}`.
+
+    { "game": {"id":"…","name":"…","slug":"…","icon_url":"…","cover_url":"…"},
+      "window_days": 7,
+      "total_seconds": 123456,
+      "player_count": 8,
+      "recent_players": [
+        { "user_id":"…", "username":"Ouranos", "avatar_url":"…", "total_seconds": 3600 }
+      ],
+      "all_time_players": [
+        { "user_id":"…", "username":"Ouranos", "avatar_url":"…", "total_seconds": 54321, "session_count": 42 }
+      ] }
+
+`recent_players` covers a rolling 7-day window (completed sessions only),
+sorted by playtime descending. `all_time_players` is the full leaderboard,
+also sorted by playtime descending. Unknown/hidden game → `404
+{"code":"not_found"}`.
+
 ### POST /invites
 Create a single-use KFIRE registration invite, so you can onboard a guild member
 who does not have a KFIRE profile yet.

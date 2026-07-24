@@ -224,3 +224,56 @@ func (h *handlers) publicMemberGameDetail(c *fiber.Ctx) error {
 	}
 	return c.JSON(resp)
 }
+
+// GET /api/public/v1/games/:slug — one game's aggregate: who played it over the
+// last 7 days (recent_players) and the all-time leaderboard (all_time_players).
+// Both honor member privacy (banned, sessions_visible) and hidden games.
+func (h *handlers) publicGameDetail(c *fiber.Ctx) error {
+	g, err := h.store.GetGameBySlug(c.Context(), c.Params("slug"))
+	if errors.Is(err, store.ErrNotFound) {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "game not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	recentEntries, err := h.store.GameRecentPlayers(c.Context(), g.ID, 7, 25)
+	if err != nil {
+		return err
+	}
+	recent := make([]fiber.Map, len(recentEntries))
+	for i, e := range recentEntries {
+		m := fiber.Map{"user_id": e.UserID, "username": e.Username, "total_seconds": e.TotalSeconds}
+		if e.AvatarURL != nil {
+			m["avatar_url"] = *e.AvatarURL
+		}
+		recent[i] = m
+	}
+
+	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25, true)
+	if err != nil {
+		return err
+	}
+	board := make([]fiber.Map, len(entries))
+	for i, e := range entries {
+		m := fiber.Map{
+			"user_id":       e.UserID,
+			"username":      e.Username,
+			"total_seconds": e.TotalSeconds,
+			"session_count": e.SessionCount,
+		}
+		if e.AvatarURL != nil {
+			m["avatar_url"] = *e.AvatarURL
+		}
+		board[i] = m
+	}
+
+	return c.JSON(fiber.Map{
+		"game":             h.gameJSON(g),
+		"window_days":      7,
+		"total_seconds":    totalSeconds,
+		"player_count":     players,
+		"recent_players":   recent,
+		"all_time_players": board,
+	})
+}
