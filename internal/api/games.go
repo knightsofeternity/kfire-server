@@ -82,6 +82,23 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 		board[i] = m
 	}
 
+	recentEntries, err := h.store.GameRecentPlayers(c.Context(), g.ID, 7, 25)
+	if err != nil {
+		return err
+	}
+	recent := make([]fiber.Map, len(recentEntries))
+	for i, e := range recentEntries {
+		m := fiber.Map{
+			"user_id":       e.UserID,
+			"username":      e.Username,
+			"total_seconds": e.TotalSeconds,
+		}
+		if e.AvatarURL != nil {
+			m["avatar_url"] = *e.AvatarURL
+		}
+		recent[i] = m
+	}
+
 	achievements, err := h.store.GameAchievements(c.Context(), g.ID, 60)
 	if err != nil {
 		return err
@@ -101,11 +118,12 @@ func (h *handlers) gameDetail(c *fiber.Ctx) error {
 	gj := h.gameJSON(g)
 	gj["hidden"] = g.Hidden
 	resp := fiber.Map{
-		"game":          gj,
-		"total_seconds": totalSeconds,
-		"player_count":  players,
-		"leaderboard":   board,
-		"achievements":  achs,
+		"game":           gj,
+		"total_seconds":  totalSeconds,
+		"player_count":   players,
+		"leaderboard":    board,
+		"recent_players": recent,
+		"achievements":   achs,
 	}
 	for _, p := range h.plugins.ForSlug(g.Slug) {
 		p.Refresh(c.Context(), mustClaims(c).UserID, g.Slug)
