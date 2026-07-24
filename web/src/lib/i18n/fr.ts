@@ -114,6 +114,8 @@ export const fr: Catalog = {
 		totalPlayed: "Total joué dans l'org",
 		players: 'Joueurs',
 		leaderboard: 'Classement',
+		recentPlayers: 'Cette semaine',
+		allTime: 'Depuis toujours',
 		noPlayers: "Personne n'a encore joué à ce jeu.",
 		achievements: 'Succès',
 		noAchievements: "Aucun succès débloqué pour l'instant.",

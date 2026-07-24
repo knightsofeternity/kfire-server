@@ -25,6 +25,13 @@ export type LeaderboardEntry = {
 	session_count: number;
 };
 
+export type RecentPlayer = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	total_seconds: number;
+};
+
 export type GameAchievement = {
 	api_name: string;
 	display_name?: string;
@@ -50,6 +57,7 @@ export type GameDetail = {
 	total_seconds: number;
 	player_count: number;
 	leaderboard: LeaderboardEntry[];
+	recent_players?: RecentPlayer[];
 	achievements: GameAchievement[];
 	wow_characters?: WowCharacter[];
 	wow_synced_at?: string;

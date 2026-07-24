@@ -124,10 +124,37 @@
 		</div>
 	</div>
 
+	<!-- Recent players (last 7 days) -->
+	{#if detail.recent_players && detail.recent_players.length > 0}
+		<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-cyan)]">
+			<span class="inline-block h-4 w-1 bg-[var(--color-cyan)]"></span>
+			{t('game.recentPlayers')}
+		</h2>
+		<ul class="mb-8 flex flex-col gap-2">
+			{#each detail.recent_players as e, i (e.user_id)}
+				<a
+					href="/players/{e.user_id}"
+					class="pd-card group flex items-center gap-3 p-3 transition-all duration-150 hover:border-[var(--color-cyan)]"
+				>
+					<span class="pd-cut-sm flex h-7 w-7 shrink-0 items-center justify-center bg-[var(--color-surface-2)] font-display text-sm font-bold text-[var(--color-muted)]">
+						{i + 1}
+					</span>
+					<Avatar username={e.username} url={e.avatar_url} size={36} />
+					<span class="flex-1 truncate font-display font-semibold text-[var(--color-text)]">
+						{e.username}
+					</span>
+					<span class="w-20 text-right font-display text-sm text-[var(--color-cyan)]">
+						{formatDuration(e.total_seconds)}
+					</span>
+				</a>
+			{/each}
+		</ul>
+	{/if}
+
 	<!-- Leaderboard -->
 	<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 		<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
-		{t('game.leaderboard')}
+		{t('game.allTime')}
 	</h2>
 	{#if detail.leaderboard.length === 0}
 		<p class="text-sm text-[var(--color-muted)]">{t('game.noPlayers')}</p>
