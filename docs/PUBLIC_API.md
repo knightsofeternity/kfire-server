@@ -86,8 +86,9 @@ their sessions are excluded, and hidden games return `404 {"code":"not_found"}`.
 
 `recent_players` covers a rolling 7-day window (completed sessions only),
 sorted by playtime descending. `all_time_players` is the full leaderboard,
-also sorted by playtime descending. Unknown/hidden game → `404
-{"code":"not_found"}`.
+also sorted by playtime descending. `total_seconds` and `player_count` are
+all-time totals (they describe `all_time_players`, not the 7-day window).
+Unknown/hidden game → `404 {"code":"not_found"}`.
 
 ### POST /invites
 Create a single-use KFIRE registration invite, so you can onboard a guild member
