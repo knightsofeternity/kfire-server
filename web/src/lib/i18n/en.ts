@@ -113,6 +113,8 @@ export const en = {
 		totalPlayed: 'Total played in org',
 		players: 'Players',
 		leaderboard: 'Leaderboard',
+		recentPlayers: 'This week',
+		allTime: 'All time',
 		noPlayers: 'Nobody has played this yet.',
 		achievements: 'Achievements',
 		noAchievements: 'No achievements unlocked yet.',

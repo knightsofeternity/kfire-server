@@ -47,11 +47,17 @@ type LeaderboardEntry struct {
 // sessions recorded since the last sync, or all local sessions when there is no
 // baseline (see playtime.go). This avoids double-counting Steam time the client
 // also observed while still surfacing recent and non-platform play.
-func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) ([]LeaderboardEntry, int64, int, error) {
+func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int, visibleOnly bool) ([]LeaderboardEntry, int64, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
-	rows, err := s.pool.Query(ctx, `
+	boardVis := ""
+	totalsVisJoin := ""
+	if visibleOnly {
+		boardVis = " AND u.sessions_visible"
+		totalsVisJoin = "JOIN users vu ON vu.id = u.user_id AND vu.banned_at IS NULL AND vu.sessions_visible"
+	}
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
 		WITH sess AS (
 			SELECT user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs, count(*) AS cnt
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
@@ -74,16 +80,15 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			             ELSE COALESCE(sess.secs,0) END)::bigint AS total,
 			       COALESCE(sess.cnt,0) AS cnt
 			FROM players p
-			JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
+			JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL%s
 			LEFT JOIN sess ON sess.user_id = p.user_id
 			LEFT JOIN ext  ON ext.user_id  = p.user_id
 			LEFT JOIN sess_since ON sess_since.user_id = p.user_id
 		)
-		-- Exclude owned-but-unplayed entries (zero playtime), matching ListPlayedGames.
 		SELECT id, username, avatar_url, total, cnt
 		FROM board WHERE total > 0
 		ORDER BY total DESC, cnt DESC
-		LIMIT $2`, gameID, limit)
+		LIMIT $2`, boardVis), gameID, limit)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -103,7 +108,7 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 
 	var totalSeconds int64
 	var players int
-	err = s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, fmt.Sprintf(`
 		WITH sess AS (
 			SELECT user_id, COALESCE(sum(duration_seconds),0)::bigint AS secs
 			FROM game_sessions WHERE game_id = $1 GROUP BY user_id
@@ -123,11 +128,12 @@ func (s *Store) GameLeaderboard(ctx context.Context, gameID string, limit int) (
 			            THEN ext.base + COALESCE(ss.secs,0)
 			            ELSE COALESCE(sess.secs,0) END AS secs
 			FROM (SELECT user_id FROM sess UNION SELECT user_id FROM ext) u
+			%s
 			LEFT JOIN sess ON sess.user_id = u.user_id
 			LEFT JOIN ext  ON ext.user_id  = u.user_id
 			LEFT JOIN sess_since ss ON ss.user_id = u.user_id
 		)
-		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p WHERE secs > 0`,
+		SELECT COALESCE(sum(secs),0)::bigint, count(*) FROM p WHERE secs > 0`, totalsVisJoin),
 		gameID).Scan(&totalSeconds, &players)
 	return out, totalSeconds, players, err
 }
@@ -327,4 +333,47 @@ func (s *Store) UpsertGames(ctx context.Context, seeds []GameSeed) (int, error) 
 		upserted += len(chunk)
 	}
 	return upserted, nil
+}
+
+// GameRecentPlayers returns the members who played this game over the last
+// `days` days, by tracked playtime (completed sessions only). Same privacy rules
+// as WeeklyLeaderboards: banned members, members who hid their sessions
+// (sessions_visible = false), and hidden games are excluded. The undated Steam
+// baseline (external_playtime) is intentionally not counted here.
+func (s *Store) GameRecentPlayers(ctx context.Context, gameID string, days, limit int) ([]LeaderPlayer, error) {
+	if days <= 0 {
+		days = 7
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.id, u.username, u.avatar_url, sum(gs.duration_seconds)::bigint AS secs
+		FROM game_sessions gs
+		JOIN users u ON u.id = gs.user_id
+		JOIN games g ON g.id = gs.game_id
+		WHERE gs.game_id = $1
+		  AND gs.ended_at IS NOT NULL
+		  AND gs.started_at >= now() - make_interval(days => $2)
+		  AND u.banned_at IS NULL
+		  AND u.sessions_visible
+		  AND NOT g.hidden
+		GROUP BY u.id, u.username, u.avatar_url
+		HAVING sum(gs.duration_seconds) > 0
+		ORDER BY secs DESC, u.username ASC
+		LIMIT $3`, gameID, days, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []LeaderPlayer
+	for rows.Next() {
+		var p LeaderPlayer
+		if err := rows.Scan(&p.UserID, &p.Username, &p.AvatarURL, &p.TotalSeconds); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
