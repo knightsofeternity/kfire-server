@@ -236,6 +236,9 @@ func (h *handlers) publicGameDetail(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if g.Hidden {
+		return errorJSON(c, fiber.StatusNotFound, "not_found", "game not found")
+	}
 
 	recentEntries, err := h.store.GameRecentPlayers(c.Context(), g.ID, 7, 25)
 	if err != nil {
