@@ -145,6 +145,10 @@ var extraExecutables = map[string][]string{
 // (Enlisted) keeps it.
 var wrongExecutables = map[string][]string{
 	"crsed-f-o-a-d": {"enlisted.exe"},
+	// Discord lists ascension.exe under the card game, but that binary is the
+	// WoW Ascension client (curated entry, migration 0028). Keeping both made
+	// every session count twice. The card game keeps ascensiongame.exe.
+	"ascension-deckbuilding-game": {"ascension.exe"},
 }
 
 // maxGamesPerExecutable bounds how many distinct games may share an executable
