@@ -6,7 +6,8 @@
 	const adminNav = [
 		{ href: '/admin', label: 'Administration' },
 		{ href: '/admin/api-keys', label: 'Clés API' },
-		{ href: '/admin/plugins', label: 'Plugins' }
+		{ href: '/admin/plugins', label: 'Plugins' },
+		{ href: '/admin/catalog', label: 'Catalogue' }
 	];
 
 	function isActive(href: string): boolean {

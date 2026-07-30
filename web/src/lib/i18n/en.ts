@@ -261,7 +261,20 @@ export const en = {
 		errorGeneric: 'failed',
 		resetPassword: 'Reset password',
 		resetLinkTitle: 'Password reset link',
-		resetLinkHint: 'Share this single-use link with the member. It expires in 1 hour.'
+		resetLinkHint: 'Share this single-use link with the member. It expires in 1 hour.',
+		catalog: {
+			title: 'Games catalog',
+			intro:
+				'The catalog comes from Discord’s public detectable-games list. It refreshes on its own every week; sync by hand when a game has just been released and is not recognized yet.',
+			gamesCount: '{count} games in the catalog',
+			lastSync: 'Last synced: {date}',
+			neverSynced: 'Never synced since the first install.',
+			sync: 'Sync catalog',
+			syncing: 'Syncing...',
+			syncDone: '{count} games synced.',
+			syncHint:
+				'About 12 MB downloaded from Discord, a few seconds. Clients pick the new catalog up within 24 hours.'
+		}
 	},
 	reset: {
 		title: 'Reset your password',

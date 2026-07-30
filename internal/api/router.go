@@ -138,6 +138,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Delete("/connect/xbox", h.requireAuth, h.disconnectXbox)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
+	admin.Get("/games/catalog", h.gamesCatalogStatus)
 	admin.Post("/games/sync", h.syncGames)
 	admin.Patch("/games/:id", h.setGameHidden)
 	admin.Get("/plugins", h.listPlugins)

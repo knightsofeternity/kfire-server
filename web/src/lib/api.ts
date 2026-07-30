@@ -197,6 +197,12 @@ export type PluginInfo = {
 	enabled: boolean;
 };
 
+/** Games catalog status: size and last import from Discord (null when never). */
+export type CatalogStatus = {
+	games: number;
+	synced_at: string | null;
+};
+
 export type Invite = {
 	code: string;
 	role: 'admin' | 'member';
@@ -494,6 +500,14 @@ export const api = {
 				body: JSON.stringify({ enabled })
 			})
 		);
+	},
+
+	async getCatalogStatus(): Promise<CatalogStatus> {
+		return json(await authFetch('/api/v1/admin/games/catalog'));
+	},
+
+	async syncCatalog(): Promise<{ upserted: number }> {
+		return json(await authFetch('/api/v1/admin/games/sync', { method: 'POST' }));
 	}
 };
 

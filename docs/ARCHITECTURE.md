@@ -30,12 +30,41 @@ and ships as a single static Go binary with the admin SPA embedded.
   sessions and broadcasts `presence_update`.
 - **Store** (`internal/store`) - PostgreSQL via pgx; embedded SQL migrations applied at boot.
 - **Games catalog** (`internal/games`) - seeded from Discord's public detectable-apps list
-  (~10k games, executables for matching, icon/cover art, Steam app ids).
+  (~10k games, executables for matching, icon/cover art, Steam app ids). Imported on first
+  boot, then refreshed in the background when older than a week (`orgs.games_synced_at`),
+  or on demand from the admin SPA. See "Game detection" below.
 - **Image cache** (`/img/games/:id/:kind`) - lazily fetches & stores game icons/covers in
   Postgres on first request, so storage scales with games actually shown.
 - **Steam** (`internal/connectors/steam`, `internal/steamsync`) - OpenID account linking +
   background import of library playtime and achievements.
 - **Admin SPA** (`web/`) - SvelteKit + Tailwind, built and embedded via `//go:embed`.
+
+## Game detection
+
+`games.executable_names` carries two kinds of entries, and the desktop client matches a
+running process against both:
+
+- a **basename**, e.g. `wow.exe`, compared to the process name. Robust across stores and
+  install locations, so it is always preferred.
+- a **qualified path pattern**, e.g. `counter-strike source/hl2.exe`, matched as a suffix
+  of the process's full path (segment-aligned, case-insensitive, forward slashes). Used
+  only when the basename cannot identify the game on its own.
+
+Two denylists decide which form applies (`internal/games/discord.go`):
+
+- `neverDetect` - installers, updaters, config tools, crash handlers, Windows system
+  binaries, anti-cheat bootstrappers. Dropped in both forms: installing or configuring a
+  game is not playing it.
+- `ambiguousExecutables` - real game binaries with a name too common to identify anything
+  (`game.exe`, `launcher.exe`, script runtimes). Dropped as basenames, kept as qualified
+  patterns, which is what makes ~470 otherwise invisible games detectable.
+
+A basename shared by more than `maxGamesPerExecutable` games (e.g. `hl2.exe`, ~34 Source
+games) is dropped too, and rescued the same way; the frequency rule applies to patterns as
+well, so a pattern stays useful only while it discriminates.
+
+Clients before v0.4.0 ignore pattern entries: they index them like any other name and
+never match, so publishing patterns is safe for a mixed fleet.
 
 ## Key data
 

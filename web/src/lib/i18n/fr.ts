@@ -263,7 +263,20 @@ export const fr: Catalog = {
 		errorGeneric: 'échec',
 		resetPassword: 'Réinitialiser le mot de passe',
 		resetLinkTitle: 'Lien de réinitialisation',
-		resetLinkHint: 'Partagez ce lien à usage unique avec le membre. Il expire dans 1 heure.'
+		resetLinkHint: 'Partagez ce lien à usage unique avec le membre. Il expire dans 1 heure.',
+		catalog: {
+			title: 'Catalogue de jeux',
+			intro:
+				"Le catalogue vient de la liste publique des jeux détectables de Discord. Il se met à jour tout seul chaque semaine ; synchronisez à la main si un jeu vient de sortir et n'est pas encore reconnu.",
+			gamesCount: '{count} jeux au catalogue',
+			lastSync: 'Dernière synchronisation : {date}',
+			neverSynced: 'Jamais synchronisé depuis la première installation.',
+			sync: 'Synchroniser le catalogue',
+			syncing: 'Synchronisation...',
+			syncDone: '{count} jeux synchronisés.',
+			syncHint:
+				'Environ 12 Mo téléchargés depuis Discord, quelques secondes. Les clients reprennent le nouveau catalogue dans les 24 heures.'
+		}
 	},
 	reset: {
 		title: 'Réinitialisez votre mot de passe',

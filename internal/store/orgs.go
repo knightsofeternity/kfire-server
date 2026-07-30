@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -41,6 +42,32 @@ func (s *Store) SetAccent(ctx context.Context, accent string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// GamesSyncedAt returns when the games catalog was last imported from Discord.
+// The boolean is false when it never was (fresh instance, or an instance that
+// predates the column), which the refresher reads as "due now".
+func (s *Store) GamesSyncedAt(ctx context.Context) (time.Time, bool, error) {
+	var at *time.Time
+	err := s.pool.QueryRow(ctx,
+		`SELECT games_synced_at FROM orgs ORDER BY created_at LIMIT 1`).Scan(&at)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// No org yet (pre first sign-up): nothing to schedule against.
+		return time.Time{}, false, nil
+	}
+	if err != nil || at == nil {
+		return time.Time{}, false, err
+	}
+	return *at, true, nil
+}
+
+// SetGamesSyncedAt stamps the catalog as freshly imported. A brand-new instance
+// has no org row yet, in which case there is nothing to stamp and no error.
+func (s *Store) SetGamesSyncedAt(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE orgs SET games_synced_at = now()
+		 WHERE id = (SELECT id FROM orgs ORDER BY created_at LIMIT 1)`)
+	return err
 }
 
 // SetOrgLogo stores the (already validated and re-encoded) logo bytes.

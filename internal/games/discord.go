@@ -70,26 +70,23 @@ func FetchSeed(ctx context.Context) ([]store.GameSeed, error) {
 	return normalize(apps), nil
 }
 
-// genericExecutables are helper/shared binaries that ship with many unrelated
-// games - engine crash handlers, redistributables, runtimes, VPN/driver helpers.
-// Matching presence on them produces false positives: a Unity crash handler or a
-// VPN TAP adapter idling in the background would make a player look "in game".
-var genericExecutables = map[string]struct{}{
+// neverDetect are binaries that are never "playing", whatever ships them:
+// installers, updaters, config tools, crash handlers, Windows system binaries
+// and anti-cheat bootstrappers. Matching presence on them is always wrong (a
+// Unity crash handler or a VPN TAP adapter idling in the background would make
+// a player look "in game", and "Hidden & Dangerous 2" was detected via
+// setup.exe). Unlike ambiguousExecutables below, a directory prefix does NOT
+// rescue them: installing a game is not playing it.
+var neverDetect = map[string]struct{}{
 	"unitycrashhandler64.exe": {}, "unitycrashhandler32.exe": {}, "unitycrashhandler.exe": {},
 	"crashhandler.exe": {}, "crashreporter.exe": {}, "crashpad_handler.exe": {},
 	"ueprereqsetup_x64.exe": {}, "ue4prereqsetup_x64.exe": {}, "prerequisites.exe": {},
-	"tap.exe":     {},
-	"game.exe":    {}, "launcher.exe": {}, "start.exe": {}, "play.exe": {}, "autorun.exe": {},
-	"vc_redist.x64.exe": {}, "vc_redist.x86.exe": {}, "dxsetup.exe": {}, "dotnet.exe": {},
-	"python.exe": {}, "pythonw.exe": {}, "java.exe": {}, "javaw.exe": {}, "mono.exe": {},
-	"node.exe": {}, "nw.exe": {}, "cmd.exe": {},
-	// Installers / updaters / config tools ship with countless games and match
-	// whenever someone installs or configures anything (e.g. "Hidden & Dangerous
-	// 2" was detected via setup.exe).
+	"tap.exe":           {},
+	"vc_redist.x64.exe": {}, "vc_redist.x86.exe": {}, "dxsetup.exe": {},
 	"setup.exe": {}, "setup_x64.exe": {}, "setup_x86.exe": {},
 	"install.exe": {}, "installer.exe": {}, "uninstall.exe": {}, "unins000.exe": {},
 	"update.exe": {}, "updater.exe": {}, "launcher_updater.exe": {}, "patcher.exe": {},
-	"config.exe": {}, "settings.exe": {}, "run.exe": {},
+	"config.exe": {}, "settings.exe": {},
 	// Windows system binaries: a catalog exe colliding with one of these matches
 	// routine OS activity (e.g. "Steel Circus" was detected via sc.exe, the
 	// Service Control tool). Short names are handled by the length guard below.
@@ -99,7 +96,8 @@ var genericExecutables = map[string]struct{}{
 	"tasklist.exe": {}, "taskkill.exe": {}, "control.exe": {}, "regedit.exe": {},
 	"rundll32.exe": {}, "svchost.exe": {}, "conhost.exe": {}, "dllhost.exe": {},
 	"werfault.exe": {}, "explorer.exe": {}, "notepad.exe": {}, "mmc.exe": {},
-	"powershell.exe": {}, "pwsh.exe": {}, "wscript.exe": {}, "cscript.exe": {}, "mshta.exe": {},
+	"powershell.exe": {}, "pwsh.exe": {}, "wscript.exe": {}, "cscript.exe": {},
+	"mshta.exe": {}, "cmd.exe": {},
 	// Anti-cheat bootstrappers ship with many unrelated games and run briefly at
 	// launch under a shared name, so they cross-attribute presence (e.g. launching
 	// any Easy Anti-Cheat game flashed "VRChat" via start_protected_game.exe).
@@ -107,10 +105,21 @@ var genericExecutables = map[string]struct{}{
 	"start_protected_game.exe": {}, // Easy Anti-Cheat launcher
 	"easyanticheat.exe": {}, "easyanticheat_setup.exe": {}, "easyanticheat_eos_setup.exe": {},
 	"beservice.exe": {}, "bedaisy.exe": {}, "battleye.exe": {}, "be_setup.exe": {}, // BattlEye
-	// Ambiguous short names that collide across unrelated processes/games and
-	// can't identify any one of them. "lms.exe" is the only exe of the delisted
-	// "Last Man Standing" but also matches other processes (it flickered "Last
-	// Man Standing" for a member playing a different, uninstalled-LMS game).
+}
+
+// ambiguousExecutables are real game binaries whose name is too common to
+// identify anything on its own - the Unity default (game.exe), generic entry
+// points, and script runtimes. They are dropped as basenames, but the install
+// directory disambiguates them, so they are kept as qualified path patterns
+// when Discord provides one (see normalize).
+var ambiguousExecutables = map[string]struct{}{
+	"game.exe": {}, "launcher.exe": {}, "start.exe": {}, "play.exe": {},
+	"autorun.exe": {}, "run.exe": {},
+	"dotnet.exe": {}, "python.exe": {}, "pythonw.exe": {}, "java.exe": {},
+	"javaw.exe": {}, "mono.exe": {}, "node.exe": {}, "nw.exe": {},
+	// "lms.exe" is the only exe of the delisted "Last Man Standing" but also
+	// matches other processes (it flickered "Last Man Standing" for a member
+	// playing a different game, with LMS not even installed).
 	"lms.exe": {},
 }
 
@@ -136,6 +145,14 @@ var extraExecutables = map[string][]string{
 	// so the game was dropped from the catalog and never detected. Its binary is
 	// "Vampire Crawlers.exe".
 	"vampire-crawlers-the-turbo-wildcard-from-vampire-survivors": {"vampire crawlers.exe"},
+	// Three more games Discord carries with an empty executables array, all
+	// reported as undetected by members in July 2026. Binaries taken from each
+	// app's Steam launch configuration. Note the keys are the slug derived from
+	// the DISCORD name, which is not always the slug of the live catalog row
+	// (Discord writes "Might & Magic", Steam writes "Might and Magic").
+	"warhammer-40-000-battlesector":   {"warhammer 40k battlesector.exe"}, // steam 1295500; its Steam launch option is the generic Launcher.exe
+	"heroes-of-might-magic-olden-era": {"heroesoldenera.exe"},             // steam 3105440
+	"subnautica-2":                    {"subnautica2.exe"},                // steam 1962700
 }
 
 // wrongExecutables drops process names Discord lists under the WRONG game,
@@ -158,12 +175,53 @@ const maxGamesPerExecutable = 3
 
 // basename lowercases an executable path and keeps only its file name. Discord
 // ships paths like "_retail_/wow.exe"; the client matches the process basename.
+// Surrounding whitespace is trimmed: upstream names occasionally carry a
+// trailing newline, which yields an executable no process name can ever match.
 func basename(raw string) string {
-	name := strings.ToLower(path.Base(strings.ReplaceAll(raw, `\`, `/`)))
-	if name == "." {
+	name := strings.ToLower(path.Base(strings.TrimSpace(strings.ReplaceAll(raw, `\`, `/`))))
+	name = strings.TrimSpace(name)
+	if name == "." || name == "/" {
 		return ""
 	}
 	return name
+}
+
+// qualifiedPattern normalizes an executable path into a match pattern that
+// keeps its directory component: lowercase, forward slashes, trimmed segments.
+// It returns "" when the upstream name carries no directory, since a pattern
+// without one would just be a basename.
+//
+// The client treats any catalog entry containing "/" as a suffix of the running
+// process's full path, which is what makes an otherwise unusable binary name
+// ("game.exe", "hl2.exe") identify exactly one game.
+func qualifiedPattern(raw string) string {
+	segments := strings.Split(strings.ToLower(strings.ReplaceAll(raw, `\`, `/`)), "/")
+	kept := make([]string, 0, len(segments))
+	for _, seg := range segments {
+		seg = strings.TrimSpace(seg)
+		if seg == "" || seg == "." {
+			continue
+		}
+		kept = append(kept, seg)
+	}
+	if len(kept) < 2 {
+		return ""
+	}
+	return strings.Join(kept, "/")
+}
+
+// usableBasename reports whether a basename can identify a game on its own.
+func usableBasename(name string, freq map[string]int) bool {
+	if _, never := neverDetect[name]; never {
+		return false
+	}
+	if _, ambiguous := ambiguousExecutables[name]; ambiguous {
+		return false
+	}
+	if tooShort(name) {
+		return false // 1-2 char stems collide with system tools
+	}
+	return freq[name] <= maxGamesPerExecutable
 }
 
 // tooShort reports whether an executable's stem (name without its extension) is
@@ -176,29 +234,40 @@ func tooShort(name string) bool {
 	return len(stem) < minExeStem
 }
 
-// normalize keeps games with at least one specific, non-launcher executable and
+// normalize keeps games with at least one usable, non-launcher executable and
 // cleans up executable names for process matching. It drops generic helper
 // binaries and any name shared by too many games, so the client never reports a
 // player as in a game they aren't running.
+//
+// A seed carries two kinds of entries: plain basenames ("wow.exe") and
+// qualified path patterns ("counter-strike source/hl2.exe"). The pattern form
+// is a fallback used only when the basename alone cannot identify the game,
+// which is what makes ~470 otherwise invisible games detectable.
 func normalize(apps []detectableApp) []store.GameSeed {
 	// First pass: count how many distinct apps each executable basename appears
 	// in, so we can drop non-discriminating names ("game.exe" ships with ~190).
+	// Qualified patterns are counted the same way: a pattern is only worth
+	// keeping while it stays discriminating.
 	freq := map[string]int{}
+	qfreq := map[string]int{}
 	for _, app := range apps {
-		seen := map[string]struct{}{}
+		seen, qseen := map[string]struct{}{}, map[string]struct{}{}
 		for _, exe := range app.Executables {
 			if exe.IsLauncher {
 				continue
 			}
-			name := basename(exe.Name)
-			if name == "" {
-				continue
+			if name := basename(exe.Name); name != "" {
+				if _, dup := seen[name]; !dup {
+					seen[name] = struct{}{}
+					freq[name]++
+				}
 			}
-			if _, dup := seen[name]; dup {
-				continue
+			if pattern := qualifiedPattern(exe.Name); pattern != "" {
+				if _, dup := qseen[pattern]; !dup {
+					qseen[pattern] = struct{}{}
+					qfreq[pattern]++
+				}
 			}
-			seen[name] = struct{}{}
-			freq[name]++
 		}
 	}
 
@@ -207,12 +276,14 @@ func normalize(apps []detectableApp) []store.GameSeed {
 		if testVariant.MatchString(app.Name) {
 			continue // non-retail edition; its exes would shadow the main game
 		}
+		slug := Slugify(app.Name)
 		exes := make([]string, 0, len(app.Executables))
-		seen := map[string]struct{}{}
-		// Pre-mark executables Discord lists under the wrong game so the loop
-		// skips them (also keeps them out of the curated additions below).
-		for _, w := range wrongExecutables[Slugify(app.Name)] {
-			seen[w] = struct{}{}
+		added := map[string]struct{}{}
+		// Executables Discord lists under the wrong game are skipped outright,
+		// in both forms (also keeps them out of the curated additions below).
+		wrong := map[string]struct{}{}
+		for _, w := range wrongExecutables[slug] {
+			wrong[w] = struct{}{}
 		}
 		for _, exe := range app.Executables {
 			if exe.IsLauncher {
@@ -223,25 +294,35 @@ func normalize(apps []detectableApp) []store.GameSeed {
 			if name == "" {
 				continue
 			}
-			if _, dup := seen[name]; dup {
+			if _, bad := wrong[name]; bad {
 				continue
 			}
-			seen[name] = struct{}{}
-			if _, generic := genericExecutables[name]; generic {
+			if usableBasename(name, freq) {
+				if _, dup := added[name]; !dup {
+					added[name] = struct{}{}
+					exes = append(exes, name)
+				}
 				continue
 			}
-			if tooShort(name) {
-				continue // 1-2 char stems collide with system tools
+			// The basename cannot identify this game. Qualifying it with the
+			// install directory can, except for binaries that are never
+			// "playing" whatever ships them.
+			if _, never := neverDetect[name]; never {
+				continue
 			}
-			if freq[name] > maxGamesPerExecutable {
-				continue // shared by too many games to identify this one
+			pattern := qualifiedPattern(exe.Name)
+			if pattern == "" || qfreq[pattern] > maxGamesPerExecutable {
+				continue
 			}
-			exes = append(exes, name)
+			if _, dup := added[pattern]; !dup {
+				added[pattern] = struct{}{}
+				exes = append(exes, pattern)
+			}
 		}
 		// Curated additions (vetted store-specific variants the list misses).
-		for _, extra := range extraExecutables[Slugify(app.Name)] {
-			if _, dup := seen[extra]; !dup {
-				seen[extra] = struct{}{}
+		for _, extra := range extraExecutables[slug] {
+			if _, dup := added[extra]; !dup {
+				added[extra] = struct{}{}
 				exes = append(exes, extra)
 			}
 		}
@@ -260,7 +341,7 @@ func normalize(apps []detectableApp) []store.GameSeed {
 		seeds = append(seeds, store.GameSeed{
 			DiscordAppID:    app.ID,
 			Name:            app.Name,
-			Slug:            Slugify(app.Name),
+			Slug:            slug,
 			ExecutableNames: exes,
 			IconURL:         iconURL,
 			CoverURL:        coverURL,

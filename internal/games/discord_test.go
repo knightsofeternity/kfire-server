@@ -146,6 +146,128 @@ func TestNormalizeExcludesWrongGameExecutable(t *testing.T) {
 	}
 }
 
+func TestNormalizeRescuesAmbiguousExeWhenQualifiedByItsDirectory(t *testing.T) {
+	// DRAGON BALL GEKISHIN SQUADRA ships a single binary named game.exe, which is
+	// too generic to match on its own. Discord qualifies it with the install
+	// directory, which identifies the game unambiguously.
+	apps := []detectableApp{
+		{ID: "dbgs", Name: "DRAGON BALL GEKISHIN SQUADRA",
+			Executables: exeList("dragon ball gekishin squadra/game.exe")},
+	}
+	seeds := normalize(apps)
+	if len(seeds) != 1 {
+		t.Fatalf("expected the game rescued by its qualified path, got %d seeds", len(seeds))
+	}
+	want := []string{"dragon ball gekishin squadra/game.exe"}
+	if !reflect.DeepEqual(seeds[0].ExecutableNames, want) {
+		t.Errorf("executables = %v, want %v", seeds[0].ExecutableNames, want)
+	}
+}
+
+func TestNormalizeNeverRescuesInstallersOrAntiCheat(t *testing.T) {
+	// Installing, updating or launching an anti-cheat bootstrapper is not
+	// playing: a directory prefix must not bring these back.
+	apps := []detectableApp{
+		{ID: "inst", Name: "Installer Only", Executables: exeList("some game/setup.exe")},
+		{ID: "upd", Name: "Updater Only", Executables: exeList("some game/bin/updater.exe")},
+		{ID: "eac", Name: "Anticheat Only", Executables: exeList("some game/easyanticheat.exe")},
+		{ID: "sys", Name: "System Only", Executables: exeList(`some game\svchost.exe`)},
+	}
+	if seeds := normalize(apps); len(seeds) != 0 {
+		t.Errorf("expected no seeds, got %d: %+v", len(seeds), seeds)
+	}
+}
+
+func TestNormalizeRescuesTooShortAndOversharedNamesWhenQualified(t *testing.T) {
+	apps := []detectableApp{
+		// Two-letter stem: unusable alone, fine once qualified.
+		{ID: "ai", Name: "Alien: Isolation", Executables: exeList("alien isolation/ai.exe")},
+		// hl2.exe ships with many Source games; each install directory differs.
+		{ID: "css", Name: "Counter-Strike: Source", Executables: exeList("counter-strike source/hl2.exe")},
+		{ID: "dods", Name: "Day of Defeat: Source", Executables: exeList("day of defeat source/hl2.exe")},
+		{ID: "nmrih", Name: "No More Room in Hell", Executables: exeList("no more room in hell/sdk/hl2.exe")},
+		{ID: "da", Name: "Double Action", Executables: exeList("double action/hl2.exe")},
+	}
+	byID := map[string][]string{}
+	for _, s := range normalize(apps) {
+		byID[s.DiscordAppID] = s.ExecutableNames
+	}
+	if got, want := byID["ai"], []string{"alien isolation/ai.exe"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Alien: Isolation executables = %v, want %v", got, want)
+	}
+	if got, want := byID["nmrih"], []string{"no more room in hell/sdk/hl2.exe"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("No More Room in Hell executables = %v, want %v", got, want)
+	}
+	if len(byID) != 5 {
+		t.Errorf("all five games should be individually identifiable, got %d", len(byID))
+	}
+}
+
+func TestNormalizeDropsQualifiedPatternSharedByTooManyGames(t *testing.T) {
+	// A qualified pattern is only useful while it stays discriminating: the same
+	// frequency rule as basenames applies to it.
+	apps := []detectableApp{
+		{ID: "s1", Name: "Shared One", Executables: exeList("bin/game.exe")},
+		{ID: "s2", Name: "Shared Two", Executables: exeList("bin/game.exe")},
+		{ID: "s3", Name: "Shared Three", Executables: exeList("bin/game.exe")},
+		{ID: "s4", Name: "Shared Four", Executables: exeList("bin/game.exe")},
+	}
+	if seeds := normalize(apps); len(seeds) != 0 {
+		t.Errorf("expected no seeds for an overshared pattern, got %d: %+v", len(seeds), seeds)
+	}
+}
+
+func TestNormalizePrefersBasenameOverQualifiedPattern(t *testing.T) {
+	// Install paths vary between stores; when the basename alone is specific
+	// enough we keep matching on it and add no path pattern.
+	apps := []detectableApp{
+		{ID: "sbz", Name: "Subnautica: Below Zero",
+			Executables: exeList("subnauticazero.exe", "subnauticazero/subnauticazero.exe")},
+	}
+	seeds := normalize(apps)
+	if len(seeds) != 1 {
+		t.Fatalf("expected 1 seed, got %d", len(seeds))
+	}
+	if got, want := seeds[0].ExecutableNames, []string{"subnauticazero.exe"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("executables = %v, want %v", got, want)
+	}
+}
+
+func TestBasenameTrimsSurroundingWhitespace(t *testing.T) {
+	// A trailing newline in the upstream name produces an executable that can
+	// never match a process name (seen live on GTA San Andreas).
+	if got, want := basename("gta-sa.exe\n"), "gta-sa.exe"; got != want {
+		t.Errorf("basename = %q, want %q", got, want)
+	}
+	if got, want := basename("  Subnautica.exe  "), "subnautica.exe"; got != want {
+		t.Errorf("basename = %q, want %q", got, want)
+	}
+}
+
+func TestNormalizeAddsCuratedExesForGamesUpstreamLeavesEmpty(t *testing.T) {
+	// Discord carries these three with an empty executables array, so they can
+	// only enter the catalog through a curated entry. Keys are the slug derived
+	// from the Discord name, which is not always the slug of the live row.
+	cases := map[string]struct{ name, exe string }{
+		"wh40k": {"Warhammer 40,000: Battlesector", "warhammer 40k battlesector.exe"},
+		"homm":  {"Heroes of Might & Magic: Olden Era", "heroesoldenera.exe"},
+		"sub2":  {"Subnautica 2", "subnautica2.exe"},
+	}
+	apps := make([]detectableApp, 0, len(cases))
+	for id, c := range cases {
+		apps = append(apps, detectableApp{ID: id, Name: c.name})
+	}
+	byID := map[string][]string{}
+	for _, s := range normalize(apps) {
+		byID[s.DiscordAppID] = s.ExecutableNames
+	}
+	for id, c := range cases {
+		if got, want := byID[id], []string{c.exe}; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s executables = %v, want %v", c.name, got, want)
+		}
+	}
+}
+
 func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 	apps := []detectableApp{
 		{ID: "pubg", Name: "PUBG: BATTLEGROUNDS", Executables: exeList("TslGame.exe")},

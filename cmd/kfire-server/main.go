@@ -54,12 +54,6 @@ func main() {
 	// TODO(mvp): connect Redis (presence + pub/sub) once the hub needs to
 	// scale past a single process.
 
-	// First boot: seed the games catalog from Discord in the background so
-	// startup stays fast even when the upstream is slow.
-	if n, err := st.CountGames(ctx); err == nil && n == 0 {
-		go seedGames(st)
-	}
-
 	app := fiber.New(fiber.Config{
 		AppName:               "kfire-server",
 		DisableStartupMessage: true,
@@ -89,6 +83,10 @@ func main() {
 	// Shared context for all background pollers.
 	pollCtx, cancelPoll := context.WithCancel(context.Background())
 	defer cancelPoll()
+
+	// Games catalog: seeded on first boot, then kept in step with Discord's
+	// list. Runs in the background so startup stays fast when upstream is slow.
+	go refreshCatalog(pollCtx, st)
 
 	// Steam connector + background library/achievement poller.
 	steamConn := steam.New(cfg.SteamAPIKey)
@@ -137,21 +135,84 @@ func main() {
 	}
 }
 
-// seedGames imports the Discord detectable-games catalog (~10k games).
-func seedGames(st *store.Store) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
+// Catalog refresh schedule. Upstream keeps adding games and fixing
+// executables, so an instance seeded once on first boot silently drifts: games
+// released since simply never detect for anyone.
+const (
+	catalogFirstCheck = 10 * time.Second   // fresh instance: seed almost immediately
+	catalogCheckEvery = 6 * time.Hour      // cheap: one COUNT and one timestamp read
+	catalogMaxAge     = 7 * 24 * time.Hour // upstream moves slowly; weekly is plenty
+)
 
-	slog.Info("games seed: catalog empty, importing from Discord")
+// refreshCatalog imports the Discord detectable-games catalog (~10k games) when
+// it is missing or a week old, until the context is cancelled. The last import
+// is stamped in the database, so the schedule survives restarts.
+func refreshCatalog(ctx context.Context, st *store.Store) {
+	var lastImport time.Time
+	timer := time.NewTimer(catalogFirstCheck)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			if reason := catalogImportReason(ctx, st, lastImport); reason != "" {
+				importCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+				n, err := importCatalog(importCtx, st)
+				cancel()
+				if err != nil {
+					slog.Error("games catalog: import failed (retry via POST /api/v1/admin/games/sync)",
+						"reason", reason, "err", err)
+				} else {
+					lastImport = time.Now()
+					slog.Info("games catalog: imported", "reason", reason, "games", n)
+				}
+			}
+			timer.Reset(catalogCheckEvery)
+		}
+	}
+}
+
+// catalogImportReason reports why the catalog should be imported now, or "" to
+// leave it alone.
+func catalogImportReason(ctx context.Context, st *store.Store, lastImport time.Time) string {
+	if n, err := st.CountGames(ctx); err == nil && n == 0 {
+		return "empty"
+	}
+	// Imported by this process recently. Checked before the stored timestamp so
+	// an instance with no account yet (no org row to stamp, see
+	// store.SetGamesSyncedAt) does not re-import on every tick.
+	if !lastImport.IsZero() && time.Since(lastImport) < catalogMaxAge {
+		return ""
+	}
+	syncedAt, ok, err := st.GamesSyncedAt(ctx)
+	switch {
+	case err != nil:
+		slog.Error("games catalog: reading last sync", "err", err)
+		return ""
+	case !ok:
+		return "never synced"
+	case time.Since(syncedAt) >= catalogMaxAge:
+		return "stale"
+	default:
+		return ""
+	}
+}
+
+// importCatalog downloads the Discord list, upserts it and stamps the org.
+func importCatalog(ctx context.Context, st *store.Store) (int, error) {
 	seeds, err := games.FetchSeed(ctx)
 	if err != nil {
-		slog.Error("games seed: fetch failed (retry via POST /api/v1/admin/games/sync)", "err", err)
-		return
+		return 0, err
 	}
 	n, err := st.UpsertGames(ctx, seeds)
 	if err != nil {
-		slog.Error("games seed: upsert failed", "err", err)
-		return
+		return 0, err
 	}
-	slog.Info("games seed: done", "games", n)
+	if err := st.SetGamesSyncedAt(ctx); err != nil {
+		// The catalog is updated; only the schedule bookkeeping failed.
+		slog.Error("games catalog: stamping last sync", "err", err)
+	}
+	return n, nil
 }

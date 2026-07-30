@@ -209,10 +209,30 @@ func (h *handlers) userAchievements(c *fiber.Ctx) error {
 	})
 }
 
+// GET /api/v1/admin/games/catalog  (admin)
+//
+// Catalog status for the admin screen: how many games are known and when they
+// were last imported from Discord (null when never).
+func (h *handlers) gamesCatalogStatus(c *fiber.Ctx) error {
+	count, err := h.store.CountGames(c.Context())
+	if err != nil {
+		return err
+	}
+	syncedAt, ok, err := h.store.GamesSyncedAt(c.Context())
+	if err != nil {
+		return err
+	}
+	resp := fiber.Map{"games": count, "synced_at": nil}
+	if ok {
+		resp["synced_at"] = syncedAt
+	}
+	return c.JSON(resp)
+}
+
 // POST /api/v1/admin/games/sync  (admin)
 //
 // Re-imports the Discord detectable-games catalog. Synchronous: the download
-// is ~10 MB and the upsert a few seconds - acceptable for an admin action.
+// is ~12 MB and the upsert a few seconds - acceptable for an admin action.
 func (h *handlers) syncGames(c *fiber.Ctx) error {
 	seeds, err := games.FetchSeed(c.Context())
 	if err != nil {
@@ -223,6 +243,10 @@ func (h *handlers) syncGames(c *fiber.Ctx) error {
 	n, err := h.store.UpsertGames(c.Context(), seeds)
 	if err != nil {
 		return err
+	}
+	if err := h.store.SetGamesSyncedAt(c.Context()); err != nil {
+		// The catalog is updated; only the schedule bookkeeping failed.
+		slog.Error("games sync: stamp", "err", err)
 	}
 	slog.Info("games sync: done", "upserted", n)
 	return c.JSON(fiber.Map{"upserted": n})
