@@ -227,7 +227,12 @@ func (h *handlers) publicMemberGameDetail(c *fiber.Ctx) error {
 
 // GET /api/public/v1/games/:slug — one game's aggregate: who played it over the
 // last 7 days (recent_players) and the all-time leaderboard (all_time_players).
-// Both honor member privacy (banned, sessions_visible) and hidden games.
+// Hidden games 404. Banned members are excluded from both lists. Per
+// migration 0015, sessions_visible=false only hides a member's recent-session
+// history — it does not exempt them from aggregate leaderboards — so
+// recent_players honors it (GameRecentPlayers filters unconditionally) while
+// all_time_players does not (visibleOnly=false, matching the authenticated
+// gameDetail endpoint in games.go).
 func (h *handlers) publicGameDetail(c *fiber.Ctx) error {
 	g, err := h.store.GetGameBySlug(c.Context(), c.Params("slug"))
 	if errors.Is(err, store.ErrNotFound) {
@@ -253,7 +258,7 @@ func (h *handlers) publicGameDetail(c *fiber.Ctx) error {
 		recent[i] = m
 	}
 
-	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25, true)
+	entries, totalSeconds, players, err := h.store.GameLeaderboard(c.Context(), g.ID, 25, false)
 	if err != nil {
 		return err
 	}

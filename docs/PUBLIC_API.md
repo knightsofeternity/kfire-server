@@ -70,8 +70,11 @@ endpoint's response. See [docs/PLUGINS.md](./PLUGINS.md) for details.
 
 ### GET /games/{slug}
 One game's aggregate: who's been playing it recently, and the all-time
-leaderboard. Privacy is honored server-side: banned members and members who hid
-their sessions are excluded, and hidden games return `404 {"code":"not_found"}`.
+leaderboard. Privacy is honored server-side: banned members are excluded from
+both lists, hidden games return `404 {"code":"not_found"}`, and members who hid
+their recent-session history (`sessions_visible=false`) are additionally
+excluded from `recent_players` only — that setting does not affect aggregate
+playtime, so they still appear in `all_time_players`.
 
     { "game": {"id":"…","name":"…","slug":"…","icon_url":"…","cover_url":"…"},
       "window_days": 7,
