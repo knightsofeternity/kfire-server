@@ -32,6 +32,14 @@
 		Math.max(1, ...(detail?.leaderboard ?? []).map((e) => e.total_seconds))
 	);
 
+	function lolSoloRank(p: NonNullable<GameDetail['lol_players']>[number]) {
+		return p.data.ranks.find((r) => r.queue === 'RANKED_SOLO_5x5');
+	}
+	function lolWinRate(r: { wins: number; losses: number }): number {
+		const total = r.wins + r.losses;
+		return total > 0 ? Math.round((r.wins / total) * 100) : 0;
+	}
+
 	onMount(load);
 	async function load() {
 		loading = true;
@@ -286,6 +294,46 @@
 					</div>
 				{/each}
 			</div>
+		</section>
+	{/if}
+
+	<!-- League of Legends standings -->
+	{#if detail.lol_players?.length}
+		<section class="mt-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('lol.leaderboard')}
+			</h2>
+			<ul class="flex flex-col gap-2">
+				{#each detail.lol_players as p (p.user_id)}
+					{@const solo = lolSoloRank(p)}
+					<a
+						href="/players/{p.user_id}/games/{slug}"
+						class="pd-card group flex items-center gap-3 p-3 transition-all duration-150 hover:border-[var(--color-brand)]"
+					>
+						<Avatar username={p.username} url={p.avatar_url} size={36} />
+						<span class="flex-1 truncate font-display font-semibold text-[var(--color-text)]">
+							{p.username}
+						</span>
+						{#if p.live}
+							<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs uppercase tracking-wide text-[var(--color-online)]">
+								{t('lol.inGame')}
+							</span>
+						{/if}
+						{#if solo}
+							<span class="text-sm text-[var(--color-muted)]">
+								{solo.tier} {solo.division} · {solo.lp} LP
+							</span>
+							<span class="w-14 text-right font-display text-sm text-[var(--color-brand-bright)]">
+								{lolWinRate(solo)}%
+							</span>
+						{:else}
+							<span class="text-sm text-[var(--color-muted)]">{t('lol.unranked')}</span>
+						{/if}
+					</a>
+				{/each}
+			</ul>
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('common.riotDisclaimer')}</p>
 		</section>
 	{/if}
 {/if}

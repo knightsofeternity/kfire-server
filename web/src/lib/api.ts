@@ -52,6 +52,61 @@ export type WowCharacter = {
 	achievement_points?: number;
 };
 
+export type LolRank = {
+	queue: string;
+	tier: string;
+	division: string;
+	lp: number;
+	wins: number;
+	losses: number;
+	hot_streak: boolean;
+};
+
+export type LolChampion = {
+	champion_id: number;
+	name: string;
+	icon_url?: string;
+	level: number;
+	points: number;
+};
+
+export type LolMatch = {
+	match_id: string;
+	win: boolean;
+	champion: string;
+	kills: number;
+	deaths: number;
+	assists: number;
+	queue_id: number;
+	duration_seconds: number;
+	played_at: string;
+};
+
+export type LolProfile = {
+	riot_id: string;
+	platform: string;
+	solo_score: number;
+	ranks: LolRank[];
+	top_champions: LolChampion[];
+	recent: LolMatch[];
+};
+
+export type LolLive = {
+	champion_id: number;
+	queue_id: number;
+	mode: string;
+	started_at: string;
+};
+
+export type LolPlayer = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	solo_score: number;
+	live?: LolLive;
+	data: LolProfile;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
@@ -63,6 +118,8 @@ export type GameDetail = {
 	wow_synced_at?: string;
 	bnet_profiles?: { user_id: string; username: string; data: Record<string, unknown> }[];
 	bnet_synced_at?: string;
+	lol_players?: LolPlayer[];
+	lol_synced_at?: string;
 };
 
 export type PlayerGameAchievement = {
@@ -98,6 +155,8 @@ export type PlayerGameDetail = {
 	last_played_at?: string;
 	wow_characters?: PlayerWowCharacter[];
 	bnet_profile?: Record<string, unknown>;
+	lol_profile?: LolProfile;
+	lol_live?: LolLive;
 	achievements?: PlayerGameAchievement[];
 };
 

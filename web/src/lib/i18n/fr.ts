@@ -146,6 +146,18 @@ export const fr: Catalog = {
 		playtime: 'Temps de jeu',
 		sessions: 'sessions'
 	},
+	lol: {
+		leaderboard: 'Classement League of Legends',
+		solo: 'Solo/Duo',
+		flex: 'Flexible',
+		unranked: 'Non classé',
+		champions: 'Champions favoris',
+		recent: 'Dernières parties',
+		win: 'Victoire',
+		loss: 'Défaite',
+		hotStreak: 'En série',
+		inGame: 'En partie'
+	},
 	leaderboards: {
 		title: 'Classements de la semaine',
 		subtitle: 'Les 7 derniers jours',

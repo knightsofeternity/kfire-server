@@ -98,6 +98,13 @@
 		});
 	}
 
+	/** Falls back to the numeric champion id when the icon service failed to
+	 * resolve a display name during sync (name comes back empty, not absent). */
+	function lolChampName(name: string | undefined, id?: number): string {
+		if (name && name.trim()) return name;
+		return id !== undefined ? `#${id}` : '?';
+	}
+
 	onMount(load);
 	async function load() {
 		loading = true;
@@ -301,6 +308,102 @@
 					<p class="text-sm text-[var(--color-muted)] font-mono text-xs">{JSON.stringify(detail.bnet_profile)}</p>
 				{/if}
 			</div>
+		</section>
+	{/if}
+
+	<!-- League of Legends profile -->
+	{#if detail.lol_profile}
+		{@const profile = detail.lol_profile}
+		{@const solo = profile.ranks.find((r) => r.queue === 'RANKED_SOLO_5x5')}
+		{@const flex = profile.ranks.find((r) => r.queue === 'RANKED_FLEX_SR')}
+		<section class="mb-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				League of Legends
+				{#if detail.lol_live}
+					<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs uppercase tracking-wide text-[var(--color-online)]">
+						{t('lol.inGame')}
+					</span>
+				{/if}
+			</h2>
+			<div class="pd-cut-sm border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+				<p class="font-display font-semibold text-[var(--color-text)]">
+					{profile.riot_id}<span class="text-[var(--color-muted)]"> - {profile.platform}</span>
+				</p>
+
+				<!-- Ranked queues -->
+				<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+					<div>
+						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.solo')}</p>
+						{#if solo}
+							<p class="text-sm text-[var(--color-text)]">
+								{solo.tier} {solo.division} · {solo.lp} LP
+								<span class="text-[var(--color-muted)]">({solo.wins}W {solo.losses}L)</span>
+								{#if solo.hot_streak}<span class="text-[var(--color-gold)]"> · {t('lol.hotStreak')}</span>{/if}
+							</p>
+						{:else}
+							<p class="text-sm text-[var(--color-muted)]">{t('lol.unranked')}</p>
+						{/if}
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.flex')}</p>
+						{#if flex}
+							<p class="text-sm text-[var(--color-text)]">
+								{flex.tier} {flex.division} · {flex.lp} LP
+								<span class="text-[var(--color-muted)]">({flex.wins}W {flex.losses}L)</span>
+								{#if flex.hot_streak}<span class="text-[var(--color-gold)]"> · {t('lol.hotStreak')}</span>{/if}
+							</p>
+						{:else}
+							<p class="text-sm text-[var(--color-muted)]">{t('lol.unranked')}</p>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Top champions -->
+				{#if profile.top_champions?.length}
+					<div class="mt-3 border-t border-[var(--color-border)] pt-3">
+						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.champions')}</p>
+						<div class="flex flex-wrap gap-3">
+							{#each profile.top_champions as c (c.champion_id)}
+								<div class="flex items-center gap-2">
+									{#if c.icon_url}
+										<img
+											src={c.icon_url}
+											alt=""
+											class="h-8 w-8 shrink-0 rounded"
+											loading="lazy"
+											onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+										/>
+									{/if}
+									<div class="min-w-0">
+										<p class="truncate text-sm text-[var(--color-text)]">{lolChampName(c.name, c.champion_id)}</p>
+										<p class="text-xs text-[var(--color-muted)]">{c.points.toLocaleString()} pts</p>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Recent games -->
+				{#if profile.recent?.length}
+					<div class="mt-3 border-t border-[var(--color-border)] pt-3">
+						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.recent')}</p>
+						<ul class="flex flex-col gap-1">
+							{#each profile.recent as m (m.match_id)}
+								<li class="flex items-center justify-between gap-2 text-sm">
+									<span class="font-display {m.win ? 'text-[var(--color-online)]' : 'text-[var(--color-magenta)]'}">
+										{m.win ? t('lol.win') : t('lol.loss')}
+									</span>
+									<span class="flex-1 truncate text-[var(--color-text)]">{lolChampName(m.champion)}</span>
+									<span class="shrink-0 text-[var(--color-muted)]">{m.kills}/{m.deaths}/{m.assists}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('common.riotDisclaimer')}</p>
 		</section>
 	{/if}
 

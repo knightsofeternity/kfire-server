@@ -145,6 +145,18 @@ export const en = {
 		playtime: 'Playtime',
 		sessions: 'sessions'
 	},
+	lol: {
+		leaderboard: 'League of Legends standings',
+		solo: 'Solo/Duo',
+		flex: 'Flex',
+		unranked: 'Unranked',
+		champions: 'Top champions',
+		recent: 'Recent games',
+		win: 'Win',
+		loss: 'Loss',
+		hotStreak: 'On a streak',
+		inGame: 'In game'
+	},
 	leaderboards: {
 		title: 'Weekly leaderboards',
 		subtitle: 'The last 7 days',
