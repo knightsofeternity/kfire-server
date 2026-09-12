@@ -95,6 +95,9 @@ func (s *Syncer) pollLive(ctx context.Context) {
 	if s.riot == nil || !s.riot.Enabled() {
 		return
 	}
+	if !s.pluginActive() {
+		return // the admin turned League off; stop calling Riot for it
+	}
 	game, err := s.store.GetGameBySlug(ctx, liveSlug)
 	if err != nil {
 		// League missing from this instance's catalog is a legitimate, quiet

@@ -83,10 +83,17 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	plugins.Register(bnetsync.NewWowPlugin(st, bnetSync, bnConn))
 	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "d3", "Diablo III", "diablo-iii"))
 	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "sc2", "StarCraft II", "starcraft-ii-battle-chest"))
-	plugins.Register(riotsync.NewLolPlugin(st, riotSync, riotConn))
+	lolPlugin := riotsync.NewLolPlugin(st, riotSync, riotConn)
+	plugins.Register(lolPlugin)
 	if err := plugins.Load(context.Background()); err != nil {
 		slog.Error("game plugins load", "err", err)
 	}
+	// The display surfaces are gated by the registry, but the live-game loop
+	// runs outside any request and would otherwise keep polling Riot for a
+	// plugin the admin has disabled.
+	riotSync.SetActiveCheck(func() bool {
+		return len(plugins.ForSlug(lolPlugin.Slugs()[0])) > 0
+	})
 	xblConn := xbox.New(cfg.XblAppKey)
 	if cfg.XblAPIBase != "" {
 		xblConn.APIBase = cfg.XblAPIBase

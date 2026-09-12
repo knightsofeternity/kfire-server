@@ -77,3 +77,26 @@ func TestLiveGameOnASyncerWithoutARegistryReturnsNil(t *testing.T) {
 		t.Error("a syncer built without a registry must not panic and must return nil")
 	}
 }
+
+func TestPluginActiveDefaultsToTrueWithoutACheck(t *testing.T) {
+	s := New(nil, nil, nil)
+	if !s.pluginActive() {
+		t.Error("a syncer wired without a check must behave as active, " +
+			"so the lazy refresh path keeps working")
+	}
+}
+
+func TestPluginActiveFollowsTheCheck(t *testing.T) {
+	s := New(nil, nil, nil)
+	on := true
+	s.SetActiveCheck(func() bool { return on })
+
+	if !s.pluginActive() {
+		t.Error("want active while the check says so")
+	}
+	on = false
+	if s.pluginActive() {
+		t.Error("the admin turning the plugin off must stop the live loop, " +
+			"otherwise it keeps calling Riot every minute for a disabled plugin")
+	}
+}

@@ -23,16 +23,31 @@ const topChampionCount = 3
 
 // Syncer refreshes League data lazily, on view, and never in the background.
 type Syncer struct {
-	store *store.Store
-	riot  *riot.Connector
-	dd    *riot.DataDragon
-	live  *liveRegistry
+	store  *store.Store
+	riot   *riot.Connector
+	dd     *riot.DataDragon
+	live   *liveRegistry
+	active func() bool
 }
 
 // New returns a syncer.
 func New(st *store.Store, conn *riot.Connector, dd *riot.DataDragon) *Syncer {
 	return &Syncer{store: st, riot: conn, dd: dd, live: newLiveRegistry()}
 }
+
+// SetActiveCheck tells the syncer how to ask whether the League plugin is still
+// enabled by the admin. Without it the live-game loop would keep calling Riot
+// every minute for a plugin the admin has turned off: the display surfaces are
+// gated by the plugin registry, but a background loop is not.
+//
+// Call it once at wiring time, before the loop starts. The registry cannot be
+// passed to New because it is built after the syncer it registers.
+func (s *Syncer) SetActiveCheck(fn func() bool) { s.active = fn }
+
+// pluginActive reports whether the League plugin is enabled. A syncer wired
+// without a check is treated as active, so the lazy refresh path keeps working
+// in tests and in any caller that does not own a registry.
+func (s *Syncer) pluginActive() bool { return s.active == nil || s.active() }
 
 // profile is the stored blob's shape. It is the contract with the SPA.
 type profile struct {
