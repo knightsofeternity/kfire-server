@@ -108,14 +108,19 @@ func (h *handlers) connectRiotCallback(c *fiber.Ctx) error {
 // DELETE /api/v1/connect/riot  (authenticated)
 func (h *handlers) disconnectRiot(c *fiber.Ctx) error {
 	userID := mustClaims(c).UserID
+	// Routing and profiles go first. Deleting them is a no-op when there is
+	// nothing to delete, so a failure here leaves the identity row in place and
+	// the member can simply retry. The reverse order would strand those rows:
+	// with the identity already gone, a second attempt answers "not linked" and
+	// never reaches them again.
+	if err := h.store.DeleteRiotData(c.Context(), userID); err != nil {
+		return err
+	}
 	err := h.store.DeleteLinkedAccount(c.Context(), userID, "riot")
 	if errors.Is(err, store.ErrNotFound) {
 		return errorJSON(c, fiber.StatusNotFound, "not_linked", "no Riot account linked")
 	}
 	if err != nil {
-		return err
-	}
-	if err := h.store.DeleteRiotData(c.Context(), userID); err != nil {
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
