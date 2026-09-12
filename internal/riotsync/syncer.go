@@ -25,11 +25,12 @@ type Syncer struct {
 	store *store.Store
 	riot  *riot.Connector
 	dd    *riot.DataDragon
+	live  *liveRegistry
 }
 
 // New returns a syncer.
 func New(st *store.Store, conn *riot.Connector, dd *riot.DataDragon) *Syncer {
-	return &Syncer{store: st, riot: conn, dd: dd}
+	return &Syncer{store: st, riot: conn, dd: dd, live: newLiveRegistry()}
 }
 
 // profile is the stored blob's shape. It is the contract with the SPA.
