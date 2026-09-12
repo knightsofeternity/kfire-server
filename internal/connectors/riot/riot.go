@@ -11,6 +11,7 @@ package riot
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -170,3 +171,6 @@ func (c *Connector) UserPUUID(ctx context.Context, accessToken string) (string, 
 	}
 	return out.Sub, nil
 }
+
+// asAPIError is errors.As specialised to *APIError.
+func asAPIError(err error, target **APIError) bool { return errors.As(err, target) }

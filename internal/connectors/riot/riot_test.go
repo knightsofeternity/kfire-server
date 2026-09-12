@@ -1,6 +1,9 @@
 package riot
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func TestMatchCluster(t *testing.T) {
 	cases := map[string]string{
@@ -23,7 +26,16 @@ func TestMatchClusterUnknownFallsBackToEurope(t *testing.T) {
 }
 
 func TestKnownPlatformsCoversEveryMappedPlatform(t *testing.T) {
-	if len(KnownPlatforms()) != 17 {
-		t.Errorf("KnownPlatforms() has %d entries, want 17", len(KnownPlatforms()))
+	got := KnownPlatforms()
+	if len(got) != 17 {
+		t.Errorf("KnownPlatforms() has %d entries, want 17", len(got))
+	}
+	if !sort.StringsAreSorted(got) {
+		t.Errorf("KnownPlatforms() = %v, want sorted (Go randomises map iteration)", got)
+	}
+	for _, p := range got {
+		if _, ok := platformToMatchCluster[p]; !ok {
+			t.Errorf("KnownPlatforms() returned %q, absent from the cluster map", p)
+		}
 	}
 }
