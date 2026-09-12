@@ -19,6 +19,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/bnetsync"
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/riot"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
@@ -38,6 +39,7 @@ type handlers struct {
 	battlenet *battlenet.Connector
 	bnetSync  *bnetsync.Syncer
 	xbox      *xbox.Connector
+	riot      *riot.Connector
 	cipher    *crypto.Cipher
 	plugins   *gameplugin.Registry
 }
