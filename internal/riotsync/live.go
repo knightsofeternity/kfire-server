@@ -2,11 +2,13 @@ package riotsync
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/connectors/riot"
+	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
 // liveTTL bounds how long a live-game entry is trusted without a refresh. The
@@ -95,7 +97,13 @@ func (s *Syncer) pollLive(ctx context.Context) {
 	}
 	game, err := s.store.GetGameBySlug(ctx, liveSlug)
 	if err != nil {
-		return // League is not in this instance's catalog
+		// League missing from this instance's catalog is a legitimate, quiet
+		// state. A database failure is not, and would otherwise vanish on
+		// every tick.
+		if !errors.Is(err, store.ErrNotFound) {
+			slog.Warn("riotsync: get game", "slug", liveSlug, "err", err)
+		}
+		return
 	}
 	players, err := s.store.RiotPlayersInGame(ctx, game.ID)
 	if err != nil {
