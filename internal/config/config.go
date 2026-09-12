@@ -50,6 +50,16 @@ type Config struct {
 	XblAPIBase string
 	// XboxPollInterval is how often the Xbox presence poller runs.
 	XboxPollInterval time.Duration
+	// Riot RSO credentials + the League of Legends API key
+	// (https://developer.riotgames.com). All three empty = connector disabled.
+	RiotClientID     string
+	RiotClientSecret string
+	RiotLolKey       string
+	// RiotAuthBase / RiotAPIBase override the Riot hosts (tests only).
+	RiotAuthBase string
+	RiotAPIBase  string
+	// RiotLivePollInterval is how often the League live-game loop runs.
+	RiotLivePollInterval time.Duration
 }
 
 // Load reads configuration from the environment. Required variables that are
@@ -75,6 +85,12 @@ func Load() (*Config, error) {
 		BattlenetAPIBase:      os.Getenv("KFIRE_BATTLENET_API_BASE"),
 		XblAppKey:             os.Getenv("KFIRE_XBL_APP_KEY"),
 		XblAPIBase:            os.Getenv("KFIRE_XBL_API_BASE"),
+
+		RiotClientID:     os.Getenv("KFIRE_RIOT_CLIENT_ID"),
+		RiotClientSecret: os.Getenv("KFIRE_RIOT_CLIENT_SECRET"),
+		RiotLolKey:       os.Getenv("KFIRE_RIOT_LOL_KEY"),
+		RiotAuthBase:     os.Getenv("KFIRE_RIOT_AUTH_BASE"),
+		RiotAPIBase:      os.Getenv("KFIRE_RIOT_API_BASE"),
 	}
 
 	for name, val := range map[string]string{
@@ -91,6 +107,13 @@ func Load() (*Config, error) {
 	if v := os.Getenv("KFIRE_XBOX_POLL_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
 			cfg.XboxPollInterval = d
+		}
+	}
+
+	cfg.RiotLivePollInterval = time.Minute
+	if v := os.Getenv("KFIRE_RIOT_LIVE_POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
+			cfg.RiotLivePollInterval = d
 		}
 	}
 
