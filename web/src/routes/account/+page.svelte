@@ -210,11 +210,16 @@
 	}
 
 	async function changeRiotRegion(platform: string) {
+		// Optimistic, but restored on failure: leaving the picker on a region the
+		// server refused would tell the member their correction was saved when it
+		// was not, and every later refresh would still use the old one.
+		const previous = riotRegion;
 		riotRegion = platform;
 		riotRegionSaving = true;
 		try {
 			await api.setRiotRegion(platform);
 		} catch (e) {
+			riotRegion = previous;
 			error = e instanceof Error ? e.message : 'failed to update region';
 		} finally {
 			riotRegionSaving = false;
