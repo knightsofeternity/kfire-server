@@ -123,7 +123,7 @@ func (c *Connector) ExchangeCode(ctx context.Context, code, redirectURI string) 
 
 	res, err := c.HTTP.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("riot token request: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
@@ -134,7 +134,7 @@ func (c *Connector) ExchangeCode(ctx context.Context, code, redirectURI string) 
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return "", err
+		return "", fmt.Errorf("riot token decode: %w", err)
 	}
 	if out.AccessToken == "" {
 		return "", fmt.Errorf("riot token: empty access_token")
@@ -153,7 +153,7 @@ func (c *Connector) UserPUUID(ctx context.Context, accessToken string) (string, 
 
 	res, err := c.HTTP.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("riot userinfo request: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
@@ -164,7 +164,7 @@ func (c *Connector) UserPUUID(ctx context.Context, accessToken string) (string, 
 		Sub string `json:"sub"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return "", err
+		return "", fmt.Errorf("riot userinfo decode: %w", err)
 	}
 	if out.Sub == "" {
 		return "", fmt.Errorf("riot userinfo: empty sub")
