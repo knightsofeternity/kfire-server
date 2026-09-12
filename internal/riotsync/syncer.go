@@ -132,11 +132,14 @@ func (s *Syncer) RefreshLoL(ctx context.Context, userID, gameID string) {
 		}
 		champions[i].Name, champions[i].IconURL = name, icon
 	}
-	// A failing match list costs the recent-form block only; ranks and mastery
-	// are still worth storing.
+	// RecentMatches only errors on the match-id listing; a detail that fails is
+	// skipped inside it and merely shortens the list. So an error here is one of
+	// the three fatal calls: writing now would replace a good recent-form block
+	// with an empty one and then block the retry for a whole hour.
 	recent, err := s.riot.RecentMatches(ctx, acc.MatchCluster, acc.PUUID, recentMatchCount)
 	if err != nil {
 		slog.Warn("riotsync: recent matches", "user_id", userID, "err", err)
+		return
 	}
 
 	blob := buildProfile(acc.RiotID, acc.Platform, ranks, champions, recent)

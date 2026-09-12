@@ -19,13 +19,16 @@ type RiotAccount struct {
 	RegionSource string
 }
 
-// RiotProfileRow is one member's cached League blob.
+// RiotProfileRow is one member's cached League blob. ActivityVisible carries
+// the member's "show what I am playing" toggle, so callers can honour it when
+// deciding whether to reveal a match in progress.
 type RiotProfileRow struct {
-	UserID       string
-	Username     string
-	AvatarURL    *string
-	Data         []byte
-	LastSyncedAt time.Time
+	UserID          string
+	Username        string
+	AvatarURL       *string
+	ActivityVisible bool
+	Data            []byte
+	LastSyncedAt    time.Time
 }
 
 // RiotPlayer is a member currently in a League session, with what the live
@@ -108,7 +111,8 @@ func (s *Store) RiotProfileSyncedAt(ctx context.Context, userID, gameID string) 
 // the Battle.net aggregate.
 func (s *Store) RiotProfilesByGame(ctx context.Context, gameID string) ([]RiotProfileRow, time.Time, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT p.user_id, u.username, u.avatar_url, p.data, p.last_synced_at
+		SELECT p.user_id, u.username, u.avatar_url, u.activity_visible,
+		       p.data, p.last_synced_at
 		FROM riot_game_profile p
 		JOIN users u ON u.id = p.user_id AND u.banned_at IS NULL
 		WHERE p.game_id = $1
@@ -122,7 +126,8 @@ func (s *Store) RiotProfilesByGame(ctx context.Context, gameID string) ([]RiotPr
 	var newest time.Time
 	for rows.Next() {
 		var r RiotProfileRow
-		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.Data, &r.LastSyncedAt); err != nil {
+		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible,
+			&r.Data, &r.LastSyncedAt); err != nil {
 			return nil, time.Time{}, err
 		}
 		out = append(out, r)

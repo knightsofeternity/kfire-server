@@ -74,3 +74,28 @@ func TestScoreOfAcceptsAZeroScore(t *testing.T) {
 			"be confused with the unranked sentinel", got)
 	}
 }
+
+// TestLiveIsGatedOnTheActivityToggle documents the privacy rule the leaderboard
+// must follow: a member's standing is always shown, but what they are playing
+// right now is only shown when they allow it, or to themselves.
+func TestLiveIsGatedOnTheActivityToggle(t *testing.T) {
+	cases := []struct {
+		name            string
+		activityVisible bool
+		viewerID        string
+		wantLive        bool
+	}{
+		{"visible member, any viewer", true, "someone-else", true},
+		{"hidden member, other viewer", false, "someone-else", false},
+		{"hidden member, looking at themselves", false, "u1", true},
+		{"hidden member, anonymous viewer", false, "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := showLive(tc.activityVisible, "u1", tc.viewerID)
+			if got != tc.wantLive {
+				t.Errorf("live shown = %v, want %v", got, tc.wantLive)
+			}
+		})
+	}
+}

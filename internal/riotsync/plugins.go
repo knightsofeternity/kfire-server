@@ -43,6 +43,13 @@ func (p *LolPlugin) Refresh(ctx context.Context, userID, gameSlug string) {
 	p.syncer.RefreshLoL(ctx, userID, g.ID)
 }
 
+// showLive decides whether a match in progress may be revealed. A member's
+// standing is public either way: hiding your activity hides WHAT you are
+// playing, not THAT you play. Members always see their own.
+func showLive(activityVisible bool, memberID, viewerID string) bool {
+	return activityVisible || (viewerID != "" && memberID == viewerID)
+}
+
 // scoreOf reads the precomputed solo-queue score out of a stored blob. A blob
 // that cannot be read sorts last rather than failing the page. The field is a
 // pointer so that a real score of zero, iron IV at 0 LP, is not mistaken for
@@ -74,7 +81,12 @@ func sortByScore(cards []map[string]any) {
 
 // GameDetail returns the guild leaderboard for the game page, ranked members
 // first.
-func (p *LolPlugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[string]any, error) {
+//
+// The match in progress is the one piece here that reveals what someone is
+// doing right now, so it honours the member's activity toggle exactly as the
+// generic presence does. Their standing stays visible either way: hiding your
+// activity hides what you are playing, not that you play.
+func (p *LolPlugin) GameDetail(ctx context.Context, viewerID string, g store.Game) (map[string]any, error) {
 	profs, synced, err := p.st.RiotProfilesByGame(ctx, g.ID)
 	if err != nil {
 		return nil, err
@@ -90,8 +102,10 @@ func (p *LolPlugin) GameDetail(ctx context.Context, _ string, g store.Game) (map
 		if pr.AvatarURL != nil {
 			card["avatar_url"] = *pr.AvatarURL
 		}
-		if live := p.syncer.LiveGame(pr.UserID); live != nil {
-			card["live"] = live
+		if showLive(pr.ActivityVisible, pr.UserID, viewerID) {
+			if live := p.syncer.LiveGame(pr.UserID); live != nil {
+				card["live"] = live
+			}
 		}
 		cards[i] = card
 	}
@@ -100,14 +114,23 @@ func (p *LolPlugin) GameDetail(ctx context.Context, _ string, g store.Game) (map
 }
 
 // UserGameDetail returns one member's League card.
+//
+// This surface is also served to unauthenticated third parties through the
+// public API, and the interface carries no viewer, so the match in progress is
+// gated on the member's activity toggle alone. A member who hides their
+// activity therefore does not see their own live block here either, which is
+// the safe way round: the alternative would leak it to everyone.
 func (p *LolPlugin) UserGameDetail(ctx context.Context, userID string, g store.Game) (map[string]any, error) {
 	data, err := p.st.RiotProfileForUserGame(ctx, userID, g.ID)
 	if err != nil || len(data) == 0 {
 		return nil, err
 	}
 	out := map[string]any{"lol_profile": json.RawMessage(data)}
-	if live := p.syncer.LiveGame(userID); live != nil {
-		out["lol_live"] = live
+	// No viewer on this interface, so the self exception cannot apply here.
+	if u, err := p.st.GetUserByID(ctx, userID); err == nil && showLive(u.ActivityVisible, userID, "") {
+		if live := p.syncer.LiveGame(userID); live != nil {
+			out["lol_live"] = live
+		}
 	}
 	return out, nil
 }
