@@ -52,6 +52,17 @@ if your public URL differs from `https://<KFIRE_DOMAIN>`.
 | `KFIRE_ORG_NAME` | | organization display name |
 | `KFIRE_OPEN_REGISTRATION` | | `false` = invite-only (recommended) |
 | `KFIRE_STEAM_API_KEY` | optional | enables the Steam connector |
+| `KFIRE_RIOT_CLIENT_ID` | optional | RSO application client ID |
+| `KFIRE_RIOT_CLIENT_SECRET` | optional | RSO application client secret |
+| `KFIRE_RIOT_LOL_KEY` | optional | League of Legends API key |
+| `KFIRE_RIOT_LIVE_POLL_INTERVAL` | | period of the live-game polling loop, default one minute, floor of thirty seconds |
+
+`KFIRE_RIOT_CLIENT_ID`, `KFIRE_RIOT_CLIENT_SECRET`, and `KFIRE_RIOT_LOL_KEY` are all
+optional. Leaving any of them unset simply disables the Riot connector and the League
+of Legends plugin, the server still starts normally. The redirect URI to register on
+the Riot developer portal is `<KFIRE_PUBLIC_URL>/api/v1/connect/riot/callback`. It must
+match, character for character, the one registered with Riot, otherwise the code
+exchange fails with an unhelpful error.
 
 ## First run
 

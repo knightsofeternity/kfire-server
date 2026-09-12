@@ -121,8 +121,20 @@ requesting per-member game detail.
    blocks through non-plugin code paths, ensure the new plugin returns blocks
    with the same JSON shape so existing clients and API consumers are not broken.
 
-The next planned plugin is **League of Legends** (`lol`), which requires the
-Riot connector to be available.
+**League of Legends** (`lol`) requires the `riot` connector. It differs from the
+other three plugins in three ways:
+
+- Its connector's availability depends on three environment variables instead
+  of one: two RSO OAuth credentials, `KFIRE_RIOT_CLIENT_ID` and
+  `KFIRE_RIOT_CLIENT_SECRET`, plus a League of Legends API key,
+  `KFIRE_RIOT_LOL_KEY`. All three must be set for `Available()` to return `true`.
+- No token is kept for the member. RSO proves ownership once at link time, and
+  every later read uses the server's own API key, so the link never expires.
+  This is unlike Battle.net, where the member has to reconnect once their
+  stored token goes stale.
+- Disabling it also stops the background loop that polls for members currently
+  in a League game, not just the two rich blocks (`lol_profile` and the live
+  game indicator).
 
 ## Architecture pointers
 
