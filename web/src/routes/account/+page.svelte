@@ -24,19 +24,25 @@
 	let bnBusy = $state(false);
 	let xbox = $derived(connections.find((c) => c.provider === 'xbox'));
 	let xboxBusy = $state(false);
+	let riot = $derived(connections.find((c) => c.provider === 'riot'));
+	let riotBusy = $state(false);
+	let riotRegion = $state<string | null>(null);
+	let riotRegionSaving = $state(false);
 
 	// Which connectors this instance has configured. A card is shown when its
 	// connector is enabled OR the member already linked it (so they can still
 	// unlink an account after an admin disables the connector).
-	let connectors = $state({ steam: true, battlenet: true, xbox: true });
+	let connectors = $state({ steam: true, battlenet: true, xbox: true, riot: true });
 	let showSteam = $derived(connectors.steam || !!steam);
 	let showBattlenet = $derived(connectors.battlenet || !!battlenet);
 	let showXbox = $derived(connectors.xbox || !!xbox);
+	let showRiot = $derived(connectors.riot || !!riot);
 
-	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
+	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=… / ?riot=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
 	const xboxResult = $derived(page.url.searchParams.get('xbox'));
+	const riotResult = $derived(page.url.searchParams.get('riot'));
 	const linkMessageKeys: Record<string, string> = {
 		linked: 'account.linkResult.linked',
 		denied: 'account.linkResult.denied',
@@ -57,6 +63,16 @@
 		try {
 			const profile = await api.getProfile(user.id);
 			connections = profile.connections;
+			if (connections.some((c) => c.provider === 'riot')) loadRiotRegion();
+		} catch {
+			/* non-fatal */
+		}
+	}
+
+	async function loadRiotRegion() {
+		try {
+			const region = await api.getRiotRegion();
+			riotRegion = region?.platform ?? null;
 		} catch {
 			/* non-fatal */
 		}
@@ -169,6 +185,39 @@
 			connections = connections.filter((c) => c.provider !== 'xbox');
 		} finally {
 			xboxBusy = false;
+		}
+	}
+
+	async function linkRiot() {
+		riotBusy = true;
+		try {
+			window.location.href = await api.startRiotLink();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Riot is not configured on this instance';
+			riotBusy = false;
+		}
+	}
+
+	async function unlinkRiot() {
+		riotBusy = true;
+		try {
+			await api.unlinkRiot();
+			connections = connections.filter((c) => c.provider !== 'riot');
+			riotRegion = null;
+		} finally {
+			riotBusy = false;
+		}
+	}
+
+	async function changeRiotRegion(platform: string) {
+		riotRegion = platform;
+		riotRegionSaving = true;
+		try {
+			await api.setRiotRegion(platform);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'failed to update region';
+		} finally {
+			riotRegionSaving = false;
 		}
 	}
 </script>
@@ -444,6 +493,75 @@
 			{/if}
 		</div>
 
+		{/if}
+
+		{#if riotResult}
+			<p
+				class="mt-3 px-3 py-2 text-sm pd-cut-sm {riotResult === 'linked'
+					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
+					: 'bg-red-500/10 text-red-400'}"
+			>
+				{linkMessageKeys[riotResult] ? t(linkMessageKeys[riotResult]) : t('common.unknownResult')}
+				<button class="ml-2 underline" onclick={() => goto('/account')}>{t('common.dismiss')}</button>
+			</p>
+		{/if}
+
+		{#if showRiot}
+		<!-- Riot Games -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[#c8302633]/15 text-xs font-bold text-[#eb0029]">R</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">{t('account.riot.title')}</p>
+					{#if riot}
+						<p class="text-sm text-[var(--color-muted)]">
+							{riot.display_name ?? riot.provider_user_id}
+						</p>
+					{:else}
+						<p class="text-sm text-[var(--color-muted)]">{t('account.notLinked')}</p>
+					{/if}
+				</div>
+			</div>
+			{#if riot}
+				<button
+					onclick={unlinkRiot}
+					disabled={riotBusy}
+					class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+				>
+					{t('account.riot.unlink')}
+				</button>
+			{:else}
+				<button
+					onclick={linkRiot}
+					disabled={riotBusy}
+					class="btn-pd violet disabled:opacity-60"
+				>
+					{riotBusy ? '...' : t('account.riot.link')}
+				</button>
+			{/if}
+		</div>
+
+		{#if !riot}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.riot.blurb')}</p>
+		{/if}
+
+		{#if riot}
+			<label class="mt-2 flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+				{t('account.riot.region')}
+				<select
+					value={riotRegion ?? ''}
+					disabled={riotRegionSaving || riotRegion === null}
+					onchange={(e) => changeRiotRegion(e.currentTarget.value)}
+					class="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+				>
+					{#each ['br1', 'eun1', 'euw1', 'jp1', 'kr', 'la1', 'la2', 'me1', 'na1', 'oc1', 'ph2', 'ru', 'sg2', 'th2', 'tr1', 'tw2', 'vn2'] as platform (platform)}
+						<option value={platform}>{platform}</option>
+					{/each}
+				</select>
+			</label>
+		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('common.riotDisclaimer')}</p>
 		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">

@@ -9,7 +9,9 @@ export const fr: Catalog = {
 		dismiss: 'fermer',
 		remove: 'Retirer',
 		signOut: 'Se déconnecter',
-		unknownResult: 'Résultat inconnu.'
+		unknownResult: 'Résultat inconnu.',
+		riotDisclaimer:
+			"KFIRE n'est pas approuvé par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque participe officiellement à la production ou à la gestion des propriétés de Riot Games."
 	},
 	nav: {
 		dashboard: 'Tableau de bord',
@@ -170,7 +172,7 @@ export const fr: Catalog = {
 		notLinked: 'Non lié',
 		unlink: 'Délier',
 		connectedAccounts: 'Comptes connectés',
-		comingNext: 'Riot, Epic et PlayStation arrivent bientôt.',
+		comingNext: 'Epic et PlayStation arrivent bientôt.',
 		privacy: {
 			title: 'Confidentialité',
 			toggleLabel: 'Afficher mon activité de jeu',
@@ -225,6 +227,13 @@ export const fr: Catalog = {
 			link: 'Lier Xbox',
 			linking: 'Liaison… (~30s)',
 			slowHint: 'La liaison peut prendre ~30s après la connexion Microsoft — ne ferme pas l’onglet.'
+		},
+		riot: {
+			title: 'Riot Games',
+			blurb: 'Liez votre compte Riot pour afficher votre rang League of Legends, vos champions et vos dernières parties.',
+			region: 'Région League',
+			link: 'Lier mon compte Riot',
+			unlink: 'Délier'
 		},
 		bnetReconnectStats: 'Reconnecte Battle.net pour activer tes stats de jeu'
 	},

@@ -406,6 +406,33 @@ export const api = {
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
 	},
 
+	/** Returns the Riot Sign On authorization URL to navigate to. */
+	async startRiotLink(): Promise<string> {
+		const data = await json<{ url: string }>(await authFetch('/api/v1/connect/riot'));
+		return data.url;
+	},
+
+	async unlinkRiot(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/riot', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	/** Returns the member's detected League platform, or null when not linked. */
+	async getRiotRegion(): Promise<{ platform: string; source: string } | null> {
+		const res = await authFetch('/api/v1/connect/riot/region');
+		if (res.status === 404) return null;
+		return json(res);
+	},
+
+	/** Corrects the member's League platform when auto-detection got it wrong. */
+	async setRiotRegion(platform: string): Promise<void> {
+		const res = await authFetch('/api/v1/connect/riot/region', {
+			method: 'PATCH',
+			body: JSON.stringify({ platform })
+		});
+		if (!res.ok) throw new Error('failed to set region');
+	},
+
 	// --- admin ---------------------------------------------------------------
 
 	async getMembers(): Promise<Member[]> {
@@ -518,7 +545,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
-	connectors: { steam: boolean; battlenet: boolean; xbox: boolean };
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean };
 }> {
 	const res = await fetch('/api/v1/config');
 	return res.ok
@@ -531,7 +558,7 @@ export async function getConfig(): Promise<{
 				has_logo: false,
 				// Fail open: if config can't be loaded, still offer the connectors
 				// rather than hiding working ones on a transient error.
-				connectors: { steam: true, battlenet: true, xbox: true }
+				connectors: { steam: true, battlenet: true, xbox: true, riot: true }
 			};
 }
 
