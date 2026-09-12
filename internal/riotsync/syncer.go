@@ -3,6 +3,7 @@ package riotsync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -80,10 +81,20 @@ func (s *Syncer) RefreshLoL(ctx context.Context, userID, gameID string) {
 	}
 	acc, err := s.store.RiotAccountFor(ctx, userID)
 	if err != nil {
-		return // not linked
+		// Not linked is the common, expected case and stays quiet; anything
+		// else is a real database failure and must be visible.
+		if !errors.Is(err, store.ErrNotFound) {
+			slog.Warn("riotsync: read riot account", "user_id", userID, "err", err)
+		}
+		return
 	}
 	synced, err := s.store.RiotProfileSyncedAt(ctx, userID, gameID)
-	if err != nil || time.Since(synced) < throttle {
+	if err != nil {
+		slog.Warn("riotsync: read sync time", "user_id", userID, "err", err)
+		return // fail closed: with the database down, eight Riot calls would
+		// only end in a failed write
+	}
+	if time.Since(synced) < throttle {
 		return
 	}
 
