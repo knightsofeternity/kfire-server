@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // Account is one Riot account's identity.
@@ -64,7 +65,7 @@ func (c *Connector) get(ctx context.Context, host, path string, out any) error {
 // AccountByPUUID resolves a PUUID to its current Riot ID.
 func (c *Connector) AccountByPUUID(ctx context.Context, puuid string) (Account, error) {
 	var acc Account
-	err := c.get(ctx, accountCluster, "/riot/account/v1/accounts/by-puuid/"+puuid, &acc)
+	err := c.get(ctx, accountCluster, "/riot/account/v1/accounts/by-puuid/"+url.PathEscape(puuid), &acc)
 	return acc, err
 }
 
@@ -73,7 +74,7 @@ func (c *Connector) ActiveRegion(ctx context.Context, puuid string) (string, err
 	var out struct {
 		Region string `json:"region"`
 	}
-	path := "/riot/account/v1/region/by-game/lol/by-puuid/" + puuid
+	path := "/riot/account/v1/region/by-game/lol/by-puuid/" + url.PathEscape(puuid)
 	if err := c.get(ctx, accountCluster, path, &out); err != nil {
 		return "", err
 	}

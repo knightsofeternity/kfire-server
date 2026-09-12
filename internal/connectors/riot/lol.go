@@ -3,6 +3,7 @@ package riot
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -67,7 +68,7 @@ func (c *Connector) LeagueEntries(ctx context.Context, platform, puuid string) (
 		Losses       int    `json:"losses"`
 		HotStreak    bool   `json:"hotStreak"`
 	}
-	if err := c.get(ctx, platform, "/lol/league/v4/entries/by-puuid/"+puuid, &raw); err != nil {
+	if err := c.get(ctx, platform, "/lol/league/v4/entries/by-puuid/"+url.PathEscape(puuid), &raw); err != nil {
 		return nil, err
 	}
 	out := make([]RankEntry, 0, len(raw))
@@ -91,7 +92,7 @@ func (c *Connector) TopChampions(ctx context.Context, platform, puuid string, n 
 		ChampionLevel  int `json:"championLevel"`
 		ChampionPoints int `json:"championPoints"`
 	}
-	path := "/lol/champion-mastery/v4/champion-masteries/by-puuid/" + puuid +
+	path := "/lol/champion-mastery/v4/champion-masteries/by-puuid/" + url.PathEscape(puuid) +
 		"/top?count=" + strconv.Itoa(n)
 	if err := c.get(ctx, platform, path, &raw); err != nil {
 		return nil, err
@@ -114,7 +115,7 @@ func (c *Connector) TopChampions(ctx context.Context, platform, puuid string, n 
 // partial answer still shows some recent form.
 func (c *Connector) RecentMatches(ctx context.Context, cluster, puuid string, n int) ([]MatchResult, error) {
 	var ids []string
-	path := fmt.Sprintf("/lol/match/v5/matches/by-puuid/%s/ids?start=0&count=%d", puuid, n)
+	path := fmt.Sprintf("/lol/match/v5/matches/by-puuid/%s/ids?start=0&count=%d", url.PathEscape(puuid), n)
 	if err := c.get(ctx, cluster, path, &ids); err != nil {
 		return nil, err
 	}
@@ -161,7 +162,7 @@ func (c *Connector) matchDetail(ctx context.Context, cluster, matchID, puuid str
 			} `json:"participants"`
 		} `json:"info"`
 	}
-	if err := c.get(ctx, cluster, "/lol/match/v5/matches/"+matchID, &raw); err != nil {
+	if err := c.get(ctx, cluster, "/lol/match/v5/matches/"+url.PathEscape(matchID), &raw); err != nil {
 		return MatchResult{}, err
 	}
 	for _, p := range raw.Info.Participants {
@@ -192,7 +193,7 @@ func (c *Connector) ActiveGame(ctx context.Context, platform, puuid string) (*Li
 			ChampionID int    `json:"championId"`
 		} `json:"participants"`
 	}
-	path := "/lol/spectator/v5/active-games/by-summoner/" + puuid
+	path := "/lol/spectator/v5/active-games/by-summoner/" + url.PathEscape(puuid)
 	if err := c.get(ctx, platform, path, &raw); err != nil {
 		if NotFound(err) {
 			return nil, nil

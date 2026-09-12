@@ -64,6 +64,15 @@ func TestActiveRegionOn404ReturnsAnError(t *testing.T) {
 	}
 }
 
+func TestActiveRegionOnEmptyRegionReturnsAnError(t *testing.T) {
+	c := fakeRiot(t, map[string]string{
+		"/europe/riot/account/v1/region/by-game/lol/by-puuid/P1": `{"puuid":"P1","game":"lol","region":""}`,
+	})
+	if _, err := c.ActiveRegion(context.Background(), "P1"); err == nil {
+		t.Fatal("an empty active region must be refused, it would route every later call wrong")
+	}
+}
+
 func TestNotFoundRecognisesA404AndNothingElse(t *testing.T) {
 	c := fakeRiot(t, map[string]string{})
 	_, err := c.ActiveRegion(context.Background(), "nobody")
