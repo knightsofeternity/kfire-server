@@ -39,6 +39,7 @@ func (h *handlers) publicConfig(c *fiber.Ctx) error {
 			"steam":     h.steam != nil && h.steam.Enabled(),
 			"battlenet": h.battlenet != nil && h.battlenet.Enabled(),
 			"xbox":      h.xbox != nil && h.xbox.Enabled(),
+			"riot":      h.riot != nil && h.riot.Enabled(),
 		},
 		"game_plugins": h.plugins.Active(),
 	})

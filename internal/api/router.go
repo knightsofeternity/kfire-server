@@ -24,6 +24,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
+	"github.com/knightsofeternity/kfire-server/internal/riotsync"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -40,6 +41,7 @@ type handlers struct {
 	bnetSync  *bnetsync.Syncer
 	xbox      *xbox.Connector
 	riot      *riot.Connector
+	riotSync  *riotsync.Syncer
 	cipher    *crypto.Cipher
 	plugins   *gameplugin.Registry
 }
@@ -69,10 +71,19 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	}
 	bnConn.APIBase = cfg.BattlenetAPIBase
 	bnetSync := bnetsync.New(st, bnConn, cipher, cfg.BattlenetRegion)
+	riotConn := riot.New(cfg.RiotClientID, cfg.RiotClientSecret, cfg.RiotLolKey)
+	if cfg.RiotAuthBase != "" {
+		riotConn.AuthBase = cfg.RiotAuthBase
+	}
+	if cfg.RiotAPIBase != "" {
+		riotConn.APIHostTmpl = cfg.RiotAPIBase
+	}
+	riotSync := riotsync.New(st, riotConn, riot.NewDataDragon())
 	plugins := gameplugin.NewRegistry(st)
 	plugins.Register(bnetsync.NewWowPlugin(st, bnetSync, bnConn))
 	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "d3", "Diablo III", "diablo-iii"))
 	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "sc2", "StarCraft II", "starcraft-ii-battle-chest"))
+	plugins.Register(riotsync.NewLolPlugin(st, riotSync, riotConn))
 	if err := plugins.Load(context.Background()); err != nil {
 		slog.Error("game plugins load", "err", err)
 	}
@@ -80,7 +91,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	if cfg.XblAPIBase != "" {
 		xblConn.APIBase = cfg.XblAPIBase
 	}
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, cipher: cipher, plugins: plugins}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, riot: riotConn, riotSync: riotSync, cipher: cipher, plugins: plugins}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -138,6 +149,12 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/connect/xbox", h.requireAuth, h.connectXboxStart)
 	v1.Get("/connect/xbox/callback", h.connectXboxCallback)
 	v1.Delete("/connect/xbox", h.requireAuth, h.disconnectXbox)
+
+	v1.Get("/connect/riot", h.requireAuth, h.connectRiotStart)
+	v1.Get("/connect/riot/callback", h.connectRiotCallback)
+	v1.Get("/connect/riot/region", h.requireAuth, h.riotRegion)
+	v1.Patch("/connect/riot/region", h.requireAuth, h.updateRiotRegion)
+	v1.Delete("/connect/riot", h.requireAuth, h.disconnectRiot)
 
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Get("/games/catalog", h.gamesCatalogStatus)
