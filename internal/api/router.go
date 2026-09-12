@@ -64,7 +64,7 @@ func rateLimiter(max int) fiber.Handler {
 }
 
 // Register mounts every route on the Fiber app.
-func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer, cipher *crypto.Cipher) {
+func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer, cipher *crypto.Cipher) *riotsync.Syncer {
 	bnConn := battlenet.New(cfg.BattlenetClientID, cfg.BattlenetClientSecret)
 	if cfg.BattlenetOAuthBase != "" {
 		bnConn.OAuthBase = cfg.BattlenetOAuthBase
@@ -203,6 +203,8 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	app.Get("/img/games/:id/:kind", h.gameImage)
 	// Org logo (public: shown in the header and on the login screen).
 	app.Get("/img/org/logo", h.orgLogo)
+
+	return riotSync
 }
 
 func notImplemented(c *fiber.Ctx) error {

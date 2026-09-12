@@ -118,7 +118,13 @@ func main() {
 		go xs.Run(pollCtx, cfg.XboxPollInterval)
 	}
 
-	api.Register(app, cfg, st, hub, steamConn, syncer, cipher)
+	riotSync := api.Register(app, cfg, st, hub, steamConn, syncer, cipher)
+
+	// League live-game loop. It reads open League sessions first, so it costs
+	// nothing while nobody is playing.
+	if cfg.RiotClientID != "" && cfg.RiotClientSecret != "" && cfg.RiotLolKey != "" {
+		go riotSync.RunLive(pollCtx, cfg.RiotLivePollInterval)
+	}
 
 	// Serve the embedded admin SPA (when built). Mounted last so API and
 	// WebSocket routes take precedence.
