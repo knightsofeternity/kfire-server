@@ -1,0 +1,119 @@
+package riotsync
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"time"
+
+	"github.com/knightsofeternity/kfire-server/internal/connectors/riot"
+	"github.com/knightsofeternity/kfire-server/internal/store"
+)
+
+// throttle bounds how often a member's League data is refreshed from Riot.
+const throttle = time.Hour
+
+// recentMatchCount is how many recent matches the card shows. Each one costs a
+// detail call, so this number is the bulk of a refresh's cost.
+const recentMatchCount = 5
+
+// topChampionCount is how many mastery champions the card shows.
+const topChampionCount = 3
+
+// Syncer refreshes League data lazily, on view, and never in the background.
+type Syncer struct {
+	store *store.Store
+	riot  *riot.Connector
+	dd    *riot.DataDragon
+}
+
+// New returns a syncer.
+func New(st *store.Store, conn *riot.Connector, dd *riot.DataDragon) *Syncer {
+	return &Syncer{store: st, riot: conn, dd: dd}
+}
+
+// profile is the stored blob's shape. It is the contract with the SPA.
+type profile struct {
+	RiotID    string                 `json:"riot_id"`
+	Platform  string                 `json:"platform"`
+	SoloScore int                    `json:"solo_score"`
+	Ranks     []riot.RankEntry       `json:"ranks"`
+	Champions []riot.ChampionMastery `json:"top_champions"`
+	Recent    []riot.MatchResult     `json:"recent"`
+}
+
+// buildProfile assembles the stored blob. Empty slices are materialised so the
+// JSON carries [] rather than null and the SPA can iterate without a guard.
+func buildProfile(riotID, platform string, ranks []riot.RankEntry,
+	champions []riot.ChampionMastery, recent []riot.MatchResult) []byte {
+
+	if ranks == nil {
+		ranks = []riot.RankEntry{}
+	}
+	if champions == nil {
+		champions = []riot.ChampionMastery{}
+	}
+	if recent == nil {
+		recent = []riot.MatchResult{}
+	}
+	blob, err := json.Marshal(profile{
+		RiotID: riotID, Platform: platform, SoloScore: SoloScore(ranks),
+		Ranks: ranks, Champions: champions, Recent: recent,
+	})
+	if err != nil {
+		// profile holds only plain types; marshalling cannot fail. Return an
+		// empty object rather than panicking in a request path.
+		return []byte(`{}`)
+	}
+	return blob
+}
+
+// RefreshLoL refreshes one member's League data if the throttle window has
+// elapsed. Safe to call on every page view.
+//
+// Cost when it does run: eight calls. Ranks, mastery, the match id list, then
+// one detail per match, the details in parallel.
+func (s *Syncer) RefreshLoL(ctx context.Context, userID, gameID string) {
+	if s.riot == nil || !s.riot.Enabled() {
+		return // connector not configured on this instance
+	}
+	acc, err := s.store.RiotAccountFor(ctx, userID)
+	if err != nil {
+		return // not linked
+	}
+	synced, err := s.store.RiotProfileSyncedAt(ctx, userID, gameID)
+	if err != nil || time.Since(synced) < throttle {
+		return
+	}
+
+	ranks, err := s.riot.LeagueEntries(ctx, acc.Platform, acc.PUUID)
+	if err != nil {
+		// Nothing is written, so last_synced_at stays put and the next view
+		// retries. A 429 lands here and simply backs off.
+		slog.Warn("riotsync: league entries", "user_id", userID, "err", err)
+		return
+	}
+	champions, err := s.riot.TopChampions(ctx, acc.Platform, acc.PUUID, topChampionCount)
+	if err != nil {
+		slog.Warn("riotsync: champion mastery", "user_id", userID, "err", err)
+		return
+	}
+	for i := range champions {
+		name, icon, err := s.dd.Champion(ctx, champions[i].ChampionID)
+		if err != nil {
+			continue // Data Dragon down: the SPA falls back to the bare id
+		}
+		champions[i].Name, champions[i].IconURL = name, icon
+	}
+	// A failing match list costs the recent-form block only; ranks and mastery
+	// are still worth storing.
+	recent, err := s.riot.RecentMatches(ctx, acc.MatchCluster, acc.PUUID, recentMatchCount)
+	if err != nil {
+		slog.Warn("riotsync: recent matches", "user_id", userID, "err", err)
+	}
+
+	blob := buildProfile(acc.RiotID, acc.Platform, ranks, champions, recent)
+	if err := s.store.UpsertRiotProfile(ctx, userID, gameID, blob); err != nil {
+		slog.Error("riotsync: store profile", "user_id", userID, "err", err)
+	}
+}
