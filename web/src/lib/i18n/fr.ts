@@ -156,7 +156,21 @@ export const fr: Catalog = {
 		win: 'Victoire',
 		loss: 'Défaite',
 		hotStreak: 'En série',
-		inGame: 'En partie'
+		inGame: 'En partie',
+		nowPlayingCount: 'en jeu',
+		linkedMembers: 'Membres liés',
+		playedThisWeek: 'Joué cette semaine',
+		playersThisWeek: 'Ont joué ces 7 derniers jours',
+		mostPlayed: 'Champion le plus joué',
+		mostPlayedHint: 'sur les 5 dernières parties de chacun',
+		podium: 'Podium',
+		spread: 'Répartition des paliers',
+		member: 'Membre',
+		soloQueue: 'Solo/Duo',
+		mainChampion: 'Champion principal',
+		formLabel: 'Cinq dernières',
+		winsLabel: 'Victoires',
+		lp: 'PL'
 	},
 	leaderboards: {
 		title: 'Classements de la semaine',

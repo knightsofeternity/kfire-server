@@ -155,7 +155,21 @@ export const en = {
 		win: 'Win',
 		loss: 'Loss',
 		hotStreak: 'On a streak',
-		inGame: 'In game'
+		inGame: 'In game',
+		nowPlayingCount: 'in game',
+		linkedMembers: 'Linked members',
+		playedThisWeek: 'Played this week',
+		playersThisWeek: 'Played in the last 7 days',
+		mostPlayed: 'Most played champion',
+		mostPlayedHint: 'across everyone last five games',
+		podium: 'Podium',
+		spread: 'Tier spread',
+		member: 'Member',
+		soloQueue: 'Solo/Duo',
+		mainChampion: 'Main champion',
+		formLabel: 'Last five',
+		winsLabel: 'Wins',
+		lp: 'LP'
 	},
 	leaderboards: {
 		title: 'Weekly leaderboards',

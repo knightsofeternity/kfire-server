@@ -65,7 +65,8 @@ export type LolRank = {
 export type LolChampion = {
 	champion_id: number;
 	name: string;
-	icon_url?: string;
+	image_id: string;
+	icon_url: string;
 	level: number;
 	points: number;
 };
