@@ -122,7 +122,7 @@ func main() {
 
 	// League live-game loop. It reads open League sessions first, so it costs
 	// nothing while nobody is playing.
-	if cfg.RiotClientID != "" && cfg.RiotClientSecret != "" && cfg.RiotLolKey != "" {
+	if cfg.RiotLolKey != "" {
 		go riotSync.RunLive(pollCtx, cfg.RiotLivePollInterval)
 	}
 

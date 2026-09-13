@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -11,9 +12,8 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-func (h *handlers) riotRedirectURI() string {
-	return h.cfg.PublicURL + "/api/v1/connect/riot/callback"
-}
+// maxRiotIDBytes bounds the typed Riot ID before it reaches Riot.
+const maxRiotIDBytes = 100
 
 // validPlatform reports whether p is a League platform KFIRE routes to. The
 // value reaches a URL path, so it is checked against the known list rather than
@@ -22,56 +22,71 @@ func validPlatform(p string) bool {
 	return slices.Contains(riot.KnownPlatforms(), p)
 }
 
-// GET /api/v1/connect/riot  (authenticated)
+// splitRiotID splits a typed Riot ID, "Name#TAG", on its LAST '#': a Riot game
+// name may itself contain '#', so only the last separator is authoritative.
+// Each half is trimmed of surrounding whitespace independently, since a member
+// pasting a Riot ID often carries a stray space next to the '#'. ok is false
+// when there is no '#', either half is empty once trimmed, or the input is
+// implausibly long.
+func splitRiotID(s string) (gameName, tagLine string, ok bool) {
+	if len(s) > maxRiotIDBytes {
+		return "", "", false
+	}
+	i := strings.LastIndex(s, "#")
+	if i < 0 {
+		return "", "", false
+	}
+	gameName = strings.TrimSpace(s[:i])
+	tagLine = strings.TrimSpace(s[i+1:])
+	if gameName == "" || tagLine == "" {
+		return "", "", false
+	}
+	return gameName, tagLine, true
+}
+
+// POST /api/v1/connect/riot  (authenticated)
 //
-// Returns the RSO authorization URL for the SPA to navigate to.
-func (h *handlers) connectRiotStart(c *fiber.Ctx) error {
+// Links the caller's KFIRE account to a Riot account resolved from a typed
+// Riot ID. This Riot product carries only an API key, with no RSO
+// application, so there is no OAuth flow to prove ownership: linking trusts
+// the Riot ID the member types, the same way public stats sites do.
+func (h *handlers) connectRiot(c *fiber.Ctx) error {
 	if h.riot == nil || !h.riot.Enabled() {
 		return errorJSON(c, fiber.StatusNotImplemented, "connector_disabled",
 			"the Riot connector is not configured on this instance")
 	}
-	state := signState([]byte(h.cfg.JWTSecret), mustClaims(c).UserID)
-	return c.JSON(fiber.Map{"url": h.riot.AuthURL(state, h.riotRedirectURI())})
-}
 
-// GET /api/v1/connect/riot/callback  (public - browser redirect)
-//
-// Exchanges the code, reads the PUUID, then discards the tokens: every later
-// read uses the server's API key.
-func (h *handlers) connectRiotCallback(c *fiber.Ctx) error {
-	if h.riot == nil || !h.riot.Enabled() {
-		return c.Redirect("/account?riot=error")
+	var body struct {
+		RiotID string `json:"riot_id"`
 	}
-	if c.Query("error") != "" {
-		return c.Redirect("/account?riot=denied")
+	if err := c.BodyParser(&body); err != nil {
+		return errorJSON(c, fiber.StatusBadRequest, "invalid_riot_id",
+			"riot_id must be \"Name#TAG\"")
 	}
-	userID, ok := verifyState([]byte(h.cfg.JWTSecret), c.Query("state"))
+	gameName, tagLine, ok := splitRiotID(body.RiotID)
 	if !ok {
-		return c.Redirect("/account?riot=expired")
-	}
-	code := c.Query("code")
-	if code == "" {
-		return c.Redirect("/account?riot=denied")
+		return errorJSON(c, fiber.StatusBadRequest, "invalid_riot_id",
+			"riot_id must be \"Name#TAG\"")
 	}
 
-	token, err := h.riot.ExchangeCode(c.UserContext(), code, h.riotRedirectURI())
-	if err != nil {
-		slog.Warn("riot: exchange code", "err", err)
-		return c.Redirect("/account?riot=denied")
+	userID := mustClaims(c).UserID
+	acc, err := h.riot.AccountByRiotID(c.UserContext(), gameName, tagLine)
+	if riot.NotFound(err) {
+		return errorJSON(c, fiber.StatusNotFound, "riot_id_not_found",
+			"Riot does not know this Riot ID")
 	}
-	puuid, err := h.riot.UserPUUID(c.UserContext(), token)
 	if err != nil {
-		slog.Warn("riot: read puuid", "err", err)
-		return c.Redirect("/account?riot=denied")
+		return err
 	}
 
 	// One Riot account per member.
-	taken, err := h.store.ProviderLinkedToOther(c.Context(), "riot", puuid, userID)
+	taken, err := h.store.ProviderLinkedToOther(c.Context(), "riot", acc.PUUID, userID)
 	if err != nil {
 		return err
 	}
 	if taken {
-		return c.Redirect("/account?riot=conflict")
+		return errorJSON(c, fiber.StatusConflict, "already_linked",
+			"this Riot account is already linked to another member")
 	}
 
 	// Resolve the League platform BEFORE writing anything. A failure is not
@@ -79,15 +94,16 @@ func (h *handlers) connectRiotCallback(c *fiber.Ctx) error {
 	// page. Resolving first keeps the two rows, identity and routing, from
 	// ever being written apart.
 	platform := "euw1"
-	if p, err := h.riot.ActiveRegion(c.UserContext(), puuid); err != nil {
+	if p, err := h.riot.ActiveRegion(c.UserContext(), acc.PUUID); err != nil {
 		slog.Warn("riot: resolve active region", "user_id", userID, "err", err)
 	} else if validPlatform(p) {
 		platform = p
 	}
 
-	account := store.LinkedAccount{Provider: "riot", ProviderUserID: puuid}
-	if acc, err := h.riot.AccountByPUUID(c.UserContext(), puuid); err == nil {
-		account.DisplayName = strPtr(acc.RiotID())
+	account := store.LinkedAccount{
+		Provider:       "riot",
+		ProviderUserID: acc.PUUID,
+		DisplayName:    strPtr(acc.RiotID()),
 	}
 	if err := h.store.UpsertLinkedAccount(c.Context(), userID, account); err != nil {
 		return err
@@ -102,7 +118,7 @@ func (h *handlers) connectRiotCallback(c *fiber.Ctx) error {
 		}
 		return err
 	}
-	return c.Redirect("/account?riot=linked")
+	return c.JSON(fiber.Map{"riot_id": acc.RiotID(), "platform": platform})
 }
 
 // DELETE /api/v1/connect/riot  (authenticated)

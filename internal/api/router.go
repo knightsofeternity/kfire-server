@@ -71,10 +71,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	}
 	bnConn.APIBase = cfg.BattlenetAPIBase
 	bnetSync := bnetsync.New(st, bnConn, cipher, cfg.BattlenetRegion)
-	riotConn := riot.New(cfg.RiotClientID, cfg.RiotClientSecret, cfg.RiotLolKey)
-	if cfg.RiotAuthBase != "" {
-		riotConn.AuthBase = cfg.RiotAuthBase
-	}
+	riotConn := riot.New(cfg.RiotLolKey)
 	if cfg.RiotAPIBase != "" {
 		riotConn.APIHostTmpl = cfg.RiotAPIBase
 	}
@@ -157,8 +154,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/connect/xbox/callback", h.connectXboxCallback)
 	v1.Delete("/connect/xbox", h.requireAuth, h.disconnectXbox)
 
-	v1.Get("/connect/riot", h.requireAuth, h.connectRiotStart)
-	v1.Get("/connect/riot/callback", h.connectRiotCallback)
+	v1.Post("/connect/riot", h.requireAuth, h.connectRiot)
 	v1.Get("/connect/riot/region", h.requireAuth, h.riotRegion)
 	v1.Patch("/connect/riot/region", h.requireAuth, h.updateRiotRegion)
 	v1.Delete("/connect/riot", h.requireAuth, h.disconnectRiot)
