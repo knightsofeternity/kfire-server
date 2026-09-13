@@ -242,6 +242,13 @@ export const en = {
 			title: 'Riot Games',
 			blurb: 'Link your Riot account to show your League of Legends rank, champions and recent games.',
 			region: 'League region',
+			errors: {
+				invalidRiotId: 'A Riot ID looks like Name#TAG.',
+				notFound: 'Riot does not know this Riot ID. Check the spelling and the tag.',
+				alreadyLinked: 'This Riot account is already linked to another member.',
+				disabled: 'The Riot connector is not configured on this instance.',
+				rateLimited: 'Too many attempts. Wait a minute and try again.'
+			},
 			riotIdLabel: 'Riot ID',
 			riotIdPlaceholder: 'Name#EUW',
 			submit: 'Link account',

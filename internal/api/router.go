@@ -154,7 +154,10 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/connect/xbox/callback", h.connectXboxCallback)
 	v1.Delete("/connect/xbox", h.requireAuth, h.disconnectXbox)
 
-	v1.Post("/connect/riot", h.requireAuth, h.connectRiot)
+	// Linking hits Riot twice per call, against an application budget of 100
+	// requests every 2 minutes shared by every member. Rate limit it so one
+	// member retrying a typo cannot freeze everyone else's stats.
+	v1.Post("/connect/riot", rateLimiter(10), h.requireAuth, h.connectRiot)
 	v1.Get("/connect/riot/region", h.requireAuth, h.riotRegion)
 	v1.Patch("/connect/riot/region", h.requireAuth, h.updateRiotRegion)
 	v1.Delete("/connect/riot", h.requireAuth, h.disconnectRiot)

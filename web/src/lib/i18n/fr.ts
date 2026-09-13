@@ -244,6 +244,13 @@ export const fr: Catalog = {
 			title: 'Riot Games',
 			blurb: 'Liez votre compte Riot pour afficher votre rang League of Legends, vos champions et vos dernières parties.',
 			region: 'Région League',
+			errors: {
+				invalidRiotId: 'Un Riot ID ressemble à Nom#TAG.',
+				notFound: 'Riot ne connaît pas ce Riot ID. Vérifiez le pseudo et le tag.',
+				alreadyLinked: 'Ce compte Riot est déjà lié à un autre membre.',
+				disabled: "Le connecteur Riot n'est pas configuré sur cette instance.",
+				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
+			},
 			riotIdLabel: 'Riot ID',
 			riotIdPlaceholder: 'Nom#EUW',
 			submit: 'Lier le compte',

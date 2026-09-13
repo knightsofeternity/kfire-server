@@ -40,7 +40,7 @@
 	let showXbox = $derived(connectors.xbox || !!xbox);
 	let showRiot = $derived(connectors.riot || !!riot);
 
-	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=… / ?riot=…).
+	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
 	const xboxResult = $derived(page.url.searchParams.get('xbox'));
@@ -189,6 +189,24 @@
 		}
 	}
 
+	// The server answers in English. Translate the codes we know so a French
+	// member is not told off in another language, and fall back to whatever the
+	// server said for anything unforeseen.
+	const riotErrorKeys: Record<string, string> = {
+		invalid_riot_id: 'account.riot.errors.invalidRiotId',
+		riot_id_not_found: 'account.riot.errors.notFound',
+		already_linked: 'account.riot.errors.alreadyLinked',
+		connector_disabled: 'account.riot.errors.disabled',
+		rate_limited: 'account.riot.errors.rateLimited'
+	};
+
+	function riotErrorMessage(e: unknown): string {
+		const code = (e as { code?: string })?.code;
+		const key = code ? riotErrorKeys[code] : undefined;
+		if (key) return t(key);
+		return e instanceof Error ? e.message : t('common.unknownResult');
+	}
+
 	async function linkRiot() {
 		if (!riotIdInput.trim()) return;
 		riotBusy = true;
@@ -202,7 +220,7 @@
 			riotRegion = linked.platform;
 			riotIdInput = '';
 		} catch (e) {
-			riotError = e instanceof Error ? e.message : 'Riot is not configured on this instance';
+			riotError = riotErrorMessage(e);
 		} finally {
 			riotBusy = false;
 		}
