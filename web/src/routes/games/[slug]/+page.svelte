@@ -6,7 +6,10 @@
 	import { formatDuration } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
-	import { wowClassColor, wowClassIcon } from '$lib/wow';
+	import {
+		wowClassColor, wowClassIcon, wowRosters, wowMemberCount,
+		wowVersionName, wowVersionIcon
+	} from '$lib/wow';
 	import { inGame, mostPlayedChampion, podium, soloRank, tierSpread, winRate,
 	         crestURL, loadingArtURL, mainChampion, tierColour } from '$lib/lol';
 
@@ -53,6 +56,17 @@
 	const lolWeekSeconds = $derived(
 		(detail?.recent_players ?? []).reduce((n, p) => n + p.total_seconds, 0)
 	);
+
+	const wowChars = $derived(detail?.wow_characters ?? []);
+	const wowRosterList = $derived(wowRosters(wowChars));
+	// Which member cards have their full roster expanded, by user id.
+	let wowExpanded = $state(new Set<string>());
+	function toggleWowRoster(userId: string) {
+		const next = new Set(wowExpanded);
+		if (next.has(userId)) next.delete(userId);
+		else next.add(userId);
+		wowExpanded = next;
+	}
 
 	onMount(load);
 	async function load() {
@@ -261,31 +275,109 @@
 		</div>
 	{/if}
 
-	<!-- WoW Characters -->
-	{#if detail.wow_characters?.length}
+	<!-- WoW guild roster, grouped by member then by game version -->
+	{#if wowChars.length}
 		<section class="mt-6">
 			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
-				{t('game.wowCharacters')}
+				{t('game.wowRoster')}
 			</h2>
-			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-				{#each detail.wow_characters as ch}
-					<div class="pd-cut-sm flex items-center gap-3 px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-						{#if wowClassIcon(ch.class)}
-							<img
-								src={wowClassIcon(ch.class)}
-								alt={ch.class ?? ''}
-								class="h-8 w-8 shrink-0 rounded"
-								loading="lazy"
-								onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-							/>
-						{/if}
-						<div class="min-w-0 flex-1">
-							<p class="font-display font-semibold text-[var(--color-text)]">{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> - {ch.realm}</span>{/if}</p>
-							<p class="text-sm text-[var(--color-muted)]">
-								{#if ch.level}{t('game.level')} {ch.level} · {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.race || ch.class} · {/if}{t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} · M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} · {t('game.achievementPoints')} {ch.achievement_points}{/if}
-							</p>
+
+			<div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.wowMembers')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-text)]">{wowMemberCount(wowChars)}</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.wowCharacterCount')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-cyan)]">{wowChars.length}</p>
+				</div>
+				{#if detail.wow_synced_at}
+					<div class="pd-card p-3">
+						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.wowSyncedAt')}</p>
+						<p class="font-display text-lg font-bold text-[var(--color-text)]">
+							{new Date(detail.wow_synced_at).toLocaleDateString()}
+						</p>
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex flex-col gap-3">
+				{#each wowRosterList as r (r.userId)}
+					{@const open = wowExpanded.has(r.userId)}
+					{@const capped = r.groups.reduce((n, g) => n + Math.min(g.characters.length, 3), 0)}
+					<div class="pd-card p-3">
+						<div class="mb-2 flex items-center gap-2">
+							<Avatar username={r.username} url={r.avatarUrl} size={30} />
+							<a
+								href="/players/{r.userId}/games/{slug}"
+								class="font-display font-semibold text-[var(--color-text)] hover:underline"
+							>
+								{r.username}
+							</a>
+							<span class="text-xs text-[var(--color-muted)]">{r.total}</span>
 						</div>
+
+						{#each r.groups as g (g.version)}
+							{@const shown = open ? g.characters : g.characters.slice(0, 3)}
+							<div class="mt-2">
+								<p class="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-[var(--color-muted)]">
+									{#if wowVersionIcon(g.version)}
+										<img
+											src={wowVersionIcon(g.version)}
+											alt=""
+											width="16"
+											height="16"
+											loading="lazy"
+											class="rounded-sm"
+											onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+										/>
+									{/if}
+									{wowVersionName(g.version) || t('game.wowOtherVersion')}
+									<span class="text-[var(--color-muted)]/60">· {g.characters.length}</span>
+								</p>
+								<ul class="flex flex-col gap-1">
+									{#each shown as ch (ch.realm + ch.name)}
+										<li class="flex items-center gap-2 text-sm">
+											{#if wowClassIcon(ch.class)}
+												<img
+													src={wowClassIcon(ch.class)}
+													alt=""
+													width="20"
+													height="20"
+													loading="lazy"
+													class="shrink-0 rounded-sm"
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+												/>
+											{/if}
+											<span class="font-semibold" style="color:{wowClassColor(ch.class)}">{ch.name}</span>
+											{#if ch.realm}
+												<span class="truncate text-xs text-[var(--color-muted)]">{ch.realm}</span>
+											{/if}
+											<span class="ml-auto shrink-0 text-xs tabular-nums text-[var(--color-muted)]">
+												{ch.level ?? 0}
+												{#if ch.item_level > 0}
+													· {t('game.wowItemLevel')} {ch.item_level}
+												{/if}
+												{#if ch.mythic_rating}
+													· {t('game.wowMythic')} {Math.round(ch.mythic_rating)}
+												{/if}
+											</span>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/each}
+
+						{#if r.total > capped}
+							<button
+								type="button"
+								class="mt-2 font-display text-xs uppercase tracking-wide text-[var(--color-cyan)] hover:underline"
+								onclick={() => toggleWowRoster(r.userId)}
+							>
+								{open ? t('game.wowShowLess') : t('game.wowShowMore', { count: r.total - capped })}
+							</button>
+						{/if}
 					</div>
 				{/each}
 			</div>
