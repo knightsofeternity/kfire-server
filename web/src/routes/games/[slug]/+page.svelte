@@ -39,6 +39,17 @@
 	const lolPodium = $derived(podium(lolPlayers));
 	const lolSpread = $derived(tierSpread(lolPlayers));
 	const lolMostPlayed = $derived(mostPlayedChampion(lolPlayers));
+	// Ticks once a minute so the live durations stay honest without a reload.
+	let lolNow = $state(Date.now());
+	$effect(() => {
+		if (!lolLive.length) return;
+		const id = setInterval(() => (lolNow = Date.now()), 60_000);
+		return () => clearInterval(id);
+	});
+	function lolElapsed(startedAt: string): number {
+		return Math.max(0, Math.floor((lolNow - new Date(startedAt).getTime()) / 1000));
+	}
+
 	const lolWeekSeconds = $derived(
 		(detail?.recent_players ?? []).reduce((n, p) => n + p.total_seconds, 0)
 	);
@@ -309,11 +320,29 @@
 				</span>
 				<ul class="flex flex-wrap gap-2">
 					{#each lolLive as p (p.user_id)}
-						<li class="pd-cut-sm flex items-center gap-2 bg-[var(--color-surface-2)] px-2 py-1">
+						<li class="pd-cut-sm flex items-center gap-2 bg-[var(--color-surface-2)] py-1 pl-1 pr-2">
+							{#if p.live?.champion_icon}
+								<img
+									src={p.live.champion_icon}
+									alt=""
+									width="24"
+									height="24"
+									loading="lazy"
+									class="shrink-0 rounded-sm"
+								/>
+							{/if}
 							<span class="font-semibold text-[var(--color-text)]">{p.username}</span>
+							{#if p.live?.champion_name}
+								<span class="text-xs text-[var(--color-muted)]">{p.live.champion_name}</span>
+							{/if}
 							<span class="text-xs uppercase tracking-wide text-[var(--color-muted)]">
 								{p.live?.mode}
 							</span>
+							{#if p.live?.started_at}
+								<span class="text-xs tabular-nums text-[var(--color-muted)]/70">
+									{formatDuration(lolElapsed(p.live.started_at))}
+								</span>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -419,7 +448,10 @@
 							{@const r = soloRank(p)}
 							{@const champ = mainChampion(p)}
 							{@const crest = r ? crestURL(r.tier) : null}
-							<tr class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]">
+							<tr
+								class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]
+									{p.user_id === $auth.user?.id ? 'bg-[var(--color-brand)]/10' : ''}"
+							>
 								<td class="px-3 py-2 text-center font-display text-sm text-[var(--color-muted)]">{i + 1}</td>
 								<td class="px-3 py-2">
 									<a href="/players/{p.user_id}/games/{slug}" class="flex items-center gap-2 hover:underline">

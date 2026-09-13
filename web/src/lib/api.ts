@@ -100,6 +100,9 @@ export type LolProfile = {
 
 export type LolLive = {
 	champion_id: number;
+	/** Filled from Data Dragon by the live poller; absent if it was unreachable. */
+	champion_name?: string;
+	champion_icon?: string;
 	queue_id: number;
 	mode: string;
 	started_at: string;

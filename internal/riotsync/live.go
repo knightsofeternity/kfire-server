@@ -121,6 +121,13 @@ func (s *Syncer) pollLive(ctx context.Context) {
 			slog.Warn("riotsync: active game", "user_id", p.UserID, "err", err)
 			continue
 		}
+		if live != nil && s.dd != nil {
+			// Spectator answers with a champion id alone. Naming it here costs
+			// nothing: the champion table is already cached for the day.
+			if name, icon, _, err := s.dd.Champion(ctx, live.ChampionID); err == nil {
+				live.ChampionName, live.ChampionIcon = name, icon
+			}
+		}
 		s.live.set(p.UserID, live)
 	}
 }

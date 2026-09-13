@@ -52,11 +52,16 @@ type MatchResult struct {
 }
 
 // LiveGame is a match in progress.
+// LiveGame is a match in progress. ChampionName and ChampionIcon are filled by
+// the caller from Data Dragon, which the connector does not reach: Spectator
+// answers with a numeric champion id alone.
 type LiveGame struct {
-	ChampionID int       `json:"champion_id"`
-	QueueID    int       `json:"queue_id"`
-	Mode       string    `json:"mode"`
-	StartedAt  time.Time `json:"started_at"`
+	ChampionID   int       `json:"champion_id"`
+	ChampionName string    `json:"champion_name,omitempty"`
+	ChampionIcon string    `json:"champion_icon,omitempty"`
+	QueueID      int       `json:"queue_id"`
+	Mode         string    `json:"mode"`
+	StartedAt    time.Time `json:"started_at"`
 }
 
 // LeagueEntries returns the member's solo and flex standings. An unranked
