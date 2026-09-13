@@ -242,8 +242,11 @@ export const en = {
 			title: 'Riot Games',
 			blurb: 'Link your Riot account to show your League of Legends rank, champions and recent games.',
 			region: 'League region',
-			link: 'Link Riot account',
-			unlink: 'Unlink'
+			riotIdLabel: 'Riot ID',
+			riotIdPlaceholder: 'Name#EUW',
+			submit: 'Link account',
+			unlink: 'Unlink',
+			trust: 'KFIRE does not verify that you own this account, it only checks that the Riot ID exists and is not already linked to another member.'
 		},
 		bnetReconnectStats: 'Reconnect Battle.net to enable your game stats'
 	},

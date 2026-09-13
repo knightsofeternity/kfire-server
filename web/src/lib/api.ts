@@ -465,10 +465,14 @@ export const api = {
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
 	},
 
-	/** Returns the Riot Sign On authorization URL to navigate to. */
-	async startRiotLink(): Promise<string> {
-		const data = await json<{ url: string }>(await authFetch('/api/v1/connect/riot'));
-		return data.url;
+	/** Links a Riot account from a typed Riot ID. Throws with the server's message. */
+	async linkRiot(riotID: string): Promise<{ riot_id: string; platform: string }> {
+		const res = await authFetch('/api/v1/connect/riot', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ riot_id: riotID })
+		});
+		return json(res);
 	},
 
 	async unlinkRiot(): Promise<void> {

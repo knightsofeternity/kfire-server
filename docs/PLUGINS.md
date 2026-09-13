@@ -124,17 +124,30 @@ requesting per-member game detail.
 **League of Legends** (`lol`) requires the `riot` connector. It differs from the
 other three plugins in three ways:
 
-- Its connector's availability depends on three environment variables instead
-  of one: two RSO OAuth credentials, `KFIRE_RIOT_CLIENT_ID` and
-  `KFIRE_RIOT_CLIENT_SECRET`, plus a League of Legends API key,
-  `KFIRE_RIOT_LOL_KEY`. All three must be set for `Available()` to return `true`.
-- No token is kept for the member. RSO proves ownership once at link time, and
-  every later read uses the server's own API key, so the link never expires.
-  This is unlike Battle.net, where the member has to reconnect once their
-  stored token goes stale.
+- This Riot product carries only an API key, with a personal key's rate
+  limits, and no RSO application. So there is no OAuth flow: a member links by
+  typing their Riot ID ("Name#TAG"), which the server resolves against Riot's
+  Account-V1 endpoint. This does not prove the member owns the account, the
+  same way public stats sites do not; it only checks that the Riot ID exists
+  and that the resulting player identifier is not already linked to another
+  member. Its connector's availability depends on a single environment
+  variable, `KFIRE_RIOT_LOL_KEY`, the League of Legends API key.
+- No token is kept for the member. Every read uses the server's own API key,
+  so the link never expires. This is unlike Battle.net, where the member has
+  to reconnect once their stored token goes stale.
 - Disabling it also stops the background loop that polls for members currently
   in a League game, not just the two rich blocks (`lol_profile` and the live
   game indicator).
+
+**Rate limit.** The application key is bound by Riot's real, application-wide
+limit: twenty requests per second and one hundred per two minutes. Do not
+confuse this with the per-method limits shown on the developer portal, those
+are ceilings, not the actual grant. A League profile refresh costs eight
+calls, is triggered only for the member viewing their own profile, and is
+throttled to at most once per hour per member, so normal use stays well under
+the limit. A 429 from Riot during a refresh is not fatal: nothing is written,
+so the stored profile is left untouched and the next view simply retries
+after the throttle window.
 
 ## Architecture pointers
 

@@ -244,8 +244,11 @@ export const fr: Catalog = {
 			title: 'Riot Games',
 			blurb: 'Liez votre compte Riot pour afficher votre rang League of Legends, vos champions et vos dernières parties.',
 			region: 'Région League',
-			link: 'Lier mon compte Riot',
-			unlink: 'Délier'
+			riotIdLabel: 'Riot ID',
+			riotIdPlaceholder: 'Nom#EUW',
+			submit: 'Lier le compte',
+			unlink: 'Délier',
+			trust: "KFIRE ne vérifie pas que ce compte vous appartient, il vérifie seulement que le Riot ID existe et n'est pas déjà lié à un autre membre."
 		},
 		bnetReconnectStats: 'Reconnecte Battle.net pour activer tes stats de jeu'
 	},

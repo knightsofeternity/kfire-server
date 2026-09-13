@@ -28,6 +28,8 @@
 	let riotBusy = $state(false);
 	let riotRegion = $state<string | null>(null);
 	let riotRegionSaving = $state(false);
+	let riotIdInput = $state('');
+	let riotError = $state('');
 
 	// Which connectors this instance has configured. A card is shown when its
 	// connector is enabled OR the member already linked it (so they can still
@@ -42,7 +44,6 @@
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
 	const xboxResult = $derived(page.url.searchParams.get('xbox'));
-	const riotResult = $derived(page.url.searchParams.get('riot'));
 	const linkMessageKeys: Record<string, string> = {
 		linked: 'account.linkResult.linked',
 		denied: 'account.linkResult.denied',
@@ -189,11 +190,20 @@
 	}
 
 	async function linkRiot() {
+		if (!riotIdInput.trim()) return;
 		riotBusy = true;
+		riotError = '';
 		try {
-			window.location.href = await api.startRiotLink();
+			const linked = await api.linkRiot(riotIdInput.trim());
+			connections = [
+				...connections.filter((c) => c.provider !== 'riot'),
+				{ provider: 'riot', provider_user_id: linked.riot_id, display_name: linked.riot_id, linked_at: new Date().toISOString() }
+			];
+			riotRegion = linked.platform;
+			riotIdInput = '';
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Riot is not configured on this instance';
+			riotError = e instanceof Error ? e.message : 'Riot is not configured on this instance';
+		} finally {
 			riotBusy = false;
 		}
 	}
@@ -204,6 +214,7 @@
 			await api.unlinkRiot();
 			connections = connections.filter((c) => c.provider !== 'riot');
 			riotRegion = null;
+			riotError = '';
 		} finally {
 			riotBusy = false;
 		}
@@ -500,17 +511,6 @@
 
 		{/if}
 
-		{#if riotResult}
-			<p
-				class="mt-3 px-3 py-2 text-sm pd-cut-sm {riotResult === 'linked'
-					? 'bg-[var(--color-online)]/15 text-[var(--color-online)]'
-					: 'bg-red-500/10 text-red-400'}"
-			>
-				{linkMessageKeys[riotResult] ? t(linkMessageKeys[riotResult]) : t('common.unknownResult')}
-				<button class="ml-2 underline" onclick={() => goto('/account')}>{t('common.dismiss')}</button>
-			</p>
-		{/if}
-
 		{#if showRiot}
 		<!-- Riot Games -->
 		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
@@ -535,20 +535,43 @@
 				>
 					{t('account.riot.unlink')}
 				</button>
-			{:else}
-				<button
-					onclick={linkRiot}
-					disabled={riotBusy}
-					class="btn-pd violet disabled:opacity-60"
-				>
-					{riotBusy ? '...' : t('account.riot.link')}
-				</button>
 			{/if}
 		</div>
 
 		{#if !riot}
 			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.riot.blurb')}</p>
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					linkRiot();
+				}}
+				class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2"
+			>
+				<label class="flex-1 text-xs text-[var(--color-muted)]" for="riot-id-input">
+					{t('account.riot.riotIdLabel')}
+					<input
+						id="riot-id-input"
+						type="text"
+						bind:value={riotIdInput}
+						placeholder={t('account.riot.riotIdPlaceholder')}
+						disabled={riotBusy}
+						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
+					/>
+				</label>
+				<button
+					type="submit"
+					disabled={riotBusy || !riotIdInput.trim()}
+					class="btn-pd violet mt-1 shrink-0 self-start px-3 py-2 text-sm disabled:opacity-60 sm:mt-5"
+				>
+					{riotBusy ? '...' : t('account.riot.submit')}
+				</button>
+			</form>
+			{#if riotError}
+				<p class="mt-1 text-sm text-red-500">{riotError}</p>
+			{/if}
 		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.riot.trust')}</p>
 
 		{#if riot}
 			<label class="mt-2 flex flex-col gap-1 text-xs text-[var(--color-muted)]">
