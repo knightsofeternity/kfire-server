@@ -1,28 +1,23 @@
-// Package riot links Riot Games accounts through Riot Sign On (RSO) and reads
-// League of Legends data with the server's API key.
+// Package riot links Riot Games accounts by a typed Riot ID and reads League
+// of Legends data with the server's API key.
 //
-// Unlike the Battle.net connector, no member token is ever stored: RSO proves
-// account ownership once at link time, and every later read is authenticated by
-// the server-side API key alone.
+// The Riot product KFIRE holds only carries an API key, with a personal key's
+// rate limits; it has no RSO application, so there is no OAuth flow to prove
+// account ownership. Linking instead trusts the Riot ID the member types in,
+// the same way public stats sites do, and every later read is authenticated
+// by the server-side API key alone.
 //
 // Docs: https://developer.riotgames.com/apis
 package riot
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"sort"
-	"strings"
 	"time"
 )
 
 const (
-	defaultAuthBase = "https://auth.riotgames.com"
 	// defaultAPIHostTmpl takes the platform (euw1) or the cluster (europe).
 	defaultAPIHostTmpl = "https://%s.api.riotgames.com"
 	// accountCluster serves Account-V1. Riot lets any cluster answer for any
@@ -61,115 +56,25 @@ func KnownPlatforms() []string {
 	return out
 }
 
-// Connector talks to Riot. AuthBase and APIHostTmpl are overridable for tests.
+// Connector talks to Riot. APIHostTmpl is overridable for tests.
 type Connector struct {
-	ClientID     string
-	ClientSecret string
-	APIKey       string
-	AuthBase     string
-	APIHostTmpl  string
-	HTTP         *http.Client
+	APIKey      string
+	APIHostTmpl string
+	HTTP        *http.Client
 }
 
-// New returns a connector. It is disabled until all three credentials are set.
-func New(clientID, clientSecret, apiKey string) *Connector {
+// New returns a connector. It is disabled until apiKey is set.
+func New(apiKey string) *Connector {
 	return &Connector{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		APIKey:       apiKey,
-		AuthBase:     defaultAuthBase,
-		APIHostTmpl:  defaultAPIHostTmpl,
-		HTTP:         &http.Client{Timeout: 15 * time.Second},
+		APIKey:      apiKey,
+		APIHostTmpl: defaultAPIHostTmpl,
+		HTTP:        &http.Client{Timeout: 15 * time.Second},
 	}
 }
 
-// Enabled reports whether RSO credentials and the API key are configured.
+// Enabled reports whether the API key is configured.
 func (c *Connector) Enabled() bool {
-	return c.ClientID != "" && c.ClientSecret != "" && c.APIKey != ""
-}
-
-// AuthURL builds the RSO authorization redirect.
-//
-// Only the openid scope is requested. The cpid scope would return the player's
-// active League region directly from userinfo, but it has an open defect where
-// the field is sometimes absent; the Account-V1 active-region route is used
-// instead and is the source of truth.
-func (c *Connector) AuthURL(state, redirectURI string) string {
-	q := url.Values{
-		"response_type": {"code"},
-		"client_id":     {c.ClientID},
-		"redirect_uri":  {redirectURI},
-		"scope":         {"openid"},
-		"state":         {state},
-	}
-	return c.AuthBase + "/authorize?" + q.Encode()
-}
-
-// ExchangeCode swaps an authorization code for an access token. The token is
-// used once, to read the PUUID, and is never persisted.
-func (c *Connector) ExchangeCode(ctx context.Context, code, redirectURI string) (string, error) {
-	form := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {code},
-		"redirect_uri": {redirectURI},
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.AuthBase+"/token", strings.NewReader(form.Encode()))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.ClientID, c.ClientSecret)
-
-	res, err := c.HTTP.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("riot token request: %w", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 512))
-		return "", fmt.Errorf("riot token: status %d: %s", res.StatusCode, body)
-	}
-	var out struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("riot token decode: %w", err)
-	}
-	if out.AccessToken == "" {
-		return "", fmt.Errorf("riot token: empty access_token")
-	}
-	return out.AccessToken, nil
-}
-
-// UserPUUID reads the linked account's PUUID from the RSO userinfo endpoint.
-// The sub claim is the PUUID.
-func (c *Connector) UserPUUID(ctx context.Context, accessToken string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.AuthBase+"/userinfo", nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	res, err := c.HTTP.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("riot userinfo request: %w", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 512))
-		return "", fmt.Errorf("riot userinfo: status %d: %s", res.StatusCode, body)
-	}
-	var out struct {
-		Sub string `json:"sub"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return "", fmt.Errorf("riot userinfo decode: %w", err)
-	}
-	if out.Sub == "" {
-		return "", fmt.Errorf("riot userinfo: empty sub")
-	}
-	return out.Sub, nil
+	return c.APIKey != ""
 }
 
 // asAPIError is errors.As specialised to *APIError.

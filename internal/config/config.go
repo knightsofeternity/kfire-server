@@ -50,14 +50,14 @@ type Config struct {
 	XblAPIBase string
 	// XboxPollInterval is how often the Xbox presence poller runs.
 	XboxPollInterval time.Duration
-	// Riot RSO credentials + the League of Legends API key
-	// (https://developer.riotgames.com). All three empty = connector disabled.
-	RiotClientID     string
-	RiotClientSecret string
-	RiotLolKey       string
-	// RiotAuthBase / RiotAPIBase override the Riot hosts (tests only).
-	RiotAuthBase string
-	RiotAPIBase  string
+	// RiotLolKey is the League of Legends API key
+	// (https://developer.riotgames.com). Empty = connector disabled. The Riot
+	// product KFIRE holds carries no RSO application, only this API key with a
+	// personal key's rate limits, so accounts are linked by a typed Riot ID
+	// rather than through OAuth.
+	RiotLolKey string
+	// RiotAPIBase overrides the Riot API host (tests only).
+	RiotAPIBase string
 	// RiotLivePollInterval is how often the League live-game loop runs.
 	RiotLivePollInterval time.Duration
 }
@@ -86,11 +86,8 @@ func Load() (*Config, error) {
 		XblAppKey:             os.Getenv("KFIRE_XBL_APP_KEY"),
 		XblAPIBase:            os.Getenv("KFIRE_XBL_API_BASE"),
 
-		RiotClientID:     os.Getenv("KFIRE_RIOT_CLIENT_ID"),
-		RiotClientSecret: os.Getenv("KFIRE_RIOT_CLIENT_SECRET"),
-		RiotLolKey:       os.Getenv("KFIRE_RIOT_LOL_KEY"),
-		RiotAuthBase:     os.Getenv("KFIRE_RIOT_AUTH_BASE"),
-		RiotAPIBase:      os.Getenv("KFIRE_RIOT_API_BASE"),
+		RiotLolKey:  os.Getenv("KFIRE_RIOT_LOL_KEY"),
+		RiotAPIBase: os.Getenv("KFIRE_RIOT_API_BASE"),
 	}
 
 	for name, val := range map[string]string{

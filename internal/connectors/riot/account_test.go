@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func fakeRiot(t *testing.T, routes map[string]string) *Connector {
 		if got := r.Header.Get("X-Riot-Token"); got != "RGAPI-test" {
 			t.Errorf("missing API key header, got %q", got)
 		}
-		body, ok := routes[r.URL.Path]
+		body, ok := routes[r.URL.EscapedPath()]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -25,7 +26,7 @@ func fakeRiot(t *testing.T, routes map[string]string) *Connector {
 	}))
 	t.Cleanup(srv.Close)
 
-	c := New("id", "secret", "RGAPI-test")
+	c := New("RGAPI-test")
 	// %s swallows the host segment; every host resolves to the fake.
 	c.APIHostTmpl = srv.URL + "/%s"
 	return c
@@ -70,6 +71,43 @@ func TestActiveRegionOnEmptyRegionReturnsAnError(t *testing.T) {
 	})
 	if _, err := c.ActiveRegion(context.Background(), "P1"); err == nil {
 		t.Fatal("an empty active region must be refused, it would route every later call wrong")
+	}
+}
+
+func TestAccountByRiotID(t *testing.T) {
+	c := fakeRiot(t, map[string]string{
+		"/europe/riot/account/v1/accounts/by-riot-id/C%C3%A4ps/EUW": `{"puuid":"P1","gameName":"Cäps","tagLine":"EUW"}`,
+	})
+	acc, err := c.AccountByRiotID(context.Background(), "Cäps", "EUW")
+	if err != nil {
+		t.Fatalf("AccountByRiotID: %v", err)
+	}
+	if acc.PUUID != "P1" {
+		t.Errorf("PUUID = %q, want P1", acc.PUUID)
+	}
+}
+
+func TestAccountByRiotIDUnknownIsNotFound(t *testing.T) {
+	c := fakeRiot(t, map[string]string{})
+	_, err := c.AccountByRiotID(context.Background(), "Nobody", "XXXX")
+	if !NotFound(err) {
+		t.Errorf("an unknown Riot ID must surface as NotFound, got %v", err)
+	}
+}
+
+func TestAccountByRiotIDEscapesBothSegments(t *testing.T) {
+	// A slash in either half must not escape the path and hit another route.
+	c := fakeRiot(t, map[string]string{})
+	_, err := c.AccountByRiotID(context.Background(), "a/b", "c/d")
+	if err == nil {
+		t.Fatal("want an error, the fake serves no such route")
+	}
+	var e *APIError
+	if !asAPIError(err, &e) {
+		t.Fatalf("want an APIError, got %T", err)
+	}
+	if strings.Contains(e.Path, "a/b") || strings.Contains(e.Path, "c/d") {
+		t.Errorf("path %q kept a raw slash; both segments must be escaped", e.Path)
 	}
 }
 

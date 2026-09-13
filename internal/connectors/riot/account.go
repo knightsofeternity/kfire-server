@@ -69,6 +69,17 @@ func (c *Connector) AccountByPUUID(ctx context.Context, puuid string) (Account, 
 	return acc, err
 }
 
+// AccountByRiotID resolves a Riot ID, "Name#TAG" split in two, to its account.
+// A Riot ID nobody owns comes back as a 404, which callers surface as a typo
+// rather than as a failure.
+func (c *Connector) AccountByRiotID(ctx context.Context, gameName, tagLine string) (Account, error) {
+	var acc Account
+	path := "/riot/account/v1/accounts/by-riot-id/" +
+		url.PathEscape(gameName) + "/" + url.PathEscape(tagLine)
+	err := c.get(ctx, accountCluster, path, &acc)
+	return acc, err
+}
+
 // ActiveRegion returns the member's active League platform, e.g. "euw1".
 func (c *Connector) ActiveRegion(ctx context.Context, puuid string) (string, error) {
 	var out struct {
