@@ -136,7 +136,16 @@ export const fr: Catalog = {
 		wowAchievements: 'Hauts faits',
 		hide: 'Masquer ce jeu',
 		show: 'Afficher ce jeu',
-		hiddenNotice: 'Ce jeu est masqué : exclu des statistiques et de la liste des jeux.'
+		hiddenNotice: 'Ce jeu est masqué : exclu des statistiques et de la liste des jeux.',
+		wowRoster: 'Roster de la guilde',
+		wowMembers: 'Membres avec des personnages',
+		wowCharacterCount: 'Personnages',
+		wowSyncedAt: 'Dernière synchro',
+		wowOtherVersion: 'Autres versions',
+		wowShowMore: 'Voir {count} de plus',
+		wowShowLess: 'Voir moins',
+		wowItemLevel: 'iLvl',
+		wowMythic: 'M+'
 	},
 	playerGame: {
 		loading: 'Chargement...',

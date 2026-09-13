@@ -41,6 +41,8 @@ export type GameAchievement = {
 
 export type WowCharacter = {
 	user_id: string;
+	username: string;
+	avatar_url?: string;
 	name: string;
 	realm?: string;
 	class?: string;
@@ -50,6 +52,12 @@ export type WowCharacter = {
 	item_level: number;
 	mythic_rating?: number;
 	achievement_points?: number;
+	/**
+	 * Which game version this character belongs to. Optional on purpose: rows
+	 * written before the column existed genuinely have none, and it cannot be
+	 * guessed from level or realm. They heal on the next sync.
+	 */
+	version?: string;
 };
 
 export type LolRank = {

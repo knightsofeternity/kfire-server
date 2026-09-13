@@ -135,7 +135,16 @@ export const en = {
 		wowAchievements: 'Achievements',
 		hide: 'Hide this game',
 		show: 'Show this game',
-		hiddenNotice: 'This game is hidden: excluded from stats and the games list.'
+		hiddenNotice: 'This game is hidden: excluded from stats and the games list.',
+		wowRoster: 'Guild roster',
+		wowMembers: 'Members with characters',
+		wowCharacterCount: 'Characters',
+		wowSyncedAt: 'Last synced',
+		wowOtherVersion: 'Other versions',
+		wowShowMore: 'Show {count} more',
+		wowShowLess: 'Show fewer',
+		wowItemLevel: 'iLvl',
+		wowMythic: 'M+'
 	},
 	playerGame: {
 		loading: 'Loading...',
