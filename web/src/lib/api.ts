@@ -65,7 +65,13 @@ export type LolRank = {
 export type LolChampion = {
 	champion_id: number;
 	name: string;
-	image_id: string;
+	/**
+	 * Riot's internal champion name, used to build asset URLs. Optional on
+	 * purpose: the stored blob is passed through untouched, so a profile written
+	 * before this field existed genuinely arrives without the key, until its
+	 * next hourly refresh.
+	 */
+	image_id?: string;
 	icon_url: string;
 	level: number;
 	points: number;
