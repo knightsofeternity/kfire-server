@@ -7,6 +7,8 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon } from '$lib/wow';
+	import { inGame, mostPlayedChampion, podium, soloRank, tierSpread, winRate,
+	         crestURL, loadingArtURL, mainChampion } from '$lib/lol';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -32,13 +34,14 @@
 		Math.max(1, ...(detail?.leaderboard ?? []).map((e) => e.total_seconds))
 	);
 
-	function lolSoloRank(p: NonNullable<GameDetail['lol_players']>[number]) {
-		return p.data.ranks.find((r) => r.queue === 'RANKED_SOLO_5x5');
-	}
-	function lolWinRate(r: { wins: number; losses: number }): number {
-		const total = r.wins + r.losses;
-		return total > 0 ? Math.round((r.wins / total) * 100) : 0;
-	}
+	const lolPlayers = $derived(detail?.lol_players ?? []);
+	const lolLive = $derived(inGame(lolPlayers));
+	const lolPodium = $derived(podium(lolPlayers));
+	const lolSpread = $derived(tierSpread(lolPlayers));
+	const lolMostPlayed = $derived(mostPlayedChampion(lolPlayers));
+	const lolWeekSeconds = $derived(
+		(detail?.recent_players ?? []).reduce((n, p) => n + p.total_seconds, 0)
+	);
 
 	onMount(load);
 	async function load() {
@@ -297,42 +300,206 @@
 		</section>
 	{/if}
 
+	{#if lolLive.length}
+		<section class="mt-6">
+			<div class="pd-card flex flex-wrap items-center gap-3 border-l-2 border-l-[var(--color-online)] p-3">
+				<span class="flex items-center gap-2 font-display text-sm uppercase tracking-wide text-[var(--color-online)]">
+					<span class="inline-block h-2 w-2 rounded-full bg-[var(--color-online)]"></span>
+					{lolLive.length} {t('lol.nowPlayingCount')}
+				</span>
+				<ul class="flex flex-wrap gap-2">
+					{#each lolLive as p (p.user_id)}
+						<li class="pd-cut-sm flex items-center gap-2 bg-[var(--color-surface-2)] px-2 py-1">
+							<span class="font-semibold text-[var(--color-text)]">{p.username}</span>
+							<span class="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+								{p.live?.mode}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</section>
+	{/if}
+
+	{#if lolPlayers.length}
+		<section class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<div class="pd-card p-3">
+				<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.linkedMembers')}</p>
+				<p class="font-display text-2xl font-bold text-[var(--color-text)]">{lolPlayers.length}</p>
+			</div>
+			<div class="pd-card p-3">
+				<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.playersThisWeek')}</p>
+				<p class="font-display text-2xl font-bold text-[var(--color-cyan)]">
+					{detail.recent_players?.length ?? 0}
+				</p>
+			</div>
+			<div class="pd-card p-3">
+				<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.playedThisWeek')}</p>
+				<p class="font-display text-2xl font-bold text-[var(--color-cyan)]">{formatDuration(lolWeekSeconds)}</p>
+			</div>
+			<div class="pd-card p-3">
+				<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.mostPlayed')}</p>
+				<p class="font-display text-xl font-bold text-[var(--color-text)]">{lolMostPlayed ?? '-'}</p>
+				<p class="text-[10px] text-[var(--color-muted)]/80">{t('lol.mostPlayedHint')}</p>
+			</div>
+		</section>
+	{/if}
+
+	{#if lolPodium.length}
+		<section class="mt-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('lol.podium')}
+			</h2>
+			<div class="grid gap-3 sm:grid-cols-3">
+				{#each lolPodium as p, i (p.user_id)}
+					{@const r = soloRank(p)}
+					{@const champ = mainChampion(p)}
+					{@const art = loadingArtURL(champ?.image_id)}
+					{@const crest = r ? crestURL(r.tier) : null}
+					<a
+						href="/players/{p.user_id}/games/{slug}"
+						class="pd-card group relative overflow-hidden transition-all duration-150 hover:border-[var(--color-brand)]"
+					>
+						<div class="relative h-28 bg-[var(--color-surface-2)]">
+							{#if art}
+								<img src={art} alt="" loading="lazy"
+									class="h-full w-full object-cover object-[center_18%] opacity-70" />
+							{/if}
+							<div class="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-surface)]"></div>
+							<span class="pd-cut-sm absolute left-2 top-2 bg-[var(--color-bg)]/80 px-2 py-0.5 font-display text-xs">
+								{i + 1}
+							</span>
+						</div>
+						<div class="-mt-5 flex items-end gap-2 px-3 pb-3">
+							{#if crest}
+								<img src={crest} alt="" width="40" height="40" class="shrink-0 drop-shadow" />
+							{/if}
+							<div class="min-w-0">
+								<p class="truncate font-display font-bold text-[var(--color-text)]">{p.username}</p>
+								{#if r}
+									<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+										{r.tier} {r.division}
+									</p>
+									<p class="text-xs text-[var(--color-muted)]">
+										{r.lp} {t('lol.lp')} · {winRate(r)}%
+									</p>
+								{/if}
+							</div>
+						</div>
+					</a>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
 	<!-- League of Legends standings -->
-	{#if detail.lol_players?.length}
+	{#if lolPlayers.length}
 		<section class="mt-6">
 			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
 				{t('lol.leaderboard')}
 			</h2>
-			<ul class="flex flex-col gap-2">
-				{#each detail.lol_players as p (p.user_id)}
-					{@const solo = lolSoloRank(p)}
-					<a
-						href="/players/{p.user_id}/games/{slug}"
-						class="pd-card group flex items-center gap-3 p-3 transition-all duration-150 hover:border-[var(--color-brand)]"
-					>
-						<Avatar username={p.username} url={p.avatar_url} size={36} />
-						<span class="flex-1 truncate font-display font-semibold text-[var(--color-text)]">
-							{p.username}
-						</span>
-						{#if p.live}
-							<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs uppercase tracking-wide text-[var(--color-online)]">
-								{t('lol.inGame')}
+			<div class="pd-card overflow-x-auto">
+				<table class="w-full min-w-[640px] border-collapse">
+					<thead>
+						<tr class="border-b border-[var(--color-border)]">
+							<th class="w-10 px-3 py-2"></th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.member')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.soloQueue')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.mainChampion')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.formLabel')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.winsLabel')}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each lolPlayers as p, i (p.user_id)}
+							{@const r = soloRank(p)}
+							{@const champ = mainChampion(p)}
+							{@const crest = r ? crestURL(r.tier) : null}
+							<tr class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]">
+								<td class="px-3 py-2 text-center font-display text-sm text-[var(--color-muted)]">{i + 1}</td>
+								<td class="px-3 py-2">
+									<a href="/players/{p.user_id}/games/{slug}" class="flex items-center gap-2 hover:underline">
+										<Avatar username={p.username} url={p.avatar_url} size={30} />
+										<span class="truncate font-display font-semibold text-[var(--color-text)]">{p.username}</span>
+										{#if p.live}
+											<span class="pd-cut-sm bg-[var(--color-online)]/15 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wide text-[var(--color-online)]">
+												{t('lol.inGame')}
+											</span>
+										{/if}
+									</a>
+								</td>
+								<td class="px-3 py-2">
+									{#if r}
+										<span class="flex items-center gap-2 whitespace-nowrap">
+											{#if crest}<img src={crest} alt="" width="26" height="26" class="shrink-0" />{/if}
+											<span>
+												<span class="block text-sm uppercase tracking-wide text-[var(--color-text)]">{r.tier} {r.division}</span>
+												<span class="block text-xs text-[var(--color-muted)]">{r.lp} {t('lol.lp')}</span>
+											</span>
+										</span>
+									{:else}
+										<span class="text-sm italic text-[var(--color-muted)]">{t('lol.unranked')}</span>
+									{/if}
+								</td>
+								<td class="px-3 py-2">
+									{#if champ}
+										<span class="flex items-center gap-2 whitespace-nowrap">
+											{#if champ.icon_url}
+												<img src={champ.icon_url} alt="" width="26" height="26" loading="lazy" class="shrink-0 rounded-sm" />
+											{/if}
+											<span class="text-sm">{champ.name || `#${champ.champion_id}`}</span>
+										</span>
+									{/if}
+								</td>
+								<td class="px-3 py-2">
+									<span class="flex gap-1">
+										{#each p.data.recent as m (m.match_id)}
+											<span
+												class="inline-block h-3.5 w-3.5 rounded-sm {m.win
+													? 'bg-[var(--color-online)]'
+													: 'bg-[var(--color-magenta)]'}"
+												title={m.champion}
+											></span>
+										{/each}
+									</span>
+								</td>
+								<td class="whitespace-nowrap px-3 py-2">
+									{#if r}
+										<span class="font-display text-sm text-[var(--color-brand-bright)]">{winRate(r)}%</span>
+										<span class="ml-1 text-xs text-[var(--color-muted)]">{r.wins}/{r.losses}</span>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+
+			{#if lolSpread.length}
+				<div class="pd-card mt-3 p-3">
+					<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.spread')}</p>
+					<div class="flex h-5 overflow-hidden rounded-sm bg-[var(--color-surface-2)]">
+						{#each lolSpread as s (s.tier)}
+							<span
+								class="block {s.tier === 'unranked'
+									? 'bg-[var(--color-muted)]/40'
+									: 'bg-[var(--color-brand)]/70'}"
+								style="flex:{s.count}"
+							></span>
+						{/each}
+					</div>
+					<div class="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
+						{#each lolSpread as s (s.tier)}
+							<span class="uppercase tracking-wide">
+								{s.tier === 'unranked' ? t('lol.unranked') : s.tier} · {s.count}
 							</span>
-						{/if}
-						{#if solo}
-							<span class="text-sm text-[var(--color-muted)]">
-								{solo.tier} {solo.division} · {solo.lp} LP
-							</span>
-							<span class="w-14 text-right font-display text-sm text-[var(--color-brand-bright)]">
-								{lolWinRate(solo)}%
-							</span>
-						{:else}
-							<span class="text-sm text-[var(--color-muted)]">{t('lol.unranked')}</span>
-						{/if}
-					</a>
-				{/each}
-			</ul>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('common.riotDisclaimer')}</p>
 		</section>
 	{/if}
