@@ -46,10 +46,17 @@ func (p *WowPlugin) GameDetail(ctx context.Context, _ string, g store.Game) (map
 	cards := make([]map[string]any, len(chars))
 	for i, ch := range chars {
 		m := map[string]any{
-			"user_id": ch.UserID, "name": ch.Name, "realm": ch.RealmName,
+			"user_id": ch.UserID, "username": ch.Username,
+			"name": ch.Name, "realm": ch.RealmName,
 			"class": ch.Class, "race": ch.Race, "faction": ch.Faction,
 			"level": ch.Level, "item_level": ch.ItemLevel,
 			"achievement_points": ch.AchievementPoints,
+		}
+		if ch.AvatarURL != nil {
+			m["avatar_url"] = *ch.AvatarURL
+		}
+		if ch.Version != nil {
+			m["version"] = *ch.Version
 		}
 		if ch.MythicRating != nil {
 			m["mythic_rating"] = *ch.MythicRating
