@@ -8,7 +8,7 @@
 	import { t } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon } from '$lib/wow';
 	import { inGame, mostPlayedChampion, podium, soloRank, tierSpread, winRate,
-	         crestURL, loadingArtURL, mainChampion } from '$lib/lol';
+	         crestURL, loadingArtURL, mainChampion, tierColour } from '$lib/lol';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -371,7 +371,9 @@
 								{i + 1}
 							</span>
 						</div>
-						<div class="-mt-5 flex items-end gap-2 px-3 pb-3">
+						<!-- relative: without it this row sits below the image gradient, which is
+						     absolutely positioned, and the username disappears under it. -->
+						<div class="relative -mt-5 flex items-end gap-2 px-3 pb-3">
 							{#if crest}
 								<img src={crest} alt="" width="40" height="40" class="shrink-0 drop-shadow" />
 							{/if}
@@ -482,17 +484,13 @@
 					<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.spread')}</p>
 					<div class="flex h-5 overflow-hidden rounded-sm bg-[var(--color-surface-2)]">
 						{#each lolSpread as s (s.tier)}
-							<span
-								class="block {s.tier === 'unranked'
-									? 'bg-[var(--color-muted)]/40'
-									: 'bg-[var(--color-brand)]/70'}"
-								style="flex:{s.count}"
-							></span>
+							<span class="block" style="flex:{s.count};background:{tierColour(s.tier)}"></span>
 						{/each}
 					</div>
 					<div class="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
 						{#each lolSpread as s (s.tier)}
-							<span class="uppercase tracking-wide">
+							<span class="flex items-center gap-1.5 uppercase tracking-wide">
+								<i class="inline-block h-2 w-2 rounded-sm" style="background:{tierColour(s.tier)}"></i>
 								{s.tier === 'unranked' ? t('lol.unranked') : s.tier} · {s.count}
 							</span>
 						{/each}

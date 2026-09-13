@@ -94,6 +94,29 @@ export function podium(players: LolPlayer[]): LolPlayer[] {
 	return ranked.length >= 3 ? ranked.slice(0, 3) : [];
 }
 
+/**
+ * Each tier's own colour, close to Riot's crests, so the spread bar reads as a
+ * ladder rather than one flat block. Applied inline: Tailwind cannot build a
+ * class name from a runtime value.
+ */
+const TIER_COLOURS: Record<Tier | 'unranked', string> = {
+	iron: '#7d7a78',
+	bronze: '#a06a3c',
+	silver: '#9aa6b1',
+	gold: '#e0b23c',
+	platinum: '#4fc3b0',
+	emerald: '#2fb673',
+	diamond: '#5aa6f2',
+	master: '#b05cf0',
+	grandmaster: '#e0453b',
+	challenger: '#f2cd5c',
+	unranked: '#5c5c66'
+};
+
+export function tierColour(tier: Tier | 'unranked'): string {
+	return TIER_COLOURS[tier];
+}
+
 export type TierSlice = { tier: Tier | 'unranked'; count: number };
 
 /**
