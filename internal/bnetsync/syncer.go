@@ -116,6 +116,7 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 				Level: c.Level, ItemLevel: c.ItemLevel, MythicRating: c.MythicRating,
 				RaidSummary: rawOrNil(c.RaidSummary), AchievementPoints: c.AchievementPoints,
 				Achievements: achJSON,
+				Version:      strPtr(versionFromNamespace(ns.namespace)),
 			})
 		}
 	}
