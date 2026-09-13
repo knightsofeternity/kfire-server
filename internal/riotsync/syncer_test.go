@@ -84,3 +84,23 @@ func TestBuildProfileRoundTripsThroughTheStoredShape(t *testing.T) {
 		t.Errorf("solo_score = %d, want -1 for a flex-only account", got.SoloScore)
 	}
 }
+
+func TestBuildProfileKeepsTheChampionImageID(t *testing.T) {
+	blob := buildProfile("A#B", "euw1", nil,
+		[]riot.ChampionMastery{{
+			ChampionID: 62, Name: "Wukong", ImageID: "MonkeyKing",
+			IconURL: "http://x/MonkeyKing.png", Level: 7, Points: 99,
+		}}, nil)
+
+	var got profile
+	if err := json.Unmarshal(blob, &got); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if len(got.Champions) != 1 {
+		t.Fatalf("want 1 champion, got %d", len(got.Champions))
+	}
+	if got.Champions[0].ImageID != "MonkeyKing" {
+		t.Errorf("image_id = %q, want MonkeyKing; without it the page cannot "+
+			"build the loading-screen art URL", got.Champions[0].ImageID)
+	}
+}

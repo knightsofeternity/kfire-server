@@ -126,11 +126,12 @@ func (s *Syncer) RefreshLoL(ctx context.Context, userID, gameID string) {
 		return
 	}
 	for i := range champions {
-		name, icon, err := s.dd.Champion(ctx, champions[i].ChampionID)
+		name, icon, imageID, err := s.dd.Champion(ctx, champions[i].ChampionID)
 		if err != nil {
 			continue // Data Dragon down: the SPA falls back to the bare id
 		}
 		champions[i].Name, champions[i].IconURL = name, icon
+		champions[i].ImageID = imageID
 	}
 	// RecentMatches only errors on the match-id listing; a detail that fails is
 	// skipped inside it and merely shortens the list. So an error here is one of
