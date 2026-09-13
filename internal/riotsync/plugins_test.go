@@ -12,7 +12,7 @@ import (
 var _ gameplugin.Plugin = (*LolPlugin)(nil)
 
 func TestLolPluginIdentity(t *testing.T) {
-	p := NewLolPlugin(nil, nil, riot.New("", "", ""))
+	p := NewLolPlugin(nil, nil, riot.New(""))
 	if p.ID() != "lol" {
 		t.Errorf("ID() = %q, want lol", p.ID())
 	}
@@ -28,7 +28,7 @@ func TestLolPluginIdentity(t *testing.T) {
 }
 
 func TestLolPluginAvailableWithCredentials(t *testing.T) {
-	p := NewLolPlugin(nil, nil, riot.New("id", "secret", "RGAPI-x"))
+	p := NewLolPlugin(nil, nil, riot.New("RGAPI-x"))
 	if !p.Available() {
 		t.Error("Available() must be true once the connector is configured")
 	}
