@@ -27,7 +27,7 @@ func TestChampionNamesResolvesIdsAndCachesTheVersion(t *testing.T) {
 	dd.Base = srv.URL
 
 	for i := 0; i < 3; i++ {
-		name, icon, err := dd.Champion(context.Background(), 202)
+		name, icon, _, err := dd.Champion(context.Background(), 202)
 		if err != nil {
 			t.Fatalf("Champion: %v", err)
 		}
@@ -57,7 +57,7 @@ func TestChampionUnknownIDReturnsEmptyNameWithoutError(t *testing.T) {
 
 	dd := NewDataDragon()
 	dd.Base = srv.URL
-	name, icon, err := dd.Champion(context.Background(), 999)
+	name, icon, _, err := dd.Champion(context.Background(), 999)
 	if err != nil {
 		t.Fatalf("an unknown champion must not be an error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestChampionFallsBackWhenDataDragonIsDown(t *testing.T) {
 
 	dd := NewDataDragon()
 	dd.Base = srv.URL
-	name, icon, err := dd.Champion(context.Background(), 202)
+	name, icon, _, err := dd.Champion(context.Background(), 202)
 	if err == nil {
 		t.Fatal("want an error when Data Dragon is unreachable")
 	}
@@ -101,10 +101,64 @@ func TestChampionIsSafeUnderConcurrentUse(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		go func() {
 			defer func() { done <- struct{}{} }()
-			_, _, _ = dd.Champion(context.Background(), 202)
+			_, _, _, _ = dd.Champion(context.Background(), 202)
 		}()
 	}
 	for i := 0; i < 8; i++ {
 		<-done
+	}
+}
+
+func TestChampionReturnsTheImageID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/versions.json":
+			_, _ = w.Write([]byte(`["15.18.1"]`))
+		default:
+			// Wukong is the case that matters: his display name and his image
+			// id differ, so deriving one from the other would be wrong.
+			_, _ = w.Write([]byte(`{"data":{"MonkeyKing":{"key":"62","id":"MonkeyKing","name":"Wukong"}}}`))
+		}
+	}))
+	defer srv.Close()
+
+	dd := NewDataDragon()
+	dd.Base = srv.URL
+
+	name, icon, imageID, err := dd.Champion(context.Background(), 62)
+	if err != nil {
+		t.Fatalf("Champion: %v", err)
+	}
+	if name != "Wukong" {
+		t.Errorf("name = %q, want Wukong", name)
+	}
+	if imageID != "MonkeyKing" {
+		t.Errorf("imageID = %q, want MonkeyKing; the display name must not be "+
+			"used to build image URLs", imageID)
+	}
+	if icon != srv.URL+"/cdn/15.18.1/img/champion/MonkeyKing.png" {
+		t.Errorf("icon = %q", icon)
+	}
+}
+
+func TestChampionUnknownReturnsEmptyImageID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/versions.json":
+			_, _ = w.Write([]byte(`["15.18.1"]`))
+		default:
+			_, _ = w.Write([]byte(`{"data":{}}`))
+		}
+	}))
+	defer srv.Close()
+
+	dd := NewDataDragon()
+	dd.Base = srv.URL
+	name, icon, imageID, err := dd.Champion(context.Background(), 999)
+	if err != nil {
+		t.Fatalf("an unknown champion must not be an error: %v", err)
+	}
+	if name != "" || icon != "" || imageID != "" {
+		t.Errorf("want three empty strings, got %q %q %q", name, icon, imageID)
 	}
 }

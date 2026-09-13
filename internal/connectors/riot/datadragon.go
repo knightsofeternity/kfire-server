@@ -43,21 +43,25 @@ func NewDataDragon() *DataDragon {
 	}
 }
 
-// Champion returns the champion's display name and icon URL. An id absent from
-// the table yields two empty strings and no error: the SPA then shows the bare
-// id, which is better than losing the whole mastery block.
-func (d *DataDragon) Champion(ctx context.Context, id int) (string, string, error) {
+// Champion returns the champion's display name, icon URL and image id. The
+// image id is the internal name Riot uses in asset paths, "MonkeyKing" for
+// Wukong, which is not the display name: callers building a splash or loading
+// URL need it and must not derive it from the name.
+//
+// An id absent from the table yields three empty strings and no error: the SPA
+// then shows the bare id, which is better than losing the whole mastery block.
+func (d *DataDragon) Champion(ctx context.Context, id int) (name, iconURL, imageID string, err error) {
 	if err := d.ensure(ctx); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	d.mu.Lock()
 	c, ok := d.champions[id]
 	version := d.version
 	d.mu.Unlock()
 	if !ok {
-		return "", "", nil
+		return "", "", "", nil
 	}
-	return c.name, fmt.Sprintf("%s/cdn/%s/img/champion/%s.png", d.Base, version, c.key), nil
+	return c.name, fmt.Sprintf("%s/cdn/%s/img/champion/%s.png", d.Base, version, c.key), c.key, nil
 }
 
 // ensure loads the champion table if the cache is empty or stale.

@@ -26,10 +26,13 @@ type RankEntry struct {
 	HotStreak bool   `json:"hot_streak"`
 }
 
-// ChampionMastery is one champion's mastery standing.
+// ChampionMastery is one champion's mastery standing. ImageID is Riot's
+// internal name for the champion, used to build asset URLs; Name is the
+// display name and the two differ for several champions.
 type ChampionMastery struct {
 	ChampionID int    `json:"champion_id"`
 	Name       string `json:"name"`
+	ImageID    string `json:"image_id"`
 	IconURL    string `json:"icon_url"`
 	Level      int    `json:"level"`
 	Points     int    `json:"points"`
