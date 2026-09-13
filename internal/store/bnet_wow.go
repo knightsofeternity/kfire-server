@@ -12,6 +12,8 @@ import (
 type WowCharacterRow struct {
 	UserID            string
 	GameID            string
+	Username          string
+	AvatarURL         *string
 	Region            string
 	RealmSlug         string
 	Name              string
@@ -25,6 +27,7 @@ type WowCharacterRow struct {
 	RaidSummary       []byte
 	AchievementPoints int
 	Achievements      []byte
+	Version           *string
 	LastSyncedAt      time.Time
 }
 
@@ -46,10 +49,12 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 		batch.Queue(`
 			INSERT INTO bnet_wow_characters
 				(user_id, game_id, region, realm_slug, realm_name, name, faction, race, class,
-				 level, item_level, mythic_rating, raid_summary, achievement_points, achievements, last_synced_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())`,
+				 level, item_level, mythic_rating, raid_summary, achievement_points, achievements,
+				 version, last_synced_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, now())`,
 			userID, gameID, ch.Region, ch.RealmSlug, ch.RealmName, ch.Name, ch.Faction, ch.Race,
-			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary, ch.AchievementPoints, ch.Achievements)
+			ch.Class, ch.Level, ch.ItemLevel, ch.MythicRating, ch.RaidSummary, ch.AchievementPoints,
+			ch.Achievements, ch.Version)
 	}
 	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 		return err
@@ -57,14 +62,20 @@ func (s *Store) ReplaceWowCharacters(ctx context.Context, userID, gameID string,
 	return tx.Commit(ctx)
 }
 
-// WowCharactersByGame returns a game's characters across all members, highest
-// item level first (for the game page), plus the newest last_synced_at.
+// WowCharactersByGame returns every character for a game, joined to its owner's
+// name so the page can group by member, plus the newest sync time.
+//
+// Banned members are excluded, matching the Riot aggregate. The ordering is a
+// stable default; the interface regroups by member and by version.
 func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCharacterRow, time.Time, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT user_id, region, realm_slug, realm_name, name, faction, race, class,
-		       level, item_level, mythic_rating, raid_summary, achievement_points, last_synced_at
-		FROM bnet_wow_characters WHERE game_id = $1
-		ORDER BY item_level DESC, name ASC`, gameID)
+		SELECT c.user_id, u.username, u.avatar_url, c.region, c.realm_slug, c.realm_name,
+		       c.name, c.faction, c.race, c.class, c.level, c.item_level, c.mythic_rating,
+		       c.raid_summary, c.achievement_points, c.version, c.last_synced_at
+		FROM bnet_wow_characters c
+		JOIN users u ON u.id = c.user_id AND u.banned_at IS NULL
+		WHERE c.game_id = $1
+		ORDER BY c.level DESC, c.item_level DESC, c.name ASC`, gameID)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
@@ -75,9 +86,10 @@ func (s *Store) WowCharactersByGame(ctx context.Context, gameID string) ([]WowCh
 	for rows.Next() {
 		var r WowCharacterRow
 		r.GameID = gameID
-		if err := rows.Scan(&r.UserID, &r.Region, &r.RealmSlug, &r.RealmName, &r.Name, &r.Faction,
-			&r.Race, &r.Class, &r.Level, &r.ItemLevel, &r.MythicRating,
-			&r.RaidSummary, &r.AchievementPoints, &r.LastSyncedAt); err != nil {
+		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.Region, &r.RealmSlug,
+			&r.RealmName, &r.Name, &r.Faction, &r.Race, &r.Class, &r.Level, &r.ItemLevel,
+			&r.MythicRating, &r.RaidSummary, &r.AchievementPoints, &r.Version,
+			&r.LastSyncedAt); err != nil {
 			return nil, time.Time{}, err
 		}
 		out = append(out, r)
