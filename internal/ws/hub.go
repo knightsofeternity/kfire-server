@@ -53,6 +53,40 @@ type gameEventPayload struct {
 	GameSlug string `json:"game_slug"`
 }
 
+// matchResultPayload is one finished match, already summarised by the desktop
+// client. The client reads the game's log files and sends only this: never the
+// opponent's name, never a card.
+//
+// Turns and Placement are pointers because a match is worth recording even when
+// a secondary field was unreadable.
+type matchResultPayload struct {
+	GameSlug  string    `json:"game_slug"`
+	Mode      string    `json:"mode"`
+	Result    string    `json:"result"`
+	Turns     *int      `json:"turns"`
+	Placement *int      `json:"placement"`
+	PlayedAt  time.Time `json:"played_at"`
+}
+
+// valid reports whether the payload is worth persisting. The database enforces
+// the same rules, but rejecting here gives the client a clear error instead of
+// an opaque write failure.
+func (p matchResultPayload) valid() bool {
+	if p.GameSlug == "" || p.PlayedAt.IsZero() {
+		return false
+	}
+	if p.Mode != "battlegrounds" && p.Mode != "constructed" {
+		return false
+	}
+	if p.Result != "win" && p.Result != "loss" && p.Result != "draw" {
+		return false
+	}
+	if p.Placement != nil && (*p.Placement < 1 || *p.Placement > 8) {
+		return false
+	}
+	return true
+}
+
 // client is one WebSocket connection.
 type client struct {
 	conn          *websocket.Conn
@@ -308,6 +342,8 @@ func (c *client) readLoop(h *Hub) {
 			c.handleGameEvent(h, env, false)
 		case "heartbeat":
 			// Deadline already refreshed above.
+		case "match_result":
+			c.handleMatchResult(h, env)
 		default:
 			// Unknown types are ignored for forward compatibility.
 		}
@@ -408,6 +444,37 @@ func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
 			"slug", game.Slug, "started", started)
 		h.BroadcastPresence(ctx, c.presenceUser())
 	}
+}
+
+// handleMatchResult records one finished match reported by the client.
+//
+// Unlike a game event, this changes no presence and broadcasts nothing: a match
+// is history, not a state.
+func (c *client) handleMatchResult(h *Hub, env Envelope) {
+	var p matchResultPayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil || !p.valid() {
+		c.sendError("invalid_match", "malformed match result payload", false)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	game, err := h.store.GetGameBySlug(ctx, p.GameSlug)
+	if err != nil {
+		c.sendError("unknown_game", "game slug not in the catalog: "+p.GameSlug, false)
+		return
+	}
+
+	if err := h.store.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{
+		UserID: c.userID, GameID: game.ID, Mode: p.Mode, Result: p.Result,
+		Turns: p.Turns, Placement: p.Placement, PlayedAt: p.PlayedAt,
+	}); err != nil {
+		slog.Error("ws: persist match result", "user_id", c.userID, "err", err)
+		return
+	}
+	slog.Info("ws: match result", "user_id", c.userID, "slug", game.Slug,
+		"mode", p.Mode, "result", p.Result)
 }
 
 // sendEnvelope queues a typed message for this client.
