@@ -144,7 +144,16 @@ export const en = {
 		wowShowMore: 'Show {count} more',
 		wowShowLess: 'Show fewer',
 		wowItemLevel: 'iLvl',
-		wowMythic: 'M+'
+		wowMythic: 'M+',
+		hsRecord: 'Hearthstone record',
+		hsMatches: 'Matches',
+		hsPlayers: 'Members reporting',
+		hsWinRate: 'Wins',
+		hsAvgPlacement: 'Avg. placement',
+		hsTop4: 'Top 4',
+		hsNoPlacement: 'No Battlegrounds match yet',
+		hsRatingNote:
+			'Battlegrounds rating is not recorded in the game logs, so KFIRE measures skill by average placement and top-4 rate.'
 	},
 	playerGame: {
 		loading: 'Loading...',

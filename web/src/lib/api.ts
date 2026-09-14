@@ -125,6 +125,20 @@ export type LolPlayer = {
 	data: LolProfile;
 };
 
+export type HsPlayer = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	matches: number;
+	wins: number;
+	/** Matches carrying a placement, i.e. Battlegrounds ones. */
+	ranked: number;
+	top4: number;
+	/** Absent when the member has no Battlegrounds match yet. */
+	avg_placement?: number;
+	last_played_at: string;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
@@ -138,6 +152,7 @@ export type GameDetail = {
 	bnet_synced_at?: string;
 	lol_players?: LolPlayer[];
 	lol_synced_at?: string;
+	hs_players?: HsPlayer[];
 };
 
 export type PlayerGameAchievement = {
