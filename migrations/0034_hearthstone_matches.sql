@@ -21,7 +21,7 @@ CREATE TABLE hearthstone_matches (
     game_id    uuid        NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     mode       text        NOT NULL CHECK (mode IN ('battlegrounds', 'constructed')),
     result     text        NOT NULL CHECK (result IN ('win', 'loss', 'draw')),
-    turns      int,
+    turns      int         CHECK (turns IS NULL OR turns >= 0),
     placement  int         CHECK (placement IS NULL OR placement BETWEEN 1 AND 8),
     played_at  timestamptz NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),

@@ -59,6 +59,10 @@ type gameEventPayload struct {
 //
 // Turns and Placement are pointers because a match is worth recording even when
 // a secondary field was unreadable.
+// clockSkewTolerance is how far ahead of the server a client's clock may be
+// before its match results are rejected.
+const clockSkewTolerance = 5 * time.Minute
+
 type matchResultPayload struct {
 	GameSlug  string    `json:"game_slug"`
 	Mode      string    `json:"mode"`
@@ -82,6 +86,15 @@ func (p matchResultPayload) valid() bool {
 		return false
 	}
 	if p.Placement != nil && (*p.Placement < 1 || *p.Placement > 8) {
+		return false
+	}
+	if p.Turns != nil && *p.Turns < 0 {
+		return false
+	}
+	// A queued match can be old, never future. The tolerance absorbs a
+	// desktop clock that drifts a little without letting a badly set one
+	// poison the last-played date of the whole roster.
+	if p.PlayedAt.After(time.Now().Add(clockSkewTolerance)) {
 		return false
 	}
 	return true
@@ -471,6 +484,9 @@ func (c *client) handleMatchResult(h *Hub, env Envelope) {
 		Turns: p.Turns, Placement: p.Placement, PlayedAt: p.PlayedAt,
 	}); err != nil {
 		slog.Error("ws: persist match result", "user_id", c.userID, "err", err)
+		// Tell the client, otherwise it drops the match from its queue
+		// believing it landed.
+		c.sendError("match_not_recorded", "could not record match result", false)
 		return
 	}
 	slog.Info("ws: match result", "user_id", c.userID, "slug", game.Slug,
