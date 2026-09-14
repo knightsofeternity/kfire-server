@@ -24,6 +24,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
+	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -82,6 +83,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	plugins.Register(bnetsync.NewBnetProfilePlugin(st, bnetSync, bnConn, "sc2", "StarCraft II", "starcraft-ii-battle-chest"))
 	lolPlugin := riotsync.NewLolPlugin(st, riotSync, riotConn)
 	plugins.Register(lolPlugin)
+	plugins.Register(hearthstone.New(st))
 	if err := plugins.Load(context.Background()); err != nil {
 		slog.Error("game plugins load", "err", err)
 	}
