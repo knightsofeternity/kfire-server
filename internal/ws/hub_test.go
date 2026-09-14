@@ -26,6 +26,10 @@ func TestMatchResultPayloadValidation(t *testing.T) {
 		{"date future", matchBody(time.Now().Add(time.Hour)), false},
 		{"date a peine future, tolerance d horloge", matchBody(time.Now().Add(time.Minute)), true},
 		{"date passee", matchBody(time.Now().Add(-time.Hour)), true},
+		{"heros", `{"game_slug":"hearthstone","mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"BG28_HERO_400","played_at":"2026-08-02T17:44:59Z"}`, true},
+		{"heros avec skin", `{"game_slug":"hearthstone","mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"TB_BaconShop_HERO_45_SKIN_F","played_at":"2026-08-02T17:44:59Z"}`, true},
+		{"heros nomme au lieu d etre identifie", `{"game_slug":"hearthstone","mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"Rafaam l'evade","played_at":"2026-08-02T17:44:59Z"}`, false},
+		{"heros vide", `{"game_slug":"hearthstone","mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"","played_at":"2026-08-02T17:44:59Z"}`, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

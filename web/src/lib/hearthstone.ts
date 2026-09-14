@@ -1,4 +1,6 @@
 import type { HsPlayer } from './api';
+import { getLocale } from './i18n';
+import heroes from './hs-heroes.json';
 
 /**
  * Win rate across every reported match, as a whole percentage.
@@ -39,4 +41,32 @@ export function hsByPlacement(players: HsPlayer[]): HsPlayer[] {
 /** Total matches reported by the guild. */
 export function hsTotalMatches(players: HsPlayer[]): number {
 	return players.reduce((n, p) => n + p.matches, 0);
+}
+
+/**
+ * Hero names by card identifier, French then English.
+ *
+ * Vendored rather than fetched: the public card catalogue weighs ten megabytes
+ * for the thirty entries a page needs, and the names of heroes already released
+ * never change. Regenerate it when Blizzard adds heroes; until then an unknown
+ * identifier falls back to itself, which degrades one label instead of the
+ * page.
+ */
+const HERO_NAMES: Record<string, string[]> = heroes;
+
+/** A hero skin carries its own identifier; it dresses the hero before it. */
+function baseHero(id: string): string {
+	return id.replace(/_SKIN_[A-Za-z0-9]+$/, '');
+}
+
+/** The hero's name in the reader's language, falling back to its identifier. */
+export function heroName(id: string): string {
+	const entry = HERO_NAMES[id] ?? HERO_NAMES[baseHero(id)];
+	if (!entry) return id;
+	return (getLocale() === 'fr' ? entry[0] : entry[1]) || entry[1] || id;
+}
+
+/** The hero's illustration, served by the public card catalogue. */
+export function heroArt(id: string): string {
+	return `https://art.hearthstonejson.com/v1/256x/${baseHero(id)}.jpg`;
 }

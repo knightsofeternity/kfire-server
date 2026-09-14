@@ -1,0 +1,554 @@
+{
+ "BG20_HERO_100": [
+  "Rokara",
+  "Rokara"
+ ],
+ "BG20_HERO_101": [
+  "Xyrella",
+  "Xyrella"
+ ],
+ "BG20_HERO_102": [
+  "Seigneur Saurcroc",
+  "Overlord Saurfang"
+ ],
+ "BG20_HERO_103": [
+  "Nécrorateur Noirépine",
+  "Death Speaker Blackthorn"
+ ],
+ "BG20_HERO_201": [
+  "Vol’jin",
+  "Vol'jin"
+ ],
+ "BG20_HERO_202": [
+  "Maître Nguyen",
+  "Master Nguyen"
+ ],
+ "BG20_HERO_242": [
+  "Guff Totem-Runique",
+  "Guff Runetotem"
+ ],
+ "BG20_HERO_280": [
+  "Kurtrus Chutecendre",
+  "Kurtrus Ashfallen"
+ ],
+ "BG20_HERO_282": [
+  "Tamsin Roame",
+  "Tamsin Roame"
+ ],
+ "BG20_HERO_283": [
+  "Bec-au-vent",
+  "Galewing"
+ ],
+ "BG20_HERO_301": [
+  "Mutanus le Dévoreur",
+  "Mutanus the Devourer"
+ ],
+ "BG21_HERO_000": [
+  "Cariel Roame",
+  "Cariel Roame"
+ ],
+ "BG21_HERO_010": [
+  "Tchak Coupebeurre",
+  "Scabbs Cutterbutter"
+ ],
+ "BG21_HERO_020": [
+  "Macaron le cuisinier",
+  "Cookie the Cook"
+ ],
+ "BG21_HERO_030": [
+  "Sneed",
+  "Sneed"
+ ],
+ "BG22_HERO_000": [
+  "Tavish Foudrepique",
+  "Tavish Stormpike"
+ ],
+ "BG22_HERO_001": [
+  "Bru’kan",
+  "Bru'kan"
+ ],
+ "BG22_HERO_002": [
+  "Drek’Thar",
+  "Drek'Thar"
+ ],
+ "BG22_HERO_003": [
+  "Vanndar Foudrepique",
+  "Vanndar Stormpike"
+ ],
+ "BG22_HERO_004": [
+  "Varden Aubétreinte",
+  "Varden Dawngrasp"
+ ],
+ "BG22_HERO_007": [
+  "Reine Azshara",
+  "Queen Azshara"
+ ],
+ "BG22_HERO_200": [
+  "Ini Glissorage",
+  "Ini Stormcoil"
+ ],
+ "BG22_HERO_201": [
+  "Ambassadeur Faelin",
+  "Ambassador Faelin"
+ ],
+ "BG22_HERO_305": [
+  "Onyxia",
+  "Onyxia"
+ ],
+ "BG23_HERO_201": [
+  "Ozumat",
+  "Ozumat"
+ ],
+ "BG23_HERO_303": [
+  "Murloc Holmes",
+  "Murloc Holmes"
+ ],
+ "BG23_HERO_304": [
+  "Dame Vashj",
+  "Lady Vashj"
+ ],
+ "BG23_HERO_305": [
+  "As du casse Cire-Pilleur",
+  "Heistbaron Togwaggle"
+ ],
+ "BG23_HERO_306": [
+  "Sylvanas Coursevent",
+  "Sylvanas Windrunner"
+ ],
+ "BG24_HERO_100": [
+  "Sire Denathrius",
+  "Sire Denathrius"
+ ],
+ "BG24_HERO_204": [
+  "Mécano-amplificateur",
+  "Enhance-o Mechano"
+ ],
+ "BG25_HERO_100": [
+  "Professeur Putricide",
+  "Professor Putricide"
+ ],
+ "BG25_HERO_103": [
+  "Teron Fielsang",
+  "Teron Gorefiend"
+ ],
+ "BG25_HERO_105": [
+  "E.T.C., agent artistique",
+  "E.T.C., Band Manager"
+ ],
+ "BG26_HERO_101": [
+  "Cap’taine Larrrdeur",
+  "Cap'n Hoggarr"
+ ],
+ "BG26_HERO_102": [
+  "Inge, l’hymne à l’acier",
+  "Inge, the Iron Hymn"
+ ],
+ "BG26_HERO_104": [
+  "Maître du rock Voone",
+  "Rock Master Voone"
+ ],
+ "BG27_HERO_801": [
+  "Thorim, seigneur des tempêtes",
+  "Thorim, Stormlord"
+ ],
+ "BG28_HERO_400": [
+  "Yeux-de-Serpent",
+  "Snake Eyes"
+ ],
+ "BG28_HERO_800": [
+  "Tae’thelan Guette-le-sang",
+  "Tae'thelan Bloodwatcher"
+ ],
+ "BG28_HERO_801": [
+  "Guérisseuse Holli’dae",
+  "Doctor Holli'dae"
+ ],
+ "BG30_HERO_304": [
+  "Marin le responsable",
+  "Marin the Manager"
+ ],
+ "BG31_HERO_003": [
+  "Long-voyant Nobundo",
+  "Farseer Nobundo"
+ ],
+ "BG31_HERO_005": [
+  "Maître cloneur Zerek",
+  "Zerek, Master Cloner"
+ ],
+ "BG31_HERO_006": [
+  "Exarque Othaar",
+  "Exarch Othaar"
+ ],
+ "BG31_HERO_801": [
+  "Jim Raynor",
+  "Jim Raynor"
+ ],
+ "BG31_HERO_802": [
+  "Artanis",
+  "Artanis"
+ ],
+ "BG31_HERO_811": [
+  "Kerrigan, reine des Lames",
+  "Kerrigan, Queen of Blades"
+ ],
+ "BG32_HERO_001": [
+  "Cénarius, seigneur de la forêt",
+  "Forest Lord Cenarius"
+ ],
+ "BG32_HERO_002": [
+  "Boutons",
+  "Buttons"
+ ],
+ "BG33_HERO_001": [
+  "Loh, la légende vivante",
+  "Loh, the Living Legend"
+ ],
+ "BG34_HERO_000": [
+  "Murozond déchaîné",
+  "Murozond, Unbounded"
+ ],
+ "BG34_HERO_001": [
+  "Chromie, manipulatrice du temps",
+  "Time Twister Chromie"
+ ],
+ "BG34_HERO_002": [
+  "M. Lapendule",
+  "Mister Clocksworth"
+ ],
+ "BG34_HERO_004": [
+  "Morchie",
+  "Morchie"
+ ],
+ "BG35_HERO_001": [
+  "Genn, roi worgen",
+  "Genn, Worgen King"
+ ],
+ "BG36_HERO_101": [
+  "Tras’tath, parasite de l’âme",
+  "Tras'tath, Soul Parasite"
+ ],
+ "BG36_HERO_105": [
+  "Xavius, seigneur du Cauchemar",
+  "Nightmare Lord Xavius"
+ ],
+ "BGDUO_HERO_100": [
+  "Le Sans-Nom",
+  "The Nameless One"
+ ],
+ "BGDUO_HERO_101": [
+  "Floup le Flasquagineux",
+  "Flobbidinous Floop"
+ ],
+ "BGDUO_HERO_104": [
+  "Madame Goya",
+  "Madam Goya"
+ ],
+ "BGDUO_HERO_222": [
+  "Cho",
+  "Cho"
+ ],
+ "BGDUO_HERO_223": [
+  "Gall",
+  "Gall"
+ ],
+ "TB_BaconShop_HERO_01": [
+  "Edwin VanCleef",
+  "Edwin VanCleef"
+ ],
+ "TB_BaconShop_HERO_02": [
+  "Galakrond",
+  "Galakrond"
+ ],
+ "TB_BaconShop_HERO_08": [
+  "Illidan Hurlorage",
+  "Illidan Stormrage"
+ ],
+ "TB_BaconShop_HERO_10": [
+  "Prince marchand Gallywix",
+  "Trade Prince Gallywix"
+ ],
+ "TB_BaconShop_HERO_10_Tutorial": [
+  "Prince marchand Gallywix",
+  "Trade Prince Gallywix"
+ ],
+ "TB_BaconShop_HERO_11": [
+  "Ragnaros, seigneur du feu",
+  "Ragnaros the Firelord"
+ ],
+ "TB_BaconShop_HERO_11_Tutorial": [
+  "Ragnaros, seigneur du feu",
+  "Ragnaros the Firelord"
+ ],
+ "TB_BaconShop_HERO_12": [
+  "Le roi des rats",
+  "The Rat King"
+ ],
+ "TB_BaconShop_HERO_14": [
+  "Souveraine Cire-Reine",
+  "Queen Wagtoggle"
+ ],
+ "TB_BaconShop_HERO_14_Tutorial": [
+  "Souveraine Cire-Reine",
+  "Queen Wagtoggle"
+ ],
+ "TB_BaconShop_HERO_15": [
+  "George le Déchu",
+  "George the Fallen"
+ ],
+ "TB_BaconShop_HERO_16": [
+  "A. F. Kah",
+  "A. F. Kay"
+ ],
+ "TB_BaconShop_HERO_17": [
+  "Millificent Tempête-de-Mana",
+  "Millificent Manastorm"
+ ],
+ "TB_BaconShop_HERO_18": [
+  "Neunœil le pirate",
+  "Patches the Pirate"
+ ],
+ "TB_BaconShop_HERO_19": [
+  "Aileron-Géant",
+  "Giantfin"
+ ],
+ "TB_BaconShop_HERO_21": [
+  "Le grand Akazamzarak",
+  "The Great Akazamzarak"
+ ],
+ "TB_BaconShop_HERO_22": [
+  "Le roi-liche",
+  "The Lich King"
+ ],
+ "TB_BaconShop_HERO_22_Tutorial": [
+  "Le roi-liche",
+  "The Lich King"
+ ],
+ "TB_BaconShop_HERO_23": [
+  "Carniflore",
+  "Shudderwock"
+ ],
+ "TB_BaconShop_HERO_25": [
+  "Baz’hial la liche",
+  "Lich Baz'hial"
+ ],
+ "TB_BaconShop_HERO_27": [
+  "Sindragosa",
+  "Sindragosa"
+ ],
+ "TB_BaconShop_HERO_27_Tutorial": [
+  "Sindragosa",
+  "Sindragosa"
+ ],
+ "TB_BaconShop_HERO_28": [
+  "Toki l’Infinie",
+  "Infinite Toki"
+ ],
+ "TB_BaconShop_HERO_29": [
+  "C’Thun",
+  "C'Thun"
+ ],
+ "TB_BaconShop_HERO_30": [
+  "Nefarian",
+  "Nefarian"
+ ],
+ "TB_BaconShop_HERO_30_Tutorial": [
+  "Nefarian",
+  "Nefarian"
+ ],
+ "TB_BaconShop_HERO_31": [
+  "Barmanotron",
+  "Bartendotron"
+ ],
+ "TB_BaconShop_HERO_33": [
+  "Le conservateur",
+  "The Curator"
+ ],
+ "TB_BaconShop_HERO_34": [
+  "Le Recousu",
+  "Patchwerk"
+ ],
+ "TB_BaconShop_HERO_35": [
+  "Yogg-Saron, la fin de l’espoir",
+  "Yogg-Saron, Hope's End"
+ ],
+ "TB_BaconShop_HERO_35_Tutorial": [
+  "Yogg-Saron, la fin de l’espoir",
+  "Yogg-Saron, Hope's End"
+ ],
+ "TB_BaconShop_HERO_36": [
+  "Daryl le Danseur",
+  "Dancin' Deryl"
+ ],
+ "TB_BaconShop_HERO_37": [
+  "Seigneur Jaraxxus",
+  "Lord Jaraxxus"
+ ],
+ "TB_BaconShop_HERO_37_Tutorial": [
+  "Seigneur Jaraxxus",
+  "Lord Jaraxxus"
+ ],
+ "TB_BaconShop_HERO_38": [
+  "Roi Mukla",
+  "King Mukla"
+ ],
+ "TB_BaconShop_HERO_39": [
+  "Pyraride",
+  "Pyramad"
+ ],
+ "TB_BaconShop_HERO_40": [
+  "Sir Finley Mrrgglton",
+  "Sir Finley Mrrgglton"
+ ],
+ "TB_BaconShop_HERO_41": [
+  "Reno Jackson",
+  "Reno Jackson"
+ ],
+ "TB_BaconShop_HERO_42": [
+  "Élise Cherchétoile",
+  "Elise Starseeker"
+ ],
+ "TB_BaconShop_HERO_43": [
+  "Dinodompteur Brann",
+  "Dinotamer Brann"
+ ],
+ "TB_BaconShop_HERO_45": [
+  "Prince du mal Rafaam",
+  "Arch-Villain Rafaam"
+ ],
+ "TB_BaconShop_HERO_47": [
+  "Tirion Fordring",
+  "Tirion Fordring"
+ ],
+ "TB_BaconShop_HERO_49": [
+  "Milhouse Tempête-de-Mana",
+  "Millhouse Manastorm"
+ ],
+ "TB_BaconShop_HERO_50": [
+  "Tess Grisetête",
+  "Tess Greymane"
+ ],
+ "TB_BaconShop_HERO_52": [
+  "Aile de mort",
+  "Deathwing"
+ ],
+ "TB_BaconShop_HERO_53": [
+  "Ysera",
+  "Ysera"
+ ],
+ "TB_BaconShop_HERO_55": [
+  "Fongimancien Flurgl",
+  "Fungalmancer Flurgl"
+ ],
+ "TB_BaconShop_HERO_56": [
+  "Alexstrasza",
+  "Alexstrasza"
+ ],
+ "TB_BaconShop_HERO_57": [
+  "Nozdormu",
+  "Nozdormu"
+ ],
+ "TB_BaconShop_HERO_58": [
+  "Malygos",
+  "Malygos"
+ ],
+ "TB_BaconShop_HERO_59": [
+  "Aranna Cherchétoile",
+  "Aranna Starseeker"
+ ],
+ "TB_BaconShop_HERO_59t": [
+  "Aranna, déchaînée",
+  "Aranna, Unleashed"
+ ],
+ "TB_BaconShop_HERO_60": [
+  "Kael’thas Haut-Soleil",
+  "Kael'thas Sunstrider"
+ ],
+ "TB_BaconShop_HERO_61": [
+  "Dame Vashj",
+  "Lady Vashj"
+ ],
+ "TB_BaconShop_HERO_62": [
+  "Maiev Chantelombre",
+  "Maiev Shadowsong"
+ ],
+ "TB_BaconShop_HERO_64": [
+  "Capitaine Eudora",
+  "Captain Eudora"
+ ],
+ "TB_BaconShop_HERO_67": [
+  "Capitaine Double-Crochet",
+  "Captain Hooktusk"
+ ],
+ "TB_BaconShop_HERO_68": [
+  "Cap’taine céleste Kragg",
+  "Skycap'n Kragg"
+ ],
+ "TB_BaconShop_HERO_70": [
+  "M. Bigglesworth",
+  "Mr. Bigglesworth"
+ ],
+ "TB_BaconShop_HERO_702": [
+  "Le Geôlier",
+  "The Jailer"
+ ],
+ "TB_BaconShop_HERO_71": [
+  "Jandice Barov",
+  "Jandice Barov"
+ ],
+ "TB_BaconShop_HERO_72": [
+  "Seigneur Barov",
+  "Lord Barov"
+ ],
+ "TB_BaconShop_HERO_74": [
+  "Gardienne de la forêt Omu",
+  "Forest Warden Omu"
+ ],
+ "TB_BaconShop_HERO_75": [
+  "Rakanishu",
+  "Rakanishu"
+ ],
+ "TB_BaconShop_HERO_76": [
+  "Al’Akir",
+  "Al'Akir"
+ ],
+ "TB_BaconShop_HERO_78": [
+  "Chenvaa’la",
+  "Chenvaala"
+ ],
+ "TB_BaconShop_HERO_90": [
+  "Silas Sombrelune",
+  "Silas Darkmoon"
+ ],
+ "TB_BaconShop_HERO_91": [
+  "Zéphrys le Grand",
+  "Zephrys, the Great"
+ ],
+ "TB_BaconShop_HERO_92": [
+  "Y’Shaarj",
+  "Y'Shaarj"
+ ],
+ "TB_BaconShop_HERO_93": [
+  "N’Zoth",
+  "N'Zoth"
+ ],
+ "TB_BaconShop_HERO_94": [
+  "Tickatus",
+  "Tickatus"
+ ],
+ "TB_BaconShop_HERO_95": [
+  "Grisebranche",
+  "Greybough"
+ ],
+ "TB_BaconShop_HERO_Deathwhisper": [
+  "Dame Murmemort",
+  "Lady Deathwhisper"
+ ],
+ "TB_BaconShop_HERO_KelThuzad": [
+  "Kel’Thuzad",
+  "Kel'Thuzad"
+ ],
+ "TB_BaconShop_HERO_PH": [
+  "BaconPHhero",
+  "BaconPHhero"
+ ]
+}

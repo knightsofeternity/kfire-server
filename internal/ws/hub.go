@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -64,13 +65,21 @@ type gameEventPayload struct {
 const clockSkewTolerance = 5 * time.Minute
 
 type matchResultPayload struct {
-	GameSlug  string    `json:"game_slug"`
-	Mode      string    `json:"mode"`
-	Result    string    `json:"result"`
-	Turns     *int      `json:"turns"`
-	Placement *int      `json:"placement"`
-	PlayedAt  time.Time `json:"played_at"`
+	GameSlug  string `json:"game_slug"`
+	Mode      string `json:"mode"`
+	Result    string `json:"result"`
+	Turns     *int   `json:"turns"`
+	Placement *int   `json:"placement"`
+	// HeroCardID is the Battlegrounds hero, as the card identifier the game
+	// writes in its own log. Never the hero's name: the log is localised, so
+	// two members playing the same hero would report two different strings.
+	HeroCardID *string   `json:"hero_card_id"`
+	PlayedAt   time.Time `json:"played_at"`
 }
+
+// heroCardID is the shape of a card identifier. Refusing anything else keeps
+// the column incapable of carrying a name, which is the whole point.
+var heroCardID = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
 
 // valid reports whether the payload is worth persisting. The database enforces
 // the same rules, but rejecting here gives the client a clear error instead of
@@ -89,6 +98,9 @@ func (p matchResultPayload) valid() bool {
 		return false
 	}
 	if p.Turns != nil && *p.Turns < 0 {
+		return false
+	}
+	if p.HeroCardID != nil && !heroCardID.MatchString(*p.HeroCardID) {
 		return false
 	}
 	// A queued match can be old, never future. The tolerance absorbs a
@@ -481,7 +493,8 @@ func (c *client) handleMatchResult(h *Hub, env Envelope) {
 
 	if err := h.store.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{
 		UserID: c.userID, GameID: game.ID, Mode: p.Mode, Result: p.Result,
-		Turns: p.Turns, Placement: p.Placement, PlayedAt: p.PlayedAt,
+		Turns: p.Turns, Placement: p.Placement, HeroCardID: p.HeroCardID,
+		PlayedAt: p.PlayedAt,
 	}); err != nil {
 		slog.Error("ws: persist match result", "user_id", c.userID, "err", err)
 		// Tell the client, otherwise it drops the match from its queue

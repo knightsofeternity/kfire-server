@@ -139,6 +139,17 @@ export type HsPlayer = {
 	last_played_at: string;
 };
 
+export type HsHero = {
+	/** The card identifier the game writes, skins already folded onto the base hero. */
+	hero_card_id: string;
+	matches: number;
+	/** How many members played it. */
+	players: number;
+	avg_placement: number;
+	top4: number;
+	wins: number;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
@@ -153,6 +164,7 @@ export type GameDetail = {
 	lol_players?: LolPlayer[];
 	lol_synced_at?: string;
 	hs_players?: HsPlayer[];
+	hs_heroes?: HsHero[];
 };
 
 export type PlayerGameAchievement = {

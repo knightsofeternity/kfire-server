@@ -56,7 +56,23 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 		}
 		cards[i] = m
 	}
-	return map[string]any{"hs_players": cards}, nil
+	heroes, err := p.st.HearthstoneHeroesByGame(ctx, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	hs := make([]map[string]any, len(heroes))
+	for i, h := range heroes {
+		hs[i] = map[string]any{
+			"hero_card_id": h.HeroCardID, "matches": h.Matches,
+			"players": h.Players, "avg_placement": h.AvgPlacement,
+			"top4": h.Top4, "wins": h.Wins,
+		}
+	}
+
+	// The hero's name is NOT resolved here. The log writes a card identifier,
+	// the browser turns it into a name and an illustration: the identifier is
+	// the fact, the name is presentation, and it differs per language.
+	return map[string]any{"hs_players": cards, "hs_heroes": hs}, nil
 }
 
 // UserGameDetail returns nothing for now: the member page keeps its current
