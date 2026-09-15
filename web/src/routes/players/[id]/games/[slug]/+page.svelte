@@ -261,8 +261,9 @@
 			     stopped moving. That is worth saying plainly, not worth alarming over. -->
 			{#if detail.wow_link_expired}
 				<p class="pd-cut-sm mb-3 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm text-[var(--color-muted)]">
-					{#if detail.wow_synced_at}{t('game.wowSyncedOn', { date: formatDate(detail.wow_synced_at) })}
-					{/if}{t('game.wowLinkExpired')}
+					{#if detail.wow_synced_at}{t('game.wowSyncedOn', { date: formatDate(detail.wow_synced_at) })}{' '}{/if}{t(
+						'game.wowLinkExpired'
+					)}{' '}
 					<a href="/account" class="text-[var(--color-brand-bright)] hover:underline">{t('game.wowRelink')}</a>
 				</p>
 			{/if}
