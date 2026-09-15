@@ -229,6 +229,19 @@ export type PlayerWowCharacter = {
 	item_level: number;
 	mythic_rating?: number;
 	achievement_points?: number;
+	/**
+	 * Which game version this character belongs to. Optional on purpose: rows
+	 * written before the column existed genuinely have none, and it cannot be
+	 * guessed from level or realm. They heal on the next sync.
+	 */
+	version?: string;
+	/**
+	 * Whether Blizzard ever handed us an achievement list for this character.
+	 * False also covers the profile Blizzard stopped serving (404 on a
+	 * character left aside), which is not the same as a character without a
+	 * single achievement, so the page must not offer an empty list.
+	 */
+	has_achievements: boolean;
 };
 
 export type WowAchievementEntry = {
@@ -243,6 +256,14 @@ export type PlayerGameDetail = {
 	session_count?: number;
 	last_played_at?: string;
 	wow_characters?: PlayerWowCharacter[];
+	/** When those characters were last pulled from Blizzard. */
+	wow_synced_at?: string;
+	/**
+	 * True once the member's Battle.net link is dead. A Blizzard token lasts 24
+	 * hours and comes with no refresh token, so the characters above stop
+	 * moving the day after the member linked their account.
+	 */
+	wow_link_expired?: boolean;
 	bnet_profile?: Record<string, unknown>;
 	lol_profile?: LolProfile;
 	lol_live?: LolLive;

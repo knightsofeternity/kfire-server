@@ -88,6 +88,37 @@ export function wowVersionKey(v: string | undefined): WowVersion {
 		: 'unknown';
 }
 
+/** The little a version group needs of a character to be built and ordered. */
+type Groupable = { version?: string; level?: number; item_level: number; name: string };
+
+/**
+ * Splits characters into version groups, in WOW_VERSIONS order, dropping the
+ * groups nobody has. The neutral bucket comes last, like any other group.
+ *
+ * Within a version, characters come out highest level first, then highest item
+ * level, then by name so the order never wobbles between two renders.
+ *
+ * Generic so the guild roster and a single member's page group and order their
+ * characters by the same rule, though they receive different shapes.
+ */
+export function wowVersionGroups<T extends Groupable>(
+	characters: T[]
+): { version: WowVersion; characters: T[] }[] {
+	const groups: { version: WowVersion; characters: T[] }[] = [];
+	for (const version of WOW_VERSIONS) {
+		const inVersion = characters
+			.filter((c) => wowVersionKey(c.version) === version)
+			.sort(
+				(a, b) =>
+					(b.level ?? 0) - (a.level ?? 0) ||
+					b.item_level - a.item_level ||
+					a.name.localeCompare(b.name)
+			);
+		if (inVersion.length) groups.push({ version, characters: inVersion });
+	}
+	return groups;
+}
+
 export type WowVersionGroup = { version: WowVersion; characters: WowCharacter[] };
 export type WowRoster = {
 	userId: string;
@@ -104,8 +135,7 @@ export type WowRoster = {
  * no number is comparable across versions, so the page deliberately ranks
  * nobody. It is only a stable, deterministic order.
  *
- * Within a version, characters come out highest level first, then highest item
- * level, then by name so the order never wobbles between two renders.
+ * The grouping inside a member is wowVersionGroups', order and all.
  */
 export function wowRosters(characters: WowCharacter[]): WowRoster[] {
 	const byMember = new Map<string, WowCharacter[]>();
@@ -117,18 +147,7 @@ export function wowRosters(characters: WowCharacter[]): WowRoster[] {
 
 	const rosters: WowRoster[] = [];
 	for (const [userId, chars] of byMember) {
-		const groups: WowVersionGroup[] = [];
-		for (const version of WOW_VERSIONS) {
-			const inVersion = chars
-				.filter((c) => wowVersionKey(c.version) === version)
-				.sort(
-					(a, b) =>
-						(b.level ?? 0) - (a.level ?? 0) ||
-						b.item_level - a.item_level ||
-						a.name.localeCompare(b.name)
-				);
-			if (inVersion.length) groups.push({ version, characters: inVersion });
-		}
+		const groups: WowVersionGroup[] = wowVersionGroups(chars);
 		rosters.push({
 			userId,
 			username: chars[0].username,

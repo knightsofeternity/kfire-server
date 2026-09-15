@@ -146,6 +146,13 @@ export const fr: Catalog = {
 		wowShowLess: 'Voir moins',
 		wowItemLevel: 'iLvl',
 		wowMythic: 'M+',
+		wowSyncedOn: 'Personnages relevés le {date}.',
+		wowLinkExpired:
+			"Le lien Battle.net a expiré : un jeton Blizzard dure 24 heures et ne peut pas être renouvelé, la liste ci-dessous ne bouge donc plus depuis.",
+		wowRelink: 'Relier le compte Battle.net',
+		wowNoAchievements: 'Hauts faits indisponibles',
+		wowAchievementsGoneNote:
+			"Blizzard cesse d'exposer le profil des personnages laissés de côté : leurs hauts faits redeviennent lisibles dès qu'ils sont rejoués.",
 		hsHeroMatches: '{n} parties',
 		hsHeroMatch: '1 partie',
 		hsHeroes: 'Héros les plus joués',

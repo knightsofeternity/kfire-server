@@ -145,6 +145,13 @@ export const en = {
 		wowShowLess: 'Show fewer',
 		wowItemLevel: 'iLvl',
 		wowMythic: 'M+',
+		wowSyncedOn: 'Characters read on {date}.',
+		wowLinkExpired:
+			'The Battle.net link has expired: a Blizzard token lasts 24 hours and cannot be renewed, so the list below has not moved since.',
+		wowRelink: 'Link the Battle.net account',
+		wowNoAchievements: 'Achievements unavailable',
+		wowAchievementsGoneNote:
+			'Blizzard stops serving the profile of characters left aside: their achievements come back as soon as they are played again.',
 		hsHeroMatches: '{n} matches',
 		hsHeroMatch: '1 match',
 		hsHeroes: 'Most played heroes',
