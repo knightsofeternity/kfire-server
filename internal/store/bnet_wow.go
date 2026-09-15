@@ -127,3 +127,13 @@ func (s *Store) MarkWowSynced(ctx context.Context, userID, gameID string) error 
 		userID, gameID)
 	return err
 }
+
+// WowCharacterCount returns how many characters a member already has for a
+// game. The syncer asks before it would replace them with nothing.
+func (s *Store) WowCharacterCount(ctx context.Context, userID, gameID string) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM bnet_wow_characters WHERE user_id = $1 AND game_id = $2`,
+		userID, gameID).Scan(&n)
+	return n, err
+}

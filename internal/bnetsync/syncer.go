@@ -120,14 +120,37 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 			})
 		}
 	}
-	if anyOK {
-		if err := s.store.ReplaceWowCharacters(ctx, userID, game.ID, rows); err != nil {
-			slog.Error("bnetsync: replace", "user_id", userID, "err", err)
+	if !anyOK {
+		return
+	}
+	// An empty answer is almost never the truth. Blizzard drops characters left
+	// unplayed from its index, so a member whose roster it no longer lists
+	// would watch every character disappear on the next sync, as one did after
+	// relinking: twenty-two characters replaced by none, and the game itself
+	// vanished from their library, which is built from those rows.
+	//
+	// Keeping the previous set, which the page already dates and labels as
+	// frozen, beats deleting it. A member who really deleted every character
+	// keeps a stale list until one sync returns something, which is the far
+	// smaller wrong.
+	if len(rows) == 0 {
+		if had, err := s.store.WowCharacterCount(ctx, userID, game.ID); err == nil && had > 0 {
+			slog.Warn("bnetsync: wow returned nothing, keeping the previous characters",
+				"user_id", userID, "slug", gameSlug, "kept", had)
+			// Still marked synced: without it every page view would retry the
+			// same three calls against Blizzard.
+			if err := s.store.MarkWowSynced(ctx, userID, game.ID); err != nil {
+				slog.Warn("bnetsync: mark synced", "user_id", userID, "err", err)
+			}
 			return
 		}
-		if err := s.store.MarkWowSynced(ctx, userID, game.ID); err != nil {
-			slog.Warn("bnetsync: mark synced", "user_id", userID, "err", err)
-		}
+	}
+	if err := s.store.ReplaceWowCharacters(ctx, userID, game.ID, rows); err != nil {
+		slog.Error("bnetsync: replace", "user_id", userID, "err", err)
+		return
+	}
+	if err := s.store.MarkWowSynced(ctx, userID, game.ID); err != nil {
+		slog.Warn("bnetsync: mark synced", "user_id", userID, "err", err)
 	}
 }
 
