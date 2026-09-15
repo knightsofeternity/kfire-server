@@ -124,20 +124,34 @@
 	}
 
 	/**
-	 * Polyline points for the trend curve inside a 100x40 viewBox. Placement 1
-	 * sits at the top and 8 at the bottom, so a member whose placements improve
-	 * draws a line that climbs, which is the way progress is read.
+	 * The trend curve inside a 100x40 viewBox, with the bounds it was drawn
+	 * against so the axis can be labelled truthfully.
+	 *
+	 * The axis fits the data rather than the full 1 to 8 range. A rolling
+	 * average moves by tenths of a place, so on a full-range axis every curve
+	 * is a flat line and the block says nothing. The window never shrinks
+	 * below one whole placement, which stops a steady run from being magnified
+	 * into noise.
+	 *
+	 * Placement 1 sits at the top, so a member whose placements improve draws a
+	 * line that climbs, which is the way progress is read.
 	 */
-	function hsTrendPoints(series: number[]): string {
+	function hsTrendChart(series: number[]): { points: string; best: number; worst: number } {
 		const W = 100;
 		const H = 40;
-		return series
+		const lo = Math.min(...series);
+		const hi = Math.max(...series);
+		const span = Math.max(hi - lo, 1);
+		const best = Math.min(Math.max((lo + hi) / 2 - span / 2, 1), 8 - span);
+		const worst = best + span;
+		const points = series
 			.map((v, i) => {
 				const x = series.length > 1 ? (i * W) / (series.length - 1) : W / 2;
-				const y = ((Math.min(Math.max(v, 1), 8) - 1) / 7) * H;
+				const y = ((v - best) / span) * H;
 				return `${x.toFixed(2)},${y.toFixed(2)}`;
 			})
 			.join(' ');
+		return { points, best, worst };
 	}
 
 	onMount(load);
@@ -476,7 +490,7 @@
 					</p>
 				</div>
 				<div class="pd-card p-3">
-					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsWinRate')}</p>
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsWins')}</p>
 					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{hs.wins}</p>
 				</div>
 			</div>
@@ -511,12 +525,13 @@
 
 				<!-- Trend: drawn with the best placement at the top so progress climbs -->
 				{#if trend.length}
+					{@const chart = hsTrendChart(trend)}
 					<div class="pd-card p-3">
 						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTrend')}</p>
 						<div class="flex items-stretch gap-2">
 							<div class="flex shrink-0 flex-col justify-between py-0.5 text-[10px] tabular-nums text-[var(--color-muted)]">
-								<span>1</span>
-								<span>8</span>
+								<span>{chart.best.toFixed(1)}</span>
+								<span>{chart.worst.toFixed(1)}</span>
 							</div>
 							<svg
 								viewBox="0 0 100 40"
@@ -525,11 +540,15 @@
 								role="img"
 								aria-label={t('game.hsTrendCaption')}
 							>
-								<line x1="0" y1="{((4 - 1) / 7) * 40}" x2="100" y2="{((4 - 1) / 7) * 40}"
-									stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 3"
-									vector-effect="non-scaling-stroke" />
+								<!-- The top-four line, drawn only when the axis reaches it. -->
+								{#if chart.best <= 4 && chart.worst >= 4}
+									{@const y = ((4 - chart.best) / (chart.worst - chart.best)) * 40}
+									<line x1="0" y1={y} x2="100" y2={y}
+										stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 3"
+										vector-effect="non-scaling-stroke" />
+								{/if}
 								<polyline
-									points={hsTrendPoints(trend)}
+									points={chart.points}
 									fill="none"
 									stroke="var(--color-brand-bright)"
 									stroke-width="2"
@@ -591,7 +610,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each recent as m, i (m.played_at + i)}
+							{#each recent as m (m.played_at)}
 								<tr class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]">
 									<td class="px-3 py-2 whitespace-nowrap text-sm text-[var(--color-muted)]">{hsMatchDate(m.played_at)}</td>
 									<td class="px-3 py-2 text-sm text-[var(--color-text)]">
