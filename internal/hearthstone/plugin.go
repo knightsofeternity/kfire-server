@@ -75,8 +75,74 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 	return map[string]any{"hs_players": cards, "hs_heroes": hs}, nil
 }
 
-// UserGameDetail returns nothing for now: the member page keeps its current
-// display, which is out of this chantier's scope.
+// recentMatches is how many matches the member page asks for. Ten are listed;
+// the rest feed the trend, which averages over twenty and needs a run longer
+// than twenty to move.
+const recentMatches = 40
+
+// UserGameDetail returns the member's own record: totals, how often each place
+// was reached, the heroes played, and the last matches.
+//
+// A member who has reported nothing yields nothing, and the page shows no block
+// at all rather than a shelf of zeroes.
 func (p *Plugin) UserGameDetail(ctx context.Context, userID string, g store.Game) (map[string]any, error) {
-	return nil, nil
+	totals, err := p.st.HearthstoneMemberTotalsFor(ctx, userID, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	if totals.Matches == 0 {
+		return nil, nil
+	}
+
+	places, err := p.st.HearthstonePlacementsFor(ctx, userID, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	heroes, err := p.st.HearthstoneHeroesFor(ctx, userID, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	recent, err := p.st.HearthstoneRecentFor(ctx, userID, g.ID, recentMatches)
+	if err != nil {
+		return nil, err
+	}
+
+	// Every list is materialised, never left nil: the browser iterates over
+	// them and a missing key would read as an error rather than as nothing.
+	byPlace := make([]map[string]any, len(places))
+	for i, c := range places {
+		byPlace[i] = map[string]any{"placement": c.Placement, "matches": c.Matches}
+	}
+	hs := make([]map[string]any, len(heroes))
+	for i, h := range heroes {
+		hs[i] = map[string]any{
+			"hero_card_id": h.HeroCardID, "matches": h.Matches,
+			"avg_placement": h.AvgPlacement, "top4": h.Top4, "wins": h.Wins,
+		}
+	}
+	ms := make([]map[string]any, len(recent))
+	for i, m := range recent {
+		e := map[string]any{
+			"played_at": m.PlayedAt, "mode": m.Mode, "result": m.Result,
+		}
+		if m.Turns != nil {
+			e["turns"] = *m.Turns
+		}
+		if m.Placement != nil {
+			e["placement"] = *m.Placement
+		}
+		if m.HeroCardID != nil {
+			e["hero_card_id"] = *m.HeroCardID
+		}
+		ms[i] = e
+	}
+
+	profile := map[string]any{
+		"matches": totals.Matches, "wins": totals.Wins, "ranked": totals.Ranked,
+		"top4": totals.Top4, "by_placement": byPlace, "heroes": hs, "recent": ms,
+	}
+	if totals.AvgPlacement != nil {
+		profile["avg_placement"] = *totals.AvgPlacement
+	}
+	return map[string]any{"hs_profile": profile}, nil
 }

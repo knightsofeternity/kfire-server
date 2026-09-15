@@ -83,14 +83,21 @@ func (s *Store) HearthstoneStatsByGame(ctx context.Context, gameID string) ([]He
 	return out, rows.Err()
 }
 
-// HearthstoneHeroStats is the guild's record with one Battlegrounds hero.
-type HearthstoneHeroStats struct {
+// HearthstoneHeroRecord is a record with one Battlegrounds hero, whoever it
+// belongs to.
+type HearthstoneHeroRecord struct {
 	HeroCardID   string
 	Matches      int
-	Players      int
 	AvgPlacement float64
 	Top4         int
 	Wins         int
+}
+
+// HearthstoneHeroStats is the guild's record with one hero, so it also says how
+// many members played it. A single member's record has no such field.
+type HearthstoneHeroStats struct {
+	HearthstoneHeroRecord
+	Players int
 }
 
 // heroBaseID folds a hero skin onto the hero it dresses. A member who owns the
@@ -131,6 +138,132 @@ func (s *Store) HearthstoneHeroesByGame(ctx context.Context, gameID string) ([]H
 		var r HearthstoneHeroStats
 		if err := rows.Scan(&r.HeroCardID, &r.Matches, &r.Players,
 			&r.AvgPlacement, &r.Top4, &r.Wins); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// HearthstoneMemberTotals is one member's record for a game, all modes counted.
+type HearthstoneMemberTotals struct {
+	Matches      int
+	Wins         int
+	Ranked       int // matches carrying a placement
+	AvgPlacement *float64
+	Top4         int
+}
+
+// HearthstonePlacementCount is how often a member finished in one place.
+type HearthstonePlacementCount struct {
+	Placement int
+	Matches   int
+}
+
+// HearthstoneMatchRow is one match as the member's own page shows it.
+type HearthstoneMatchRow struct {
+	PlayedAt   time.Time
+	Mode       string
+	Result     string
+	Turns      *int
+	Placement  *int
+	HeroCardID *string
+}
+
+// HearthstoneMemberTotalsFor returns one member's record for a game.
+func (s *Store) HearthstoneMemberTotalsFor(ctx context.Context, userID, gameID string) (HearthstoneMemberTotals, error) {
+	var t HearthstoneMemberTotals
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*),
+		       count(*) FILTER (WHERE result = 'win'),
+		       count(placement),
+		       avg(placement),
+		       count(*) FILTER (WHERE placement <= 4)
+		FROM hearthstone_matches
+		WHERE user_id = $1 AND game_id = $2`, userID, gameID).
+		Scan(&t.Matches, &t.Wins, &t.Ranked, &t.AvgPlacement, &t.Top4)
+	return t, err
+}
+
+// HearthstonePlacementsFor returns how often a member finished in each place.
+//
+// Only places actually reached come back; the page fills the gaps, so a member
+// who never finished eighth still gets an eighth bar, at zero.
+func (s *Store) HearthstonePlacementsFor(ctx context.Context, userID, gameID string) ([]HearthstonePlacementCount, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT placement, count(*)
+		FROM hearthstone_matches
+		WHERE user_id = $1 AND game_id = $2 AND placement IS NOT NULL
+		GROUP BY placement
+		ORDER BY placement`, userID, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []HearthstonePlacementCount
+	for rows.Next() {
+		var c HearthstonePlacementCount
+		if err := rows.Scan(&c.Placement, &c.Matches); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// HearthstoneHeroesFor returns one member's record per Battlegrounds hero, most
+// played first. Skins are folded onto the hero they dress, as everywhere else.
+func (s *Store) HearthstoneHeroesFor(ctx context.Context, userID, gameID string) ([]HearthstoneHeroRecord, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT regexp_replace(m.hero_card_id, '_SKIN_[A-Za-z0-9]+$', ''),
+		       count(*),
+		       avg(m.placement),
+		       count(*) FILTER (WHERE m.placement <= 4),
+		       count(*) FILTER (WHERE m.result = 'win')
+		FROM hearthstone_matches m
+		WHERE m.user_id = $1 AND m.game_id = $2
+		  AND m.hero_card_id IS NOT NULL AND m.placement IS NOT NULL
+		GROUP BY 1
+		ORDER BY count(*) DESC, avg(m.placement) ASC`, userID, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []HearthstoneHeroRecord
+	for rows.Next() {
+		var r HearthstoneHeroRecord
+		if err := rows.Scan(&r.HeroCardID, &r.Matches,
+			&r.AvgPlacement, &r.Top4, &r.Wins); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// HearthstoneRecentFor returns a member's last matches, newest first.
+//
+// The limit serves two displays at once: the handful shown as a list, and the
+// longer run the page averages into a trend.
+func (s *Store) HearthstoneRecentFor(ctx context.Context, userID, gameID string, limit int) ([]HearthstoneMatchRow, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT played_at, mode, result, turns, placement, hero_card_id
+		FROM hearthstone_matches
+		WHERE user_id = $1 AND game_id = $2
+		ORDER BY played_at DESC
+		LIMIT $3`, userID, gameID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []HearthstoneMatchRow
+	for rows.Next() {
+		var r HearthstoneMatchRow
+		if err := rows.Scan(&r.PlayedAt, &r.Mode, &r.Result, &r.Turns,
+			&r.Placement, &r.HeroCardID); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
