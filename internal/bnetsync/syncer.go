@@ -6,6 +6,7 @@ package bnetsync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -90,6 +91,15 @@ func (s *Syncer) RefreshWoW(ctx context.Context, userID, gameSlug string) {
 			continue
 		}
 		chars, err := s.bnet.WowAccountCharacters(ctx, access, ns.namespace)
+		if errors.Is(err, battlenet.ErrProfileNotFound) {
+			// Blizzard has no profile for this account in this namespace. That
+			// is a fact about Blizzard's index, not an empty roster, and it
+			// must NOT count as a successful fetch: treating it as one is what
+			// let an empty answer stand in for a real one.
+			slog.Info("bnetsync: wow profile absent at Blizzard",
+				"user_id", userID, "ns", ns.namespace)
+			continue
+		}
 		if err != nil {
 			slog.Warn("bnetsync: wow account", "user_id", userID, "ns", ns.namespace, "err", err)
 			continue

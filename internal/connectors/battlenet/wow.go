@@ -3,6 +3,7 @@ package battlenet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -59,6 +60,12 @@ func (c *Connector) getProfileJSON(ctx context.Context, endpoint, token string, 
 }
 
 // WowAccountCharacters lists the member's characters for one namespace.
+// ErrProfileNotFound means Blizzard answered 404 for a profile. It is NOT the
+// same as a profile holding nothing, and the two were indistinguishable in the
+// logs, which cost an afternoon on a member whose characters exist in game and
+// whose account answers 404 here.
+var ErrProfileNotFound = errors.New("battlenet: profile not found")
+
 func (c *Connector) WowAccountCharacters(ctx context.Context, token, namespace string) ([]WowCharacter, error) {
 	region := namespaceRegion(namespace)
 	q := url.Values{"namespace": {namespace}, "locale": {"en_US"}}
@@ -86,8 +93,11 @@ func (c *Connector) WowAccountCharacters(ctx context.Context, token, namespace s
 		} `json:"wow_accounts"`
 	}
 	found, err := c.getProfileJSON(ctx, endpoint, token, &payload)
-	if err != nil || !found {
+	if err != nil {
 		return nil, err
+	}
+	if !found {
+		return nil, ErrProfileNotFound
 	}
 
 	var out []WowCharacter
