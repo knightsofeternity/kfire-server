@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -90,9 +91,25 @@ func (p *WowPlugin) UserGameDetail(ctx context.Context, userID string, g store.G
 		if len(ch.RaidSummary) > 0 {
 			m["raid_summary"] = json.RawMessage(ch.RaidSummary)
 		}
+		if ch.Version != nil {
+			m["version"] = *ch.Version
+		}
+		// Whether Blizzard has ever handed us this character's achievements.
+		// False means its profile answers 404, which happens to characters left
+		// unplayed; the page says so instead of showing an empty list.
+		m["has_achievements"] = ch.HasAchievements
 		cards[i] = m
 	}
-	return map[string]any{"wow_characters": cards}, nil
+
+	out := map[string]any{"wow_characters": cards, "wow_synced_at": chars[0].LastSyncedAt}
+
+	// A Battle.net token lasts 24 hours and Blizzard issues no refresh token,
+	// so a member's characters freeze the day after they link. Saying nothing
+	// would leave them reading months-old data as if it were current.
+	if tok, err := p.st.GetLinkedToken(ctx, userID, "battlenet"); err == nil {
+		out["wow_link_expired"] = tok.TokenExpiresAt == nil || tok.TokenExpiresAt.Before(time.Now())
+	}
+	return out, nil
 }
 
 // BnetProfilePlugin exposes a single Battle.net profile game (Diablo III or

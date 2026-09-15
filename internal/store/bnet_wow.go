@@ -28,7 +28,12 @@ type WowCharacterRow struct {
 	AchievementPoints int
 	Achievements      []byte
 	Version           *string
-	LastSyncedAt      time.Time
+	// HasAchievements says whether Blizzard ever returned an achievement list
+	// for this character. It is false when the character profile answers 404,
+	// which Blizzard does for characters left unplayed for a while, and the
+	// page must say so instead of showing an empty list.
+	HasAchievements bool
+	LastSyncedAt    time.Time
 }
 
 // ReplaceWowCharacters atomically replaces a member's WoW characters for one
