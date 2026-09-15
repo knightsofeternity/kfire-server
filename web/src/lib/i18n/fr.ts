@@ -220,6 +220,10 @@ export const fr: Catalog = {
 	},
 	gamesList: {
 		title: 'Jeux',
+		sortBy: 'Trier par',
+		sortPlayers: 'Joueurs',
+		sortHours: 'Heures',
+		sortName: 'Nom',
 		search: 'Rechercher un jeu...',
 		loading: 'Chargement...',
 		empty: "Aucun jeu joué pour l'instant.",

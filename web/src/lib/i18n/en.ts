@@ -219,6 +219,10 @@ export const en = {
 	},
 	gamesList: {
 		title: 'Games',
+		sortBy: 'Sort by',
+		sortPlayers: 'Players',
+		sortHours: 'Hours',
+		sortName: 'Name',
 		search: 'Search games...',
 		loading: 'Loading...',
 		empty: 'No games played yet.',
