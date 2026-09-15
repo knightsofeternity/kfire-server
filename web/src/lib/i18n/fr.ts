@@ -158,6 +158,18 @@ export const fr: Catalog = {
 		hsAvgPlacement: 'Position moyenne',
 		hsTop4: 'Top 4',
 		hsNoPlacement: 'Aucune partie de Bataille de Champions',
+		hsSpread: 'Répartition des positions',
+		hsTrend: 'Tendance',
+		hsTrendCaption:
+			'Position moyenne sur les 20 dernières parties ; la courbe monte quand les positions baissent, donc plus haut vaut mieux.',
+		hsRecentMatches: 'Dernières parties',
+		hsPlacement: 'Position',
+		hsHero: 'Héros',
+		hsTurns: 'Tours',
+		hsDate: 'Date',
+		hsModeBattlegrounds: 'Bataille de Champions',
+		hsModeConstructed: 'Construit',
+		hsModeArena: 'Arène',
 		hsRatingNote:
 			"La cote de Bataille de Champions n'est pas inscrite dans les journaux du jeu, KFIRE mesure donc le niveau par la position moyenne et le taux de top 4."
 	},

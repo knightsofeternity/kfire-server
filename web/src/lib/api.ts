@@ -150,6 +150,50 @@ export type HsHero = {
 	wins: number;
 };
 
+export type HsPlacementCount = {
+	/** 1 to 8; only the places the member actually reached are listed. */
+	placement: number;
+	matches: number;
+};
+
+export type HsProfileHero = {
+	/** The card identifier the game writes, skins already folded onto the base hero. */
+	hero_card_id: string;
+	matches: number;
+	avg_placement: number;
+	top4: number;
+	wins: number;
+};
+
+export type HsRecentMatch = {
+	played_at: string;
+	mode: string;
+	result: string;
+	/** Absent when the log did not carry a turn count. */
+	turns?: number;
+	/** Absent outside Battlegrounds: a constructed game has no placement. */
+	placement?: number;
+	/** Absent when the log did not name a hero. */
+	hero_card_id?: string;
+};
+
+/** One member's own Hearthstone record, absent until they report a match. */
+export type HsProfile = {
+	matches: number;
+	wins: number;
+	/** Matches carrying a placement, i.e. Battlegrounds ones. */
+	ranked: number;
+	top4: number;
+	/** Absent when the member has no Battlegrounds match yet. */
+	avg_placement?: number;
+	/** Sparse: places never reached are simply missing, they count as zero. */
+	by_placement: HsPlacementCount[];
+	/** Most played first, placed matches only. */
+	heroes: HsProfileHero[];
+	/** Up to forty matches, most recent first. */
+	recent: HsRecentMatch[];
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
@@ -202,6 +246,7 @@ export type PlayerGameDetail = {
 	bnet_profile?: Record<string, unknown>;
 	lol_profile?: LolProfile;
 	lol_live?: LolLive;
+	hs_profile?: HsProfile;
 	achievements?: PlayerGameAchievement[];
 };
 

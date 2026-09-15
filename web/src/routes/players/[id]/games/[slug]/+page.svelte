@@ -5,6 +5,7 @@
 	import { formatDuration, timeAgo } from '$lib/format';
 	import { t } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon } from '$lib/wow';
+	import { heroArt, heroName, hsHeroRate, hsPlacementBars, hsTrend } from '$lib/hearthstone';
 
 	let detail = $state<PlayerGameDetail | null>(null);
 	let loading = $state(true);
@@ -103,6 +104,40 @@
 	function lolChampName(name: string | undefined, id?: number): string {
 		if (name && name.trim()) return name;
 		return id !== undefined ? `#${id}` : '?';
+	}
+
+	/** Mode labels the catalog knows; anything else shows the raw mode name. */
+	const HS_MODE_KEYS: Record<string, string> = {
+		battlegrounds: 'game.hsModeBattlegrounds',
+		constructed: 'game.hsModeConstructed',
+		arena: 'game.hsModeArena'
+	};
+
+	function hsModeLabel(mode: string): string {
+		const key = HS_MODE_KEYS[mode];
+		return key ? t(key) : mode;
+	}
+
+	/** Short day-and-month stamp for a match, in the reader's locale. */
+	function hsMatchDate(iso: string): string {
+		return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+	}
+
+	/**
+	 * Polyline points for the trend curve inside a 100x40 viewBox. Placement 1
+	 * sits at the top and 8 at the bottom, so a member whose placements improve
+	 * draws a line that climbs, which is the way progress is read.
+	 */
+	function hsTrendPoints(series: number[]): string {
+		const W = 100;
+		const H = 40;
+		return series
+			.map((v, i) => {
+				const x = series.length > 1 ? (i * W) / (series.length - 1) : W / 2;
+				const y = ((Math.min(Math.max(v, 1), 8) - 1) / 7) * H;
+				return `${x.toFixed(2)},${y.toFixed(2)}`;
+			})
+			.join(' ');
 	}
 
 	onMount(load);
@@ -404,6 +439,185 @@
 				{/if}
 			</div>
 			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('common.riotDisclaimer')}</p>
+		</section>
+	{/if}
+
+	<!-- Hearthstone: the member's own record -->
+	{#if detail.hs_profile}
+		{@const hs = detail.hs_profile}
+		{@const bars = hsPlacementBars(hs)}
+		{@const trend = hsTrend(hs.recent ?? [])}
+		{@const heroes = (hs.heroes ?? []).slice(0, 6)}
+		{@const recent = (hs.recent ?? []).slice(0, 10)}
+		<section class="mb-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('game.hsRecord')}
+			</h2>
+
+			<!-- Counters -->
+			<div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsMatches')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-text)]">{hs.matches}</p>
+				</div>
+				{#if hs.avg_placement !== undefined}
+					<div class="pd-card p-3">
+						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsAvgPlacement')}</p>
+						<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-brand-bright)]">
+							{hs.avg_placement.toFixed(1)}
+						</p>
+					</div>
+				{/if}
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTop4')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-cyan)]">
+						{hs.ranked > 0 ? Math.round((hs.top4 * 100) / hs.ranked) : 0}%
+					</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsWinRate')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{hs.wins}</p>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 gap-3 {trend.length ? 'lg:grid-cols-2' : ''}">
+				<!-- Placement spread: the shape of the bars is what tells two players apart -->
+				<div class="pd-card p-3">
+					<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsSpread')}</p>
+					<ul class="flex flex-col gap-1">
+						{#each bars as b (b.placement)}
+							<li class="flex items-center gap-2 {b.placement === 4 ? 'mb-1 border-b border-dashed border-[var(--color-border)] pb-2' : ''}">
+								<span
+									class="w-4 shrink-0 text-right font-display text-xs tabular-nums {b.placement <= 4
+										? 'text-[var(--color-brand-bright)]'
+										: 'text-[var(--color-muted)]'}"
+								>
+									{b.placement}
+								</span>
+								<span class="h-3 flex-1 bg-[var(--color-surface-2)]">
+									<span
+										class="block h-3 {b.placement <= 4
+											? 'bg-[var(--color-brand)]'
+											: 'bg-[var(--color-muted)]/40'}"
+										style="width: {(b.share * 100).toFixed(1)}%"
+									></span>
+								</span>
+								<span class="w-8 shrink-0 text-right text-xs tabular-nums text-[var(--color-muted)]">{b.matches}</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+
+				<!-- Trend: drawn with the best placement at the top so progress climbs -->
+				{#if trend.length}
+					<div class="pd-card p-3">
+						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTrend')}</p>
+						<div class="flex items-stretch gap-2">
+							<div class="flex shrink-0 flex-col justify-between py-0.5 text-[10px] tabular-nums text-[var(--color-muted)]">
+								<span>1</span>
+								<span>8</span>
+							</div>
+							<svg
+								viewBox="0 0 100 40"
+								preserveAspectRatio="none"
+								class="h-24 w-full"
+								role="img"
+								aria-label={t('game.hsTrendCaption')}
+							>
+								<line x1="0" y1="{((4 - 1) / 7) * 40}" x2="100" y2="{((4 - 1) / 7) * 40}"
+									stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 3"
+									vector-effect="non-scaling-stroke" />
+								<polyline
+									points={hsTrendPoints(trend)}
+									fill="none"
+									stroke="var(--color-brand-bright)"
+									stroke-width="2"
+									stroke-linejoin="round"
+									stroke-linecap="round"
+									vector-effect="non-scaling-stroke"
+								/>
+							</svg>
+						</div>
+						<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsTrendCaption')}</p>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Heroes -->
+			{#if heroes.length}
+				<h3 class="mt-5 mb-2 font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">
+					{t('game.hsHeroes')}
+				</h3>
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+					{#each heroes as h (h.hero_card_id)}
+						<div class="pd-card flex items-center gap-3 p-2">
+							<img
+								src={heroArt(h.hero_card_id)}
+								alt=""
+								loading="lazy"
+								class="h-12 w-12 shrink-0 rounded-full object-cover"
+							/>
+							<div class="min-w-0">
+								<p class="truncate font-display text-sm font-semibold text-[var(--color-text)]">
+									{heroName(h.hero_card_id)}
+								</p>
+								<p class="text-xs text-[var(--color-muted)]">
+									{h.matches > 1 ? t('game.hsHeroMatches', { n: h.matches }) : t('game.hsHeroMatch')}
+								</p>
+								<p class="text-xs tabular-nums">
+									<span class="text-[var(--color-brand-bright)]">{h.avg_placement.toFixed(1)}</span>
+									<span class="text-[var(--color-muted)]">&middot; {hsHeroRate(h)}% {t('game.hsTop4')}</span>
+								</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<!-- Last ten matches -->
+			{#if recent.length}
+				<h3 class="mt-5 mb-2 font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">
+					{t('game.hsRecentMatches')}
+				</h3>
+				<div class="pd-card overflow-x-auto">
+					<table class="w-full min-w-[420px] border-collapse">
+						<thead>
+							<tr class="border-b border-[var(--color-border)]">
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsDate')}</th>
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsHero')}</th>
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsPlacement')}</th>
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTurns')}</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each recent as m, i (m.played_at + i)}
+								<tr class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]">
+									<td class="px-3 py-2 whitespace-nowrap text-sm text-[var(--color-muted)]">{hsMatchDate(m.played_at)}</td>
+									<td class="px-3 py-2 text-sm text-[var(--color-text)]">
+										{#if m.hero_card_id}{heroName(m.hero_card_id)}{:else}&mdash;{/if}
+									</td>
+									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
+										{#if m.placement !== undefined}
+											<span class={m.placement <= 4 ? 'text-[var(--color-brand-bright)]' : 'text-[var(--color-muted)]'}>
+												{m.placement}
+											</span>
+										{:else}
+											<!-- A constructed game has no placement; naming the mode beats an empty cell -->
+											<span class="text-xs italic text-[var(--color-muted)]">{hsModeLabel(m.mode)}</span>
+										{/if}
+									</td>
+									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-muted)]">
+										{#if m.turns !== undefined}{m.turns}{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingNote')}</p>
 		</section>
 	{/if}
 

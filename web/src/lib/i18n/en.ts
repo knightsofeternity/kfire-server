@@ -157,6 +157,18 @@ export const en = {
 		hsAvgPlacement: 'Avg. placement',
 		hsTop4: 'Top 4',
 		hsNoPlacement: 'No Battlegrounds match yet',
+		hsSpread: 'Placement spread',
+		hsTrend: 'Trend',
+		hsTrendCaption:
+			'Average placement over the last 20 matches; the line rises as placements drop, so higher is better.',
+		hsRecentMatches: 'Recent matches',
+		hsPlacement: 'Placement',
+		hsHero: 'Hero',
+		hsTurns: 'Turns',
+		hsDate: 'Date',
+		hsModeBattlegrounds: 'Battlegrounds',
+		hsModeConstructed: 'Constructed',
+		hsModeArena: 'Arena',
 		hsRatingNote:
 			'Battlegrounds rating is not recorded in the game logs, so KFIRE measures skill by average placement and top-4 rate.'
 	},
