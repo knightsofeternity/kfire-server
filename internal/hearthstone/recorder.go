@@ -3,6 +3,7 @@ package hearthstone
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -82,10 +83,24 @@ func NewRecorder(st *store.Store) *Recorder { return &Recorder{st: st} }
 func (r *Recorder) Slug() string { return "hearthstone" }
 
 // Record valide puis écrit un match.
+//
+// Les deux classes d'échec sont distinguées dans le message, tout en restant la
+// même erreur sentinelle : le hub n'expose qu'un code générique au client, mais
+// journalise le détail. Un JSON illisible veut dire que la sérialisation du
+// client est cassée et que TOUS ses matchs échoueront ; une validation qui
+// refuse veut souvent dire qu'une donnée légitime a rencontré une règle écrite
+// trop tôt, comme un mode de jeu qui n'existait pas encore. Sans le détail dans
+// le journal, les deux se ressemblent et aucune des deux ne se diagnostique.
 func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
 	var p payload
-	if err := json.Unmarshal(raw, &p); err != nil || !p.valid() {
-		return matchrecord.ErrInvalidPayload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return fmt.Errorf("%w: json illisible: %v", matchrecord.ErrInvalidPayload, err)
+	}
+	if !p.valid() {
+		// mode et result sont les champs qui discriminent : si un nouveau mode
+		// apparaît un jour, il se lit directement dans le journal.
+		return fmt.Errorf("%w: champs refusés (mode=%q result=%q)",
+			matchrecord.ErrInvalidPayload, p.Mode, p.Result)
 	}
 	return r.st.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{
 		UserID: userID, GameID: gameID,

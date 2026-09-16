@@ -1,10 +1,15 @@
 package hearthstone
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 )
 
 func TestPayloadValidation(t *testing.T) {
@@ -52,5 +57,26 @@ func matchBody(at time.Time) string {
 func TestRecorderRevendiqueSonSlug(t *testing.T) {
 	if got := NewRecorder(nil).Slug(); got != "hearthstone" {
 		t.Errorf("Slug() = %q, want \"hearthstone\"", got)
+	}
+}
+
+func TestRecordRendLaSentinelleDansLesDeuxCas(t *testing.T) {
+	r := NewRecorder(nil)
+
+	jsonCasse := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
+	if !errors.Is(jsonCasse, matchrecord.ErrInvalidPayload) {
+		t.Errorf("json illisible = %v, want ErrInvalidPayload", jsonCasse)
+	}
+	if !strings.Contains(jsonCasse.Error(), "json illisible") {
+		t.Errorf("le message doit nommer la classe d'échec, got %q", jsonCasse)
+	}
+
+	champsRefuses := r.Record(context.Background(), "u1", "g1",
+		json.RawMessage(`{"mode":"arena","result":"loss","played_at":"2026-08-02T17:44:59Z"}`))
+	if !errors.Is(champsRefuses, matchrecord.ErrInvalidPayload) {
+		t.Errorf("champs refusés = %v, want ErrInvalidPayload", champsRefuses)
+	}
+	if !strings.Contains(champsRefuses.Error(), `mode="arena"`) {
+		t.Errorf("le message doit porter le mode fautif, got %q", champsRefuses)
 	}
 }
