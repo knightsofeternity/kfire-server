@@ -1,6 +1,6 @@
-// Package rocketleague expose Rocket League comme plugin de jeu. Comme
-// Hearthstone, il ne crawle rien : les résultats de match sont rapportés par le
-// client de bureau, qui lit la socket de statistiques que le jeu ouvre en local.
+// Package rocketleague exposes Rocket League as a game plugin. Like
+// Hearthstone, it crawls nothing: match results are reported by the desktop
+// client, which reads the stats socket the game opens locally.
 package rocketleague
 
 import (
@@ -13,34 +13,33 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-// clockSkewTolerance est l'avance maximale tolérée sur l'horloge du serveur
-// avant qu'un résultat de match soit refusé. Même valeur et même raison que pour
-// Hearthstone.
+// clockSkewTolerance is the maximum lead tolerated on the server clock before
+// a match result is rejected. Same value and same reason as for Hearthstone.
 const clockSkewTolerance = 5 * time.Minute
 
-// maxDuration borne la durée d'un match. Une prolongation peut s'éterniser, une
-// horloge folle ne doit pas empoisonner le temps de jeu de la guilde.
+// maxDuration bounds the duration of a match. Overtime can drag on, but a
+// runaway clock must not poison the guild's play time.
 //
-// DOIT rester égal au plafond de duration_seconds dans la migration 0035. Si les
-// deux divergent, une charge utile passe la validation puis se fait refuser par
-// la contrainte, le hub la classe en erreur transitoire, et le client la
-// réémet indéfiniment.
+// MUST stay equal to the duration_seconds ceiling in migration 0035. If the
+// two diverge, a payload passes validation then gets rejected by the
+// constraint, the hub classes it as a transient error, and the client
+// re-emits it forever.
 const maxDuration = 7200
 
-// trainingPlaylists sont les identifiants Psyonix que le client ne doit jamais
-// rapporter : partie libre, ateliers et entraînement. Ils n'ont pas d'adversaire
-// et fausseraient tout ratio.
+// trainingPlaylists are the Psyonix identifiers the client must never
+// report: free play, workshop maps and training. They have no opponent and
+// would skew every ratio.
 var trainingPlaylists = map[int]struct{}{0: {}, 9: {}, 19: {}, 21: {}, 73: {}}
 
-// payload est un match terminé, déjà résumé par le client de bureau.
+// payload is a finished match, already summarised by the desktop client.
 //
-// Le flux du jeu porte le nom de TOUS les joueurs du match. Le client s'en sert
-// pour calculer mvp et team_size, puis n'envoie que ceci : des faits sur le
-// membre, plus deux scores d'équipe qui ne nomment personne.
+// The game's own stream carries the name of EVERY player in the match. The
+// client uses it to compute mvp and team_size, then sends only this: facts
+// about the member, plus two team scores that name no one.
 //
-// playlist est l'identifiant numérique brut de Psyonix. Il n'est jamais traduit
-// ici : l'identifiant est le fait, le libellé est de la présentation, et il est
-// localisé.
+// playlist is Psyonix's raw numeric identifier. It is never translated here:
+// the identifier is the fact, the label is presentation, and it is
+// localized.
 type payload struct {
 	Playlist        int       `json:"playlist"`
 	TeamSize        int       `json:"team_size"`
@@ -59,8 +58,8 @@ type payload struct {
 	PlayedAt        time.Time `json:"played_at"`
 }
 
-// expectedResult rend le résultat que les scores imposent, du point de vue de
-// l'équipe du membre.
+// expectedResult returns the result the scores impose, from the member's
+// team's point of view.
 func expectedResult(playerTeam, blue, orange int) string {
 	mine, theirs := blue, orange
 	if playerTeam == 1 {
@@ -76,11 +75,11 @@ func expectedResult(playerTeam, blue, orange int) string {
 	}
 }
 
-// valid dit si la charge utile mérite d'être écrite. La base applique les mêmes
-// bornes, mais refuser ici donne au client une erreur claire plutôt qu'un échec
-// d'écriture opaque, et permet deux contrôles que le SQL ne sait pas faire : la
-// cohérence entre le résultat annoncé et les scores, et le refus d'un MVP sans
-// victoire.
+// valid reports whether the payload deserves to be written. The database
+// enforces the same bounds, but rejecting here gives the client a clear
+// error instead of an opaque write failure, and allows two checks SQL cannot
+// do: consistency between the announced result and the scores, and
+// rejecting an MVP without a win.
 func (p payload) valid() bool {
 	if p.PlayedAt.IsZero() {
 		return false
@@ -107,55 +106,55 @@ func (p payload) valid() bool {
 	if p.DurationSeconds < 0 || p.DurationSeconds > maxDuration {
 		return false
 	}
-	// Le résultat annoncé doit correspondre aux scores : un client ne se
-	// déclare pas vainqueur d'un match qu'il a perdu.
+	// The announced result must match the scores: a client does not declare
+	// itself the winner of a match it lost.
 	if p.Result != expectedResult(p.PlayerTeam, p.TeamBlueScore, p.TeamOrangeScore) {
 		return false
 	}
-	// Le MVP est le meilleur score de l'équipe GAGNANTE : il n'existe pas sans
-	// victoire.
+	// The MVP is the best score on the WINNING team: it cannot exist without
+	// a win.
 	if p.MVP && p.Result != "win" {
 		return false
 	}
-	// Un match en file d'attente peut être vieux, jamais futur.
+	// A queued match can be old, never future.
 	if p.PlayedAt.After(time.Now().Add(clockSkewTolerance)) {
 		return false
 	}
 	return true
 }
 
-// Recorder écrit les matchs Rocket League rapportés par le client de bureau.
+// Recorder writes the Rocket League matches reported by the desktop client.
 type Recorder struct {
 	st *store.Store
 }
 
-// NewRecorder construit l'enregistreur.
+// NewRecorder builds the recorder.
 func NewRecorder(st *store.Store) *Recorder { return &Recorder{st: st} }
 
-// Slug rend le slug de catalogue revendiqué.
+// Slug returns the claimed catalog slug.
 func (r *Recorder) Slug() string { return "rocket-league" }
 
-// Record valide puis écrit un match.
+// Record validates then writes a match.
 //
-// Même enveloppe d'erreur que l'enregistreur Hearthstone : une seule sentinelle
-// sur le fil, le détail dans le journal. playlist est le champ qui discrimine,
-// puisqu'un identifiant inconnu de Psyonix est la raison la plus probable d'un
-// refus légitime.
+// Same error envelope as the Hearthstone recorder: one sentinel on the wire,
+// the detail in the log. playlist is the discriminating field, since an
+// unknown Psyonix identifier is the most likely reason for a legitimate
+// rejection.
 func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
 	var p payload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("%w: json illisible: %v", matchrecord.ErrInvalidPayload, err)
+		return fmt.Errorf("%w: unreadable json: %v", matchrecord.ErrInvalidPayload, err)
 	}
 	if !p.valid() {
-		// La charge utile ENTIÈRE part au journal, et c'est sans danger par
-		// construction : tous ses champs sont des nombres, des booléens ou une
-		// énumération, par la même conception qui rend la table incapable de
-		// porter un pseudonyme. Il n'y a rien de personnel à y fuiter.
+		// The WHOLE payload goes to the log, and that is safe by
+		// construction: every field is a number, a boolean or an enum, by
+		// the same design that makes the table incapable of holding a
+		// pseudonym. There is nothing personal in it to leak.
 		//
-		// N'en nommer que deux obligerait l'exploitant à rejouer à la main
-		// chaque règle de valid() sur une charge utile qui, elle, n'était pas
-		// journalisée.
-		return fmt.Errorf("%w: champs refusés (%+v)", matchrecord.ErrInvalidPayload, p)
+		// Naming only two of them would force the operator to replay each
+		// rule of valid() by hand against a payload that, itself, was not
+		// logged.
+		return fmt.Errorf("%w: rejected fields (%+v)", matchrecord.ErrInvalidPayload, p)
 	}
 	return r.st.InsertRocketLeagueMatch(ctx, store.RocketLeagueMatch{
 		UserID: userID, GameID: gameID,

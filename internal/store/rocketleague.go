@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// RocketLeagueMatch est un match rapporté. Tous les champs sont des faits sur le
-// membre lui-même : la feuille de match complète, qui porte le nom des autres
-// joueurs, ne quitte jamais sa machine.
+// RocketLeagueMatch is a reported match. Every field is a fact about the
+// member themself: the full match sheet, which names the other players,
+// never leaves their machine.
 type RocketLeagueMatch struct {
 	UserID          string
 	GameID          string
@@ -28,8 +28,8 @@ type RocketLeagueMatch struct {
 	PlayedAt        time.Time
 }
 
-// RocketLeagueMemberStats est le bilan d'un membre pour un jeu, déjà agrégé par
-// la base pour que la page ne télécharge pas chaque match.
+// RocketLeagueMemberStats is a member's record for a game, already
+// aggregated by the database so the page does not download every match.
 type RocketLeagueMemberStats struct {
 	UserID       string
 	Username     string
@@ -43,13 +43,13 @@ type RocketLeagueMemberStats struct {
 	Shots        int
 	Demos        int
 	Score        int
-	PlayTime     int // secondes
+	PlayTime     int // seconds
 	LastPlayedAt time.Time
 }
 
-// InsertRocketLeagueMatch écrit un match. Un match déjà envoyé est ignoré en
-// silence : la file locale du client peut réémettre après une reconnexion, et la
-// contrainte d'unicité sur (user_id, played_at) est ce qui rend cela sûr.
+// InsertRocketLeagueMatch writes a match. An already-sent match is silently
+// ignored: the client's local queue can re-emit after a reconnect, and the
+// uniqueness constraint on (user_id, played_at) is what makes that safe.
 func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO rocket_league_matches
@@ -66,11 +66,11 @@ func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch
 	return err
 }
 
-// RocketLeagueStatsByGame rend une ligne par membre ayant rapporté un match,
-// ordonnée par nombre de matchs puis par nom. Cet ordre n'est PAS un classement :
-// la page trie sur ce qu'elle choisit d'afficher.
+// RocketLeagueStatsByGame returns one row per member who reported a match,
+// ordered by match count then by name. This order is NOT a leaderboard: the
+// page sorts on whatever it chooses to display.
 //
-// Les membres bannis sont exclus, comme pour les agrégats Riot, WoW et Hearthstone.
+// Banned members are excluded, as for the Riot, WoW and Hearthstone aggregates.
 func (s *Store) RocketLeagueStatsByGame(ctx context.Context, gameID string) ([]RocketLeagueMemberStats, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT m.user_id, u.username, u.avatar_url,
@@ -109,8 +109,8 @@ func (s *Store) RocketLeagueStatsByGame(ctx context.Context, gameID string) ([]R
 	return out, rows.Err()
 }
 
-// RocketLeagueRecentMatches rend les derniers matchs d'un membre pour un jeu, du
-// plus récent au plus ancien.
+// RocketLeagueRecentMatches returns a member's latest matches for a game,
+// most recent first.
 func (s *Store) RocketLeagueRecentMatches(ctx context.Context, userID, gameID string, limit int) ([]RocketLeagueMatch, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT playlist, team_size, player_team, team_blue_score, team_orange_score,

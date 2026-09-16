@@ -9,7 +9,7 @@ import (
 
 var _ gameplugin.Plugin = (*Plugin)(nil)
 
-func TestPluginIdentite(t *testing.T) {
+func TestPluginIdentity(t *testing.T) {
 	p := New(nil)
 	if p.ID() != "rocket-league" {
 		t.Errorf("ID() = %q, want \"rocket-league\"", p.ID())
@@ -22,10 +22,10 @@ func TestPluginIdentite(t *testing.T) {
 	}
 }
 
-// Rocket League n'a aucune couche de credentials : la donnée vient de la machine
-// du membre. Le plugin est donc toujours disponible, et c'est l'interrupteur
-// admin du registre qui reste le seul moyen de l'éteindre.
-func TestPluginSansConnecteur(t *testing.T) {
+// Rocket League has no credential layer: the data comes from the member's
+// own machine. The plugin is therefore always available, and the registry's
+// admin switch remains the only way to turn it off.
+func TestPluginHasNoConnector(t *testing.T) {
 	p := New(nil)
 	if p.Connector() != "" {
 		t.Errorf("Connector() = %q, want \"\"", p.Connector())
@@ -35,8 +35,8 @@ func TestPluginSansConnecteur(t *testing.T) {
 	}
 }
 
-// Refresh ne doit rien faire, et surtout ne pas déréférencer le store : il est
-// appelé par le prefetch du profil pour tout plugin actif.
-func TestRefreshInerte(t *testing.T) {
+// Refresh must do nothing, and above all must not dereference the store: it
+// is called by the profile prefetch for every active plugin.
+func TestRefreshIsInert(t *testing.T) {
 	New(nil).Refresh(context.Background(), "u1", "rocket-league")
 }

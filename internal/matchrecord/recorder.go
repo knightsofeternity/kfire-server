@@ -1,9 +1,9 @@
-// Package matchrecord aiguille un match terminé, rapporté par un client de
-// bureau, vers le code qui sait le lire.
+// Package matchrecord routes a finished match, reported by a desktop client,
+// to the code that knows how to read it.
 //
-// Le plan de contrôle ne porte QU'UN message pour tous les jeux. Sans ce
-// registre, le hub devrait connaître la charge utile de chaque jeu et gagnerait
-// un cas de plus à chaque nouveau jeu, pour toujours.
+// The control plane carries only ONE message for every game. Without this
+// registry, the hub would need to know each game's payload and would gain
+// one more case with every new game, forever.
 package matchrecord
 
 import (
@@ -12,41 +12,40 @@ import (
 	"errors"
 )
 
-// ErrUnknownGame est rendue quand aucun enregistreur ne revendique le slug.
-var ErrUnknownGame = errors.New("aucun enregistreur pour ce jeu")
+// ErrUnknownGame is returned when no recorder claims the slug.
+var ErrUnknownGame = errors.New("no recorder for this game")
 
-// ErrInvalidPayload est rendue par un enregistreur quand la charge utile ne
-// mérite pas d'être écrite. Le hub la traduit en erreur visible par le client,
-// jamais en erreur serveur.
-var ErrInvalidPayload = errors.New("charge utile de match invalide")
+// ErrInvalidPayload is returned by a recorder when the payload does not
+// deserve to be written. The hub translates it into an error visible to the
+// client, never a server error.
+var ErrInvalidPayload = errors.New("invalid match payload")
 
-// Recorder valide et persiste les résultats de match d'UN jeu.
+// Recorder validates and persists the match results of ONE game.
 type Recorder interface {
-	// Slug est le slug de catalogue que cet enregistreur revendique.
+	// Slug is the catalog slug this recorder claims.
 	Slug() string
 
-	// Record valide raw puis écrit un match pour userID dans gameID.
-	// Rend ErrInvalidPayload quand raw n'est pas digne de confiance.
+	// Record validates raw then writes a match for userID in gameID.
+	// Returns ErrInvalidPayload when raw is not trustworthy.
 	Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error
 }
 
-// Registry résout un slug vers son enregistreur.
+// Registry resolves a slug to its recorder.
 //
-// La map est construite une fois par NewRegistry et plus jamais écrite : il n'y
-// a aucun mutateur à l'exécution, donc aucun verrou. C'est une raison PLUS forte
-// que celle du registre de plugins, dont le verrou existe pour SetEnabled, que
-// l'admin appelle longtemps après le démarrage.
+// The map is built once by NewRegistry and never written again: there is no
+// mutator at runtime, hence no lock. That is a STRONGER reason than the one
+// behind the plugin registry's lock, which exists for SetEnabled, called by
+// the admin long after startup.
 //
-// Non nil par construction, comme le registre de plugins : un récepteur nil ne
-// peut venir que d'un serveur mal câblé, et il vaut mieux qu'il panique au
-// premier match que de refuser silencieusement chaque match comme « jeu
-// inconnu ».
+// Non-nil by construction, like the plugin registry: a nil receiver can only
+// come from a badly wired server, and it is better for it to panic on the
+// first match than to silently reject every match as "unknown game".
 type Registry struct {
 	bySlug map[string]Recorder
 }
 
-// NewRegistry construit un registre à partir des enregistreurs donnés. Un
-// enregistreur qui revendique un slug déjà pris remplace le précédent.
+// NewRegistry builds a registry from the given recorders. A recorder that
+// claims a slug already taken replaces the previous one.
 func NewRegistry(recorders ...Recorder) *Registry {
 	m := make(map[string]Recorder, len(recorders))
 	for _, r := range recorders {
@@ -55,7 +54,7 @@ func NewRegistry(recorders ...Recorder) *Registry {
 	return &Registry{bySlug: m}
 }
 
-// forSlug rend l'enregistreur revendiquant slug, ou nil.
+// forSlug returns the recorder claiming slug, or nil.
 func (r *Registry) forSlug(slug string) Recorder {
 	if slug == "" {
 		return nil
@@ -63,7 +62,7 @@ func (r *Registry) forSlug(slug string) Recorder {
 	return r.bySlug[slug]
 }
 
-// Record confie la charge utile à l'enregistreur revendiquant slug.
+// Record hands the payload to the recorder claiming slug.
 func (r *Registry) Record(ctx context.Context, slug, userID, gameID string, raw json.RawMessage) error {
 	rec := r.forSlug(slug)
 	if rec == nil {

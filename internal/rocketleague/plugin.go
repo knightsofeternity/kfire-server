@@ -6,36 +6,36 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-// recentMatches est le nombre de matchs demandé par la fiche membre.
+// recentMatches is the number of matches requested by the member page.
 const recentMatches = 10
 
-// Plugin montre le bilan Rocket League de la guilde.
+// Plugin shows the guild's Rocket League record.
 type Plugin struct {
 	st *store.Store
 }
 
-// New construit le plugin.
+// New builds the plugin.
 func New(st *store.Store) *Plugin { return &Plugin{st: st} }
 
 func (p *Plugin) ID() string      { return "rocket-league" }
 func (p *Plugin) Name() string    { return "Rocket League" }
 func (p *Plugin) Slugs() []string { return []string{"rocket-league"} }
 
-// Connector rend une chaîne vide : Rocket League n'a pas de couche de
-// credentials. Même situation que Hearthstone.
+// Connector returns an empty string: Rocket League has no credential layer.
+// Same situation as Hearthstone.
 func (p *Plugin) Connector() string { return "" }
 
-// Available est toujours vrai. Tous les autres plugins dépendent d'un connecteur
-// détenant une clé ; celui-ci n'a aucune clé à détenir, puisque la donnée arrive
-// de la machine du membre. L'interrupteur admin du registre reste le moyen de
-// l'éteindre.
+// Available is always true. Every other plugin depends on a connector
+// holding a key; this one has no key to hold, because the data arrives from
+// the member's own machine. The admin switch in the registry remains the way
+// to turn it off.
 func (p *Plugin) Available() bool { return true }
 
-// Refresh ne fait rien : il n'y a rien à crawler. Les résultats arrivent par le
-// plan de contrôle quand un membre termine un match.
+// Refresh does nothing: there is nothing to crawl. Results arrive over the
+// control plane when a member finishes a match.
 func (p *Plugin) Refresh(ctx context.Context, userID, gameSlug string) {}
 
-// GameDetail rend le bilan de la guilde, une entrée par membre.
+// GameDetail returns the guild's record, one entry per member.
 func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[string]any, error) {
 	stats, err := p.st.RocketLeagueStatsByGame(ctx, g.ID)
 	if err != nil {
@@ -59,12 +59,11 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 	return map[string]any{"rl_players": cards}, nil
 }
 
-// UserGameDetail rend le bloc d'un membre : ses derniers matchs.
+// UserGameDetail returns a member's block: their latest matches.
 //
-// L'identifiant de playlist n'est PAS traduit ici. Le navigateur en fait un
-// libellé, parce que l'identifiant est le fait et que le libellé est de la
-// présentation, différente selon la langue. Même choix que hero_card_id pour
-// Hearthstone.
+// The playlist identifier is NOT translated here. The browser turns it into
+// a label, because the identifier is the fact and the label is presentation,
+// different per language. Same choice as hero_card_id for Hearthstone.
 func (p *Plugin) UserGameDetail(ctx context.Context, targetUserID string, g store.Game) (map[string]any, error) {
 	matches, err := p.st.RocketLeagueRecentMatches(ctx, targetUserID, g.ID, recentMatches)
 	if err != nil {

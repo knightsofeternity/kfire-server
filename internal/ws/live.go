@@ -5,46 +5,46 @@ import (
 	"time"
 )
 
-// liveTTL est la durée au bout de laquelle un état de match sans nouvelle est
-// considéré comme terminé. Le client émet à 2 Hz, donc 15 secondes laissent une
-// marge confortable à une connexion qui hoquette.
+// liveTTL is how long a match state with no new sample is considered
+// finished. The client emits at 2 Hz, so 15 seconds leaves comfortable
+// margin for a connection that hiccups.
 const liveTTL = 15 * time.Second
 
-// maxMatchScore borne un score d'équipe. Rocket League n'a pas de limite dure,
-// mais un match à plus de 99 buts n'existe pas : la borne empêche un client
-// hostile de diffuser n'importe quoi à toute la guilde.
+// maxMatchScore bounds a team score. Rocket League has no hard limit, but a
+// match with more than 99 goals does not exist: the bound stops a hostile
+// client from broadcasting anything to the whole guild.
 const maxMatchScore = 99
 
-// maxSecondsRemaining borne le chrono affiché, prolongation comprise.
+// maxSecondsRemaining bounds the displayed clock, overtime included.
 const maxSecondsRemaining = 7200
 
-// maxStat borne les statistiques du membre. Large exprès : ce n'est pas une
-// règle de jeu, c'est un garde-fou contre une valeur absurde diffusée à tout le
-// monde. Les scores d'équipe et le chrono sont déjà bornés, ceux-ci ne l'étaient
-// pas, sans raison.
+// maxStat bounds the member's stats. Deliberately generous: this is not a
+// game rule, it is a guard rail against an absurd value broadcast to
+// everyone. The team scores and the clock were already bounded, these were
+// not, for no reason.
 const maxStat = 100000
 
-// slugPattern est la forme d'un slug de catalogue.
+// slugPattern is the shape of a catalog slug.
 //
-// Ce message est le SEUL de toute la fonctionnalité dont le contenu est
-// retransmis à d'autres membres. Le reste finit en base, protégé par des
-// contraintes. Ici, une chaîne libre partirait telle quelle vers tous les
-// navigateurs de la guilde, donc elle est bornée en longueur ET en alphabet :
-// un slug ne peut contenir ni balise, ni espace, ni dix mégaoctets.
+// This message is the ONLY one in the whole feature whose content is
+// relayed to other members. Everything else ends up in the database,
+// protected by constraints. Here, a free-form string would go straight to
+// every browser in the guild as-is, so it is bounded in both length AND
+// alphabet: a slug can contain no tag, no space, no ten megabytes.
 //
-// Résoudre le slug dans le catalogue serait plus strict, mais ce message arrive
-// deux fois par seconde et par joueur : frapper la base à ce rythme pour
-// valider une constante n'aurait aucun sens.
+// Resolving the slug against the catalog would be stricter, but this
+// message arrives twice a second per player: hitting the database at that
+// rate to validate a constant would make no sense.
 var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
 
-// livePayload est l'état courant d'un match, diffusé et JAMAIS écrit.
+// livePayload is the current state of a match, broadcast and NEVER written.
 //
-// Comme le résumé de fin de match, il ne nomme personne : deux scores d'équipe,
-// un chrono, et les stats du membre. Le flux du jeu porte le nom de tous les
-// joueurs, ils ne quittent pas sa machine, y compris pour un affichage.
+// Like the end-of-match summary, it names no one: two team scores, a clock,
+// and the member's own stats. The game's own stream carries the name of
+// every player; they never leave its machine, not even for a display.
 type livePayload struct {
 	GameSlug string `json:"game_slug"`
-	// Ended marque la fin du match. Tous les autres champs sont alors ignorés.
+	// Ended marks the end of the match. Every other field is then ignored.
 	Ended            bool `json:"ended"`
 	TeamBlueScore    int  `json:"team_blue_score"`
 	TeamOrangeScore  int  `json:"team_orange_score"`
@@ -58,8 +58,9 @@ type livePayload struct {
 	Demos            int  `json:"demos"`
 }
 
-// valid dit si l'état mérite d'être rediffusé. Il part vers tous les clients de
-// l'org, donc il est validé avec la même rigueur qu'une donnée écrite.
+// valid reports whether the state deserves to be rebroadcast. It goes out to
+// every client in the org, so it is validated with the same rigor as
+// written data.
 func (p livePayload) valid() bool {
 	if !slugPattern.MatchString(p.GameSlug) {
 		return false
@@ -82,14 +83,14 @@ func (p livePayload) valid() bool {
 	return true
 }
 
-// liveEntry est l'état retenu en mémoire pour un membre.
+// liveEntry is the state kept in memory for a member.
 type liveEntry struct {
 	payload   livePayload
 	updatedAt time.Time
 }
 
-// expired dit si l'entrée n'a plus reçu de nouvelle depuis assez longtemps pour
-// être tenue pour finie.
+// expired reports whether the entry has gone without a new sample long
+// enough to be considered finished.
 func (e liveEntry) expired(now time.Time) bool {
 	return now.Sub(e.updatedAt) > liveTTL
 }

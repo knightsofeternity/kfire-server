@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// fake est un enregistreur de test qui note ce qu'on lui a passé.
+// fake is a test recorder that notes what it was passed.
 type fake struct {
 	slug   string
 	err    error
@@ -23,7 +23,7 @@ func (f *fake) Record(_ context.Context, userID, gameID string, raw json.RawMess
 	return f.err
 }
 
-func TestRegistryAiguilleSurLeSlug(t *testing.T) {
+func TestRegistryRoutesOnTheSlug(t *testing.T) {
 	hs := &fake{slug: "hearthstone"}
 	rl := &fake{slug: "rocket-league"}
 	reg := NewRegistry(hs, rl)
@@ -33,14 +33,14 @@ func TestRegistryAiguilleSurLeSlug(t *testing.T) {
 		t.Fatalf("Record() = %v, want nil", err)
 	}
 	if rl.gotRaw != `{"a":1}` || rl.gotUID != "u1" || rl.gotGID != "g1" {
-		t.Errorf("le mauvais enregistreur a reçu la charge utile : %+v", rl)
+		t.Errorf("the wrong recorder received the payload: %+v", rl)
 	}
 	if hs.gotRaw != "" {
-		t.Errorf("hearthstone a reçu un match qui ne le concerne pas")
+		t.Errorf("hearthstone received a match that is not its own")
 	}
 }
 
-func TestRegistrySlugInconnu(t *testing.T) {
+func TestRegistryUnknownSlug(t *testing.T) {
 	reg := NewRegistry(&fake{slug: "hearthstone"})
 	err := reg.Record(context.Background(), "minecraft", "u1", "g1", json.RawMessage(`{}`))
 	if !errors.Is(err, ErrUnknownGame) {
@@ -48,7 +48,7 @@ func TestRegistrySlugInconnu(t *testing.T) {
 	}
 }
 
-func TestRegistrySlugVide(t *testing.T) {
+func TestRegistryEmptySlug(t *testing.T) {
 	reg := NewRegistry(&fake{slug: "hearthstone"})
 	err := reg.Record(context.Background(), "", "u1", "g1", json.RawMessage(`{}`))
 	if !errors.Is(err, ErrUnknownGame) {
@@ -56,7 +56,7 @@ func TestRegistrySlugVide(t *testing.T) {
 	}
 }
 
-func TestRegistryRemonteLErreurDeLEnregistreur(t *testing.T) {
+func TestRegistryPropagatesTheRecorderError(t *testing.T) {
 	boom := errors.New("boom")
 	reg := NewRegistry(&fake{slug: "hearthstone", err: boom})
 	err := reg.Record(context.Background(), "hearthstone", "u1", "g1", json.RawMessage(`{}`))

@@ -47,36 +47,36 @@ func TestPayloadValidation(t *testing.T) {
 	}
 }
 
-// matchBody construit une charge utile minimale valide se terminant à l'instant
-// donné, pour que les cas de dérive d'horloge restent vrais quand la suite tourne.
+// matchBody builds a minimal valid payload ending at the given instant, so the
+// clock-skew cases stay true whenever the suite runs.
 func matchBody(at time.Time) string {
 	return fmt.Sprintf(`{"mode":"battlegrounds","result":"loss","placement":4,"played_at":%q}`,
 		at.UTC().Format(time.RFC3339))
 }
 
-func TestRecorderRevendiqueSonSlug(t *testing.T) {
+func TestRecorderClaimsItsSlug(t *testing.T) {
 	if got := NewRecorder(nil).Slug(); got != "hearthstone" {
 		t.Errorf("Slug() = %q, want \"hearthstone\"", got)
 	}
 }
 
-func TestRecordRendLaSentinelleDansLesDeuxCas(t *testing.T) {
+func TestRecordReturnsTheSentinelInBothCases(t *testing.T) {
 	r := NewRecorder(nil)
 
-	jsonCasse := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
-	if !errors.Is(jsonCasse, matchrecord.ErrInvalidPayload) {
-		t.Errorf("json illisible = %v, want ErrInvalidPayload", jsonCasse)
+	malformedJSON := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
+	if !errors.Is(malformedJSON, matchrecord.ErrInvalidPayload) {
+		t.Errorf("unreadable json = %v, want ErrInvalidPayload", malformedJSON)
 	}
-	if !strings.Contains(jsonCasse.Error(), "json illisible") {
-		t.Errorf("le message doit nommer la classe d'échec, got %q", jsonCasse)
+	if !strings.Contains(malformedJSON.Error(), "unreadable json") {
+		t.Errorf("message should name the failure class, got %q", malformedJSON)
 	}
 
-	champsRefuses := r.Record(context.Background(), "u1", "g1",
+	rejectedFields := r.Record(context.Background(), "u1", "g1",
 		json.RawMessage(`{"mode":"arena","result":"loss","played_at":"2026-08-02T17:44:59Z"}`))
-	if !errors.Is(champsRefuses, matchrecord.ErrInvalidPayload) {
-		t.Errorf("champs refusés = %v, want ErrInvalidPayload", champsRefuses)
+	if !errors.Is(rejectedFields, matchrecord.ErrInvalidPayload) {
+		t.Errorf("rejected fields = %v, want ErrInvalidPayload", rejectedFields)
 	}
-	if !strings.Contains(champsRefuses.Error(), `mode="arena"`) {
-		t.Errorf("le message doit porter le mode fautif, got %q", champsRefuses)
+	if !strings.Contains(rejectedFields.Error(), `mode="arena"`) {
+		t.Errorf("message should carry the offending mode, got %q", rejectedFields)
 	}
 }

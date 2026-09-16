@@ -13,8 +13,8 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 )
 
-// payloadFields rend les noms JSON acceptés, dans l'ordre de déclaration. Sert
-// au test qui épingle la liste de ce qui quitte la machine d'un membre.
+// payloadFields returns the accepted JSON names, in declaration order. Used
+// by the test that pins down the list of what leaves a member's machine.
 func payloadFields() []string {
 	t := reflect.TypeOf(payload{})
 	out := make([]string, 0, t.NumField())
@@ -46,8 +46,9 @@ func TestPayloadValidation(t *testing.T) {
 		{"resultat inconnu", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"maybe","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`), false},
 		{"duree aberrante", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":99999`), false},
 
-		// La cohérence entre le résultat annoncé et les scores est vérifiée :
-		// un client qui se déclare vainqueur en ayant perdu est refusé.
+		// Consistency between the announced result and the scores is
+		// checked: a client that declares itself the winner while it lost
+		// is rejected.
 		{"victoire annoncee mais score perdant", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":1,"team_orange_score":4,"result":"win","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`), false},
 		{"nul annonce mais scores differents", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":3,"team_orange_score":1,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`), false},
 		{"mvp sans victoire", body(`"playlist":13,"team_size":3,"player_team":1,"team_blue_score":4,"team_orange_score":2,"result":"loss","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":true,"duration_seconds":300`), false},
@@ -69,27 +70,27 @@ func TestPayloadValidation(t *testing.T) {
 	}
 }
 
-// body construit une charge utile terminée il y a une heure.
+// body builds a payload that ended one hour ago.
 func body(fields string) string {
 	return bodyAt(fields, time.Now().Add(-time.Hour))
 }
 
-// bodyAt construit une charge utile terminée à l'instant donné, pour que les cas
-// de dérive d'horloge restent vrais quand la suite tourne.
+// bodyAt builds a payload that ended at the given instant, so the
+// clock-skew cases stay true whenever the suite runs.
 func bodyAt(fields string, at time.Time) string {
 	return fmt.Sprintf(`{%s,"played_at":%q}`, fields, at.UTC().Format(time.RFC3339))
 }
 
-func TestRecorderRevendiqueSonSlug(t *testing.T) {
+func TestRecorderClaimsItsSlug(t *testing.T) {
 	if got := NewRecorder(nil).Slug(); got != "rocket-league" {
 		t.Errorf("Slug() = %q, want \"rocket-league\"", got)
 	}
 }
 
-// Ce test épingle EXACTEMENT les champs que le serveur accepte de lire. En
-// ajouter un sans y penser casse ici, ce qui est le but : la liste de ce qui
-// quitte la machine d'un membre ne doit pas s'allonger par accident.
-func TestChampsAcceptes(t *testing.T) {
+// This test pins down EXACTLY the fields the server agrees to read. Adding
+// one without thinking about it breaks here, which is the point: the list of
+// what leaves a member's machine must not grow by accident.
+func TestAcceptedFields(t *testing.T) {
 	want := []string{
 		"playlist", "team_size", "player_team",
 		"team_blue_score", "team_orange_score", "result",
@@ -98,32 +99,32 @@ func TestChampsAcceptes(t *testing.T) {
 	}
 	got := payloadFields()
 	if len(got) != len(want) {
-		t.Fatalf("%d champs acceptés, want %d : %v", len(got), len(want), got)
+		t.Fatalf("%d accepted fields, want %d: %v", len(got), len(want), got)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("champ %d = %q, want %q", i, got[i], want[i])
+			t.Errorf("field %d = %q, want %q", i, got[i], want[i])
 		}
 	}
 }
 
-func TestRecordRendLaSentinelleDansLesDeuxCas(t *testing.T) {
+func TestRecordReturnsTheSentinelInBothCases(t *testing.T) {
 	r := NewRecorder(nil)
 
-	jsonCasse := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
-	if !errors.Is(jsonCasse, matchrecord.ErrInvalidPayload) {
-		t.Errorf("json illisible = %v, want ErrInvalidPayload", jsonCasse)
+	malformedJSON := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
+	if !errors.Is(malformedJSON, matchrecord.ErrInvalidPayload) {
+		t.Errorf("unreadable json = %v, want ErrInvalidPayload", malformedJSON)
 	}
-	if !strings.Contains(jsonCasse.Error(), "json illisible") {
-		t.Errorf("le message doit nommer la classe d'échec, got %q", jsonCasse)
+	if !strings.Contains(malformedJSON.Error(), "unreadable json") {
+		t.Errorf("message should name the failure class, got %q", malformedJSON)
 	}
 
-	champsRefuses := r.Record(context.Background(), "u1", "g1",
+	rejectedFields := r.Record(context.Background(), "u1", "g1",
 		json.RawMessage(`{"playlist":73,"team_size":1,"player_team":0,"team_blue_score":0,"team_orange_score":0,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":60,"played_at":"2026-08-02T17:44:59Z"}`))
-	if !errors.Is(champsRefuses, matchrecord.ErrInvalidPayload) {
-		t.Errorf("champs refusés = %v, want ErrInvalidPayload", champsRefuses)
+	if !errors.Is(rejectedFields, matchrecord.ErrInvalidPayload) {
+		t.Errorf("rejected fields = %v, want ErrInvalidPayload", rejectedFields)
 	}
-	if !strings.Contains(champsRefuses.Error(), "Playlist:73") {
-		t.Errorf("le message doit porter la playlist fautive, got %q", champsRefuses)
+	if !strings.Contains(rejectedFields.Error(), "Playlist:73") {
+		t.Errorf("message should carry the offending playlist, got %q", rejectedFields)
 	}
 }

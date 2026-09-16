@@ -81,8 +81,8 @@ func main() {
 		return c.Next()
 	})
 
-	// Les enregistreurs de match sont construits ici, avant le hub, parce que le
-	// hub les lit sans jamais les modifier.
+	// Match recorders are built here, before the hub, because the hub
+	// reads them and never mutates them.
 	recorders := matchrecord.NewRegistry(
 		hearthstone.NewRecorder(st),
 		rocketleague.NewRecorder(st),
@@ -97,8 +97,8 @@ func main() {
 	// list. Runs in the background so startup stays fast when upstream is slow.
 	go refreshCatalog(pollCtx, st)
 
-	// Balaie les états de match en direct qu'aucun échantillon n'a rafraîchis
-	// depuis liveTTL, pour le membre dont le jeu a planté sans fermer la socket.
+	// Sweeps away live match states that no sample has refreshed since
+	// liveTTL, for the member whose game crashed without closing the socket.
 	go hub.SweepLive(pollCtx)
 
 	// Steam connector + background library/achievement poller.

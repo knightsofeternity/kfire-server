@@ -11,38 +11,37 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
-// clockSkewTolerance est l'avance maximale tolérée sur l'horloge du serveur
-// avant qu'un résultat de match soit refusé.
+// clockSkewTolerance is the maximum lead tolerated on the server clock before
+// a match result is rejected.
 const clockSkewTolerance = 5 * time.Minute
 
-// payload est un match terminé, déjà résumé par le client de bureau. Le client
-// lit les logs du jeu et n'envoie que ceci : jamais le nom de l'adversaire,
-// jamais une carte.
+// payload is a finished match, already summarised by the desktop client. The
+// client reads the game's log files and sends only this: never the
+// opponent's name, never a card.
 //
-// Turns et Placement sont des pointeurs parce qu'un match mérite d'être
-// enregistré même quand un champ secondaire était illisible.
+// Turns and Placement are pointers because a match deserves to be recorded
+// even when a secondary field was unreadable.
 type payload struct {
 	Mode      string `json:"mode"`
 	Result    string `json:"result"`
 	Turns     *int   `json:"turns"`
 	Placement *int   `json:"placement"`
-	// HeroCardID est le héros de Bataille de Gueux, sous la forme de
-	// l'identifiant de carte que le jeu écrit dans son propre log. Jamais le
-	// nom du héros : le log est localisé, donc deux membres jouant le même
-	// héros rapporteraient deux chaînes différentes.
+	// HeroCardID is the Battlegrounds hero, as the card identifier the game
+	// writes in its own log. Never the hero's name: the log is localized, so
+	// two members playing the same hero would report two different strings.
 	HeroCardID *string   `json:"hero_card_id"`
 	PlayedAt   time.Time `json:"played_at"`
 }
 
-// heroCardID est la forme d'un identifiant de carte. Refuser autre chose garde
-// la colonne incapable de porter un nom, ce qui est tout l'objet.
+// heroCardID is the shape of a card identifier. Rejecting anything else keeps
+// the column incapable of carrying a name, which is the whole point.
 var heroCardID = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
 
-// valid dit si la charge utile mérite d'être écrite. La base applique les mêmes
-// règles, mais refuser ici donne au client une erreur claire plutôt qu'un échec
-// d'écriture opaque.
+// valid reports whether the payload deserves to be written. The database
+// enforces the same rules, but rejecting here gives the client a clear error
+// instead of an opaque write failure.
 //
-// Le slug n'est PAS vérifié ici : il appartient à l'aiguillage, pas au jeu.
+// The slug is NOT checked here: that belongs to the routing, not to the game.
 func (p payload) valid() bool {
 	if p.PlayedAt.IsZero() {
 		return false
@@ -62,44 +61,44 @@ func (p payload) valid() bool {
 	if p.HeroCardID != nil && !heroCardID.MatchString(*p.HeroCardID) {
 		return false
 	}
-	// Un match en file d'attente peut être vieux, jamais futur. La tolérance
-	// absorbe une horloge de bureau qui dérive un peu sans laisser une horloge
-	// mal réglée empoisonner la date de dernière partie de tout le roster.
+	// A queued match can be old, never future. The tolerance absorbs a
+	// desktop clock that drifts a little without letting a badly set clock
+	// poison the whole roster's last-played date.
 	if p.PlayedAt.After(time.Now().Add(clockSkewTolerance)) {
 		return false
 	}
 	return true
 }
 
-// Recorder écrit les matchs Hearthstone rapportés par le client de bureau.
+// Recorder writes the Hearthstone matches reported by the desktop client.
 type Recorder struct {
 	st *store.Store
 }
 
-// NewRecorder construit l'enregistreur.
+// NewRecorder builds the recorder.
 func NewRecorder(st *store.Store) *Recorder { return &Recorder{st: st} }
 
-// Slug rend le slug de catalogue revendiqué.
+// Slug returns the claimed catalog slug.
 func (r *Recorder) Slug() string { return "hearthstone" }
 
-// Record valide puis écrit un match.
+// Record validates then writes a match.
 //
-// Les deux classes d'échec sont distinguées dans le message, tout en restant la
-// même erreur sentinelle : le hub n'expose qu'un code générique au client, mais
-// journalise le détail. Un JSON illisible veut dire que la sérialisation du
-// client est cassée et que TOUS ses matchs échoueront ; une validation qui
-// refuse veut souvent dire qu'une donnée légitime a rencontré une règle écrite
-// trop tôt, comme un mode de jeu qui n'existait pas encore. Sans le détail dans
-// le journal, les deux se ressemblent et aucune des deux ne se diagnostique.
+// The two failure classes are distinguished in the message, while staying the
+// same sentinel error: the hub only exposes a generic code to the client, but
+// logs the detail. An unreadable JSON means the client's serialization is
+// broken and ALL of its matches will fail; a validation rejection often means
+// legitimate data ran into a rule written too early, like a game mode that
+// did not exist yet. Without the detail in the log, the two look alike and
+// neither is diagnosable.
 func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
 	var p payload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("%w: json illisible: %v", matchrecord.ErrInvalidPayload, err)
+		return fmt.Errorf("%w: unreadable json: %v", matchrecord.ErrInvalidPayload, err)
 	}
 	if !p.valid() {
-		// mode et result sont les champs qui discriminent : si un nouveau mode
-		// apparaît un jour, il se lit directement dans le journal.
-		return fmt.Errorf("%w: champs refusés (mode=%q result=%q)",
+		// mode and result are the discriminating fields: if a new mode
+		// appears one day, it reads directly from the log.
+		return fmt.Errorf("%w: rejected fields (mode=%q result=%q)",
 			matchrecord.ErrInvalidPayload, p.Mode, p.Result)
 	}
 	return r.st.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{

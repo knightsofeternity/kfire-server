@@ -55,14 +55,14 @@ type gameEventPayload struct {
 	GameSlug string `json:"game_slug"`
 }
 
-// matchEnvelope est tout ce que le hub a besoin de comprendre d'un résultat de
-// match : quel jeu, et le reste tel quel. La forme de ce reste appartient au
-// jeu, pas au plan de contrôle.
+// matchEnvelope is everything the hub needs to understand about a match
+// result: which game, and the rest as-is. The shape of the rest belongs to
+// the game, not to the control plane.
 //
-// Identique à gameEventPayload aujourd'hui, et pourtant distinct à dessein : un
-// évènement de jeu est un état de présence que le hub interprète en entier,
-// alors que ceci n'est que l'étiquette d'un corps que le hub ne lira jamais. Les
-// fusionner ferait croire qu'ils évoluent ensemble.
+// Identical to gameEventPayload today, and yet distinct on purpose: a game
+// event is a presence state the hub interprets in full, while this is only
+// the label of a body the hub will never read. Merging them would suggest
+// they evolve together.
 type matchEnvelope struct {
 	GameSlug string `json:"game_slug"`
 }
@@ -125,22 +125,24 @@ type Hub struct {
 	mu        sync.RWMutex
 	clients   map[*client]struct{}
 	online    map[string]*onlineState // by user ID
-	live      map[string]liveEntry    // état de match en cours, par ID membre
-	// liveVisible dit, par membre, si son match en direct peut être diffusé.
+	live      map[string]liveEntry    // in-progress match state, by member ID
+	// liveVisible says, per member, whether their live match may be
+	// broadcast.
 	//
-	// Cet état vit dans le hub, sous h.mu, et NON sur la connexion, contrairement
-	// aux champs équivalents lus au moment du hello. C'est délibéré : la bascule
-	// d'invisibilité arrive par une requête HTTP, donc depuis un autre fil que la
-	// boucle de lecture de la connexion. Y écrire les champs de la connexion
-	// serait une course, vérifiée au détecteur. Ici, c'est le verrou qui protège
-	// déjà tout le reste de l'état partagé qui s'en charge.
+	// This state lives in the hub, under h.mu, and NOT on the connection,
+	// unlike the equivalent fields read at hello time. That is deliberate:
+	// the invisibility toggle arrives over an HTTP request, so from a
+	// different goroutine than the connection's read loop. Writing the
+	// connection's fields there would be a race, caught by the race
+	// detector. Here, the lock already protecting the rest of the shared
+	// state takes care of it.
 	liveVisible map[string]bool
 }
 
-// NewHub crée un hub vide. jwtSecret vérifie les jetons d'accès présentés dans
-// les poignées de main `hello` ; st persiste les sessions et résout les jeux ;
-// publicURL construit les URL du proxy d'images dans les diffusions de présence ;
-// recorders aiguille un résultat de match vers le jeu qui sait le lire.
+// NewHub creates an empty hub. jwtSecret verifies the access tokens presented
+// in `hello` handshakes; st persists sessions and resolves games; publicURL
+// builds image-proxy URLs in presence broadcasts; recorders routes a match
+// result to the game that knows how to read it.
 func NewHub(jwtSecret []byte, st *store.Store, publicURL string, recorders *matchrecord.Registry) *Hub {
 	return &Hub{
 		jwtSecret:   jwtSecret,
@@ -249,9 +251,9 @@ func (h *Hub) unregister(c *client) {
 		h.BroadcastPresence(ctx, c.presenceUser())
 	}
 
-	// Le dernier lien coupé emporte le match en cours avec lui : sans cela, un
-	// membre qui ferme son client en pleine partie resterait affiché « en match »
-	// jusqu'au redémarrage du serveur.
+	// The last connection dropping takes the in-progress match with it:
+	// without this, a member who closes their client mid-match would stay
+	// displayed as "in match" until the server restarts.
 	if hadLive {
 		h.Broadcast("live_match", map[string]any{"user_id": c.userID, "match": nil})
 	}
@@ -455,18 +457,19 @@ func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
 	}
 }
 
-// handleMatchResult enregistre un match terminé rapporté par le client.
+// handleMatchResult records one finished match reported by the client.
 //
-// Contrairement à un évènement de jeu, cela ne change aucune présence et ne
-// diffuse rien : un match est de l'histoire, pas un état.
+// Unlike a game event, this changes no presence and broadcasts nothing: a
+// match is history, not a state.
 func (c *client) handleMatchResult(h *Hub, env Envelope) {
-	// La charge utile est décodée DEUX fois, ici pour le seul slug puis dans
-	// l'enregistreur pour les champs du jeu. C'est voulu : faire circuler un
-	// décodage partiel rendrait au hub la connaissance du jeu qu'on vient de lui
-	// retirer, pour économiser quelques microsecondes sur un message par match.
+	// The payload is decoded TWICE, here for the slug alone and then in the
+	// recorder for the game's fields. This is intentional: passing along a
+	// partial decode would give the hub back the knowledge of the game it
+	// was just relieved of, to save a few microseconds on one message per
+	// match.
 	var e matchEnvelope
 	if err := json.Unmarshal(env.Payload, &e); err != nil || e.GameSlug == "" {
-		c.sendError("invalid_match", "charge utile de résultat de match malformée", false)
+		c.sendError("invalid_match", "malformed match result payload", false)
 		return
 	}
 
@@ -475,7 +478,7 @@ func (c *client) handleMatchResult(h *Hub, env Envelope) {
 
 	game, err := h.store.GetGameBySlug(ctx, e.GameSlug)
 	if err != nil {
-		c.sendError("unknown_game", "slug absent du catalogue : "+e.GameSlug, false)
+		c.sendError("unknown_game", "game slug not in the catalog: "+e.GameSlug, false)
 		return
 	}
 
@@ -484,39 +487,40 @@ func (c *client) handleMatchResult(h *Hub, env Envelope) {
 	case err == nil:
 		slog.Info("ws: match result", "user_id", c.userID, "slug", game.Slug)
 	case errors.Is(err, matchrecord.ErrUnknownGame):
-		// Le jeu est au catalogue mais aucun enregistreur ne le suit : c'est un
-		// client en avance sur ce serveur, pas une erreur d'écriture.
-		c.sendError("unknown_game", "ce serveur ne suit pas les matchs de "+e.GameSlug, false)
+		// The game is in the catalog but no recorder tracks it: this is a
+		// client ahead of this server, not a write error.
+		c.sendError("unknown_game", "this server does not track matches for "+e.GameSlug, false)
 	case errors.Is(err, matchrecord.ErrInvalidPayload):
-		// Le client ne reçoit qu'un code générique, il n'a que faire de nos
-		// règles internes. Le journal, lui, porte la raison exacte : sans elle,
-		// un client dont la sérialisation est cassée et une donnée légitime
-		// tombée sur une règle écrite trop tôt se ressemblent, et aucune des
-		// deux ne se diagnostique.
-		slog.Warn("ws: match result refusé", "user_id", c.userID, "slug", game.Slug, "err", err)
-		c.sendError("invalid_match", "charge utile de résultat de match malformée", false)
+		// The client only gets a generic code; it has no use for our
+		// internal rules. The log, though, carries the exact reason:
+		// without it, a client whose serialization is broken and
+		// legitimate data that hit a rule written too early look alike,
+		// and neither is diagnosable.
+		slog.Warn("ws: match result rejected", "user_id", c.userID, "slug", game.Slug, "err", err)
+		c.sendError("invalid_match", "malformed match result payload", false)
 	default:
 		slog.Error("ws: persist match result", "user_id", c.userID, "slug", game.Slug, "err", err)
-		// Le dire au client, sinon il retire le match de sa file en croyant
-		// qu'il est arrivé.
-		c.sendError("match_not_recorded", "impossible d'enregistrer le résultat du match", false)
+		// Tell the client, otherwise it drops the match from its queue
+		// believing it landed.
+		c.sendError("match_not_recorded", "could not record match result", false)
 	}
 }
 
-// handleLiveMatch rediffuse l'état courant d'un match.
+// handleLiveMatch rebroadcasts the current state of a match.
 //
-// Rien n'est écrit : cet état vit en mémoire le temps du match et disparaît.
-// C'est le pendant exact de la présence, qui est diffusée et jamais archivée.
+// Nothing is written: this state lives in memory for the duration of the
+// match and then disappears. It is the exact counterpart of presence, which
+// is broadcast and never archived.
 func (c *client) handleLiveMatch(h *Hub, env Envelope) {
 	var p livePayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil || !p.valid() {
-		c.sendError("invalid_live_match", "état de match en direct malformé", false)
+		c.sendError("invalid_live_match", "malformed live match state", false)
 		return
 	}
 
-	// Un membre invisible ou hors ligne par choix ne diffuse pas son match. La
-	// décision est lue dans le hub et non sur la connexion, parce qu'elle peut
-	// changer par l'API pendant que la connexion vit.
+	// An invisible or chosen-offline member does not broadcast their match.
+	// The decision is read from the hub and not from the connection,
+	// because it can change through the API while the connection lives on.
 	if !h.liveAllowed(c.userID) {
 		return
 	}
@@ -525,7 +529,7 @@ func (c *client) handleLiveMatch(h *Hub, env Envelope) {
 	h.Broadcast("live_match", h.liveJSON(c.userID))
 }
 
-// setLive retient ou efface l'état de match d'un membre.
+// setLive stores or clears a member's match state.
 func (h *Hub) setLive(userID string, p livePayload) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -536,49 +540,48 @@ func (h *Hub) setLive(userID string, p livePayload) {
 	h.live[userID] = liveEntry{payload: p, updatedAt: time.Now()}
 }
 
-// setLiveVisible retient ce qu'un membre autorise pour son match en direct.
+// setLiveVisible stores what a member allows for their live match.
 func (h *Hub) setLiveVisible(userID string, activityVisible bool, presenceStatus string) bool {
-	autorise := activityVisible &&
+	allowed := activityVisible &&
 		store.ApplyPresenceOverride(presenceStatus, "in_game") == "in_game"
 	h.mu.Lock()
-	h.liveVisible[userID] = autorise
+	h.liveVisible[userID] = allowed
 	h.mu.Unlock()
-	return autorise
+	return allowed
 }
 
-// liveAllowed dit si le match en direct de ce membre peut être diffusé.
+// liveAllowed reports whether this member's live match may be broadcast.
 func (h *Hub) liveAllowed(userID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.liveVisible[userID]
 }
 
-// SetVisibility prend acte d'un changement de visibilité arrivé par l'API, et
-// coupe immédiatement le match en direct si le membre vient de se cacher.
+// SetVisibility takes note of a visibility change arriving through the API,
+// and immediately cuts the live match if the member just went hidden.
 //
-// Sans ceci, un membre passé invisible en pleine partie continuerait d'être
-// diffusé à toute la guilde, deux fois par seconde, jusqu'à sa prochaine
-// reconnexion. Quelqu'un qui demande à ne plus être vu doit cesser de l'être
-// tout de suite.
+// Without this, a member who goes invisible mid-match would keep being
+// broadcast to the whole guild, twice a second, until their next reconnect.
+// Someone who asks not to be seen anymore must stop being seen right away.
 func (h *Hub) SetVisibility(userID string, activityVisible bool, presenceStatus string) {
 	if h.setLiveVisible(userID, activityVisible, presenceStatus) {
 		return
 	}
 	h.mu.Lock()
-	_, avaitUnMatch := h.live[userID]
+	_, hadMatch := h.live[userID]
 	delete(h.live, userID)
 	h.mu.Unlock()
 
-	// Hors du verrou : Broadcast prend h.mu en lecture, et un RWMutex n'est pas
-	// réentrant.
-	if avaitUnMatch {
+	// Outside the lock: Broadcast takes h.mu for reading, and an RWMutex is
+	// not reentrant.
+	if hadMatch {
 		h.Broadcast("live_match", map[string]any{"user_id": userID, "match": nil})
 	}
 }
 
-// LiveMatch rend l'état de match courant d'un membre, ou nil s'il n'y en a pas
-// ou s'il a expiré. Exporté pour que l'API REST serve l'état à une page ouverte
-// en cours de match, qui a manqué les diffusions précédentes.
+// LiveMatch returns a member's current match state, or nil if there is none
+// or it expired. Exported so the REST API can serve the state to a page
+// opened mid-match, which missed the earlier broadcasts.
 func (h *Hub) LiveMatch(userID string) map[string]any {
 	h.mu.RLock()
 	e, ok := h.live[userID]
@@ -589,19 +592,19 @@ func (h *Hub) LiveMatch(userID string) map[string]any {
 	return liveEntryJSON(e.payload)
 }
 
-// liveJSON construit la charge utile diffusée pour un membre : l'état, ou nil
-// quand le match est fini.
+// liveJSON builds the payload broadcast for a member: the state, or nil
+// when the match is over.
 func (h *Hub) liveJSON(userID string) map[string]any {
 	return map[string]any{"user_id": userID, "match": h.LiveMatch(userID)}
 }
 
-// SweepLive efface les états de match qu'aucun échantillon n'a rafraîchis depuis
-// liveTTL, et annonce leur fin.
+// SweepLive clears match states that no sample has refreshed since liveTTL,
+// and announces their end.
 //
-// Sans ce balayage, un membre dont le jeu plante pendant que KFIRE reste
-// connecté laisserait un score figé à l'écran de toute la guilde pour toujours :
-// la socket ne se ferme pas, donc unregister ne passe jamais. L'expiration
-// paresseuse de LiveMatch ne suffit pas, puisqu'elle ne prévient personne.
+// Without this sweep, a member whose game crashes while KFIRE stays
+// connected would leave a frozen score on the whole guild's screen forever:
+// the socket does not close, so unregister never runs. LiveMatch's lazy
+// expiry is not enough, since it warns no one.
 func (h *Hub) SweepLive(ctx context.Context) {
 	t := time.NewTicker(liveTTL / 3)
 	defer t.Stop()
@@ -611,24 +614,24 @@ func (h *Hub) SweepLive(ctx context.Context) {
 			return
 		case now := <-t.C:
 			h.mu.Lock()
-			var finis []string
+			var ended []string
 			for id, e := range h.live {
 				if e.expired(now) {
-					finis = append(finis, id)
+					ended = append(ended, id)
 					delete(h.live, id)
 				}
 			}
 			h.mu.Unlock()
-			// Hors du verrou : Broadcast prend h.mu en lecture, et un RWMutex
-			// n'est pas réentrant.
-			for _, id := range finis {
+			// Outside the lock: Broadcast takes h.mu for reading, and an
+			// RWMutex is not reentrant.
+			for _, id := range ended {
 				h.Broadcast("live_match", map[string]any{"user_id": id, "match": nil})
 			}
 		}
 	}
 }
 
-// liveEntryJSON est la forme envoyée au navigateur.
+// liveEntryJSON is the shape sent to the browser.
 func liveEntryJSON(p livePayload) map[string]any {
 	return map[string]any{
 		"game_slug":         p.GameSlug,

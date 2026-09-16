@@ -1,28 +1,28 @@
--- 0035: résultats de matchs Rocket League, rapportés par le client de bureau.
+-- 0035: Rocket League match results, reported by the desktop client.
 --
--- Rocket League n'a pas d'API joueur publique : la seule source est une socket
--- TCP que le jeu ouvre sur la machine du joueur. Le client de bureau la lit,
--- agrège en mémoire et envoie UN résumé par match, donc cette table est nourrie
--- par le plan de contrôle WebSocket, pas par un crawler.
+-- Rocket League has no public player API: the only source is a TCP socket
+-- the game opens on the player's machine. The desktop client reads it,
+-- aggregates it in memory and sends ONE summary per match, so this table is
+-- fed by the WebSocket control plane, not by a crawler.
 --
--- La garantie de confidentialité est ici STRUCTURELLE, et non une règle qu'il
--- faudrait se rappeler d'appliquer : la table n'a AUCUNE colonne de texte libre.
--- Chaque colonne est un entier, un booléen ou une énumération sous CHECK, donc
--- elle est incapable de porter le pseudonyme d'un coéquipier ou d'un adversaire,
--- quoi qu'un client envoie. Le flux du jeu, lui, les porte tous : ils restent
--- sur la machine du membre, qui n'en émet que des faits sur lui-même.
+-- The privacy guarantee here is STRUCTURAL, not a rule someone has to
+-- remember to enforce: the table has NO free-text column. Every column is an
+-- integer, a boolean or a CHECK-bound enum, so it is incapable of holding a
+-- teammate's or an opponent's pseudonym, whatever a client sends. The game's
+-- own stream carries all of them; they stay on the member's machine, which
+-- emits only facts about itself.
 --
--- Il n'y a délibérément pas de colonne arena : un identifiant de carte serait
--- inoffensif, mais une colonne de texte libre rouvrirait la porte que cette
--- table ferme, pour un confort marginal.
+-- There is deliberately no arena column: a map identifier would be harmless,
+-- but a free-text column would reopen the door this table closes, for
+-- marginal convenience.
 --
--- playlist est l'identifiant numérique brut de Psyonix, jamais un libellé :
--- l'identifiant est le fait, le libellé est de la présentation et il est
--- localisé. Même raisonnement que hero_card_id en 0034.
+-- playlist is Psyonix's raw numeric identifier, never a label: the
+-- identifier is the fact, the label is presentation and it is localized.
+-- Same reasoning as hero_card_id in 0034.
 --
--- duration_seconds est la durée réelle mesurée par le client entre l'ouverture
--- et la fermeture du match. Le plafond à 7200 refuse une horloge folle sans
--- interdire une prolongation à rallonge.
+-- duration_seconds is the actual duration measured by the client between the
+-- match's opening and closing. The 7200 ceiling rejects a runaway clock
+-- without forbidding a long overtime.
 
 BEGIN;
 
@@ -46,8 +46,8 @@ CREATE TABLE rocket_league_matches (
     duration_seconds  int         NOT NULL CHECK (duration_seconds BETWEEN 0 AND 7200),
     played_at         timestamptz NOT NULL,
     created_at        timestamptz NOT NULL DEFAULT now(),
-    -- Le client peut réémettre un match resté en file après une reconnexion ;
-    -- le même membre ne peut pas avoir deux matchs se terminant au même instant.
+    -- The client may resend a queued match after a reconnection; the same
+    -- member cannot have two matches ending at the same instant.
     UNIQUE (user_id, played_at)
 );
 
