@@ -3,7 +3,11 @@ package rocketleague
 import (
 	"context"
 	"testing"
+
+	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
 )
+
+var _ gameplugin.Plugin = (*Plugin)(nil)
 
 func TestPluginIdentite(t *testing.T) {
 	p := New(nil)
