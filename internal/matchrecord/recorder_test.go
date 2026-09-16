@@ -64,10 +64,3 @@ func TestRegistryRemonteLErreurDeLEnregistreur(t *testing.T) {
 		t.Errorf("Record() = %v, want boom", err)
 	}
 }
-
-func TestRegistryNilNeParaniquePas(t *testing.T) {
-	var reg *Registry
-	if reg.ForSlug("hearthstone") != nil {
-		t.Errorf("ForSlug sur un registre nil doit rendre nil")
-	}
-}

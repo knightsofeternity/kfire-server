@@ -32,8 +32,15 @@ type Recorder interface {
 
 // Registry résout un slug vers son enregistreur.
 //
-// Construit une seule fois au démarrage puis lu seulement, donc sans verrou :
-// même contrat que le registre de plugins, dont Load n'est appelé qu'une fois.
+// La map est construite une fois par NewRegistry et plus jamais écrite : il n'y
+// a aucun mutateur à l'exécution, donc aucun verrou. C'est une raison PLUS forte
+// que celle du registre de plugins, dont le verrou existe pour SetEnabled, que
+// l'admin appelle longtemps après le démarrage.
+//
+// Non nil par construction, comme le registre de plugins : un récepteur nil ne
+// peut venir que d'un serveur mal câblé, et il vaut mieux qu'il panique au
+// premier match que de refuser silencieusement chaque match comme « jeu
+// inconnu ».
 type Registry struct {
 	bySlug map[string]Recorder
 }
@@ -48,10 +55,9 @@ func NewRegistry(recorders ...Recorder) *Registry {
 	return &Registry{bySlug: m}
 }
 
-// ForSlug rend l'enregistreur revendiquant slug, ou nil. Tolère un registre nil
-// pour qu'un serveur mal câblé refuse les matchs au lieu de paniquer.
-func (r *Registry) ForSlug(slug string) Recorder {
-	if r == nil || slug == "" {
+// forSlug rend l'enregistreur revendiquant slug, ou nil.
+func (r *Registry) forSlug(slug string) Recorder {
+	if slug == "" {
 		return nil
 	}
 	return r.bySlug[slug]
@@ -59,7 +65,7 @@ func (r *Registry) ForSlug(slug string) Recorder {
 
 // Record confie la charge utile à l'enregistreur revendiquant slug.
 func (r *Registry) Record(ctx context.Context, slug, userID, gameID string, raw json.RawMessage) error {
-	rec := r.ForSlug(slug)
+	rec := r.forSlug(slug)
 	if rec == nil {
 		return ErrUnknownGame
 	}
