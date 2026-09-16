@@ -125,6 +125,7 @@ type Hub struct {
 	mu        sync.RWMutex
 	clients   map[*client]struct{}
 	online    map[string]*onlineState // by user ID
+	live      map[string]liveEntry    // état de match en cours, par ID membre
 }
 
 // NewHub crée un hub vide. jwtSecret vérifie les jetons d'accès présentés dans
@@ -139,6 +140,7 @@ func NewHub(jwtSecret []byte, st *store.Store, publicURL string, recorders *matc
 		recorders: recorders,
 		clients:   make(map[*client]struct{}),
 		online:    make(map[string]*onlineState),
+		live:      make(map[string]liveEntry),
 	}
 }
 
@@ -201,6 +203,7 @@ func (h *Hub) register(c *client) {
 }
 
 func (h *Hub) unregister(c *client) {
+	hadLive := false
 	h.mu.Lock()
 	delete(h.clients, c)
 	wasLastConn := false
@@ -210,6 +213,8 @@ func (h *Hub) unregister(c *client) {
 			if st.conns <= 0 {
 				delete(h.online, c.userID)
 				wasLastConn = true
+				hadLive = h.live[c.userID].payload.GameSlug != ""
+				delete(h.live, c.userID)
 			}
 		}
 	}
@@ -231,6 +236,13 @@ func (h *Hub) unregister(c *client) {
 			slog.Info("ws: closed open sessions on disconnect", "user_id", c.userID, "count", n)
 		}
 		h.BroadcastPresence(ctx, c.presenceUser())
+	}
+
+	// Le dernier lien coupé emporte le match en cours avec lui : sans cela, un
+	// membre qui ferme son client en pleine partie resterait affiché « en match »
+	// jusqu'au redémarrage du serveur.
+	if hadLive {
+		h.Broadcast("live_match", map[string]any{"user_id": c.userID, "match": nil})
 	}
 }
 
@@ -327,6 +339,8 @@ func (c *client) readLoop(h *Hub) {
 			// Deadline already refreshed above.
 		case "match_result":
 			c.handleMatchResult(h, env)
+		case "live_match":
+			c.handleLiveMatch(h, env)
 		default:
 			// Unknown types are ignored for forward compatibility.
 		}
@@ -474,6 +488,76 @@ func (c *client) handleMatchResult(h *Hub, env Envelope) {
 		// Le dire au client, sinon il retire le match de sa file en croyant
 		// qu'il est arrivé.
 		c.sendError("match_not_recorded", "impossible d'enregistrer le résultat du match", false)
+	}
+}
+
+// handleLiveMatch rediffuse l'état courant d'un match.
+//
+// Rien n'est écrit : cet état vit en mémoire le temps du match et disparaît.
+// C'est le pendant exact de la présence, qui est diffusée et jamais archivée.
+func (c *client) handleLiveMatch(h *Hub, env Envelope) {
+	var p livePayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil || !p.valid() {
+		c.sendError("invalid_live_match", "état de match en direct malformé", false)
+		return
+	}
+
+	// Un membre invisible ou hors ligne par choix ne diffuse pas son match. La
+	// présence applique déjà cette règle ; la contourner par le direct
+	// reviendrait à trahir le réglage.
+	if !c.activityVisible ||
+		store.ApplyPresenceOverride(c.presenceStatus, "in_game") != "in_game" {
+		return
+	}
+
+	h.setLive(c.userID, p)
+	h.Broadcast("live_match", h.liveJSON(c.userID))
+}
+
+// setLive retient ou efface l'état de match d'un membre.
+func (h *Hub) setLive(userID string, p livePayload) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if p.Ended {
+		delete(h.live, userID)
+		return
+	}
+	h.live[userID] = liveEntry{payload: p, updatedAt: time.Now()}
+}
+
+// LiveMatch rend l'état de match courant d'un membre, ou nil s'il n'y en a pas
+// ou s'il a expiré. Exporté pour que l'API REST serve l'état à une page ouverte
+// en cours de match, qui a manqué les diffusions précédentes.
+func (h *Hub) LiveMatch(userID string) map[string]any {
+	h.mu.RLock()
+	e, ok := h.live[userID]
+	h.mu.RUnlock()
+	if !ok || e.expired(time.Now()) {
+		return nil
+	}
+	return liveEntryJSON(e.payload)
+}
+
+// liveJSON construit la charge utile diffusée pour un membre : l'état, ou nil
+// quand le match est fini.
+func (h *Hub) liveJSON(userID string) map[string]any {
+	return map[string]any{"user_id": userID, "match": h.LiveMatch(userID)}
+}
+
+// liveEntryJSON est la forme envoyée au navigateur.
+func liveEntryJSON(p livePayload) map[string]any {
+	return map[string]any{
+		"game_slug":         p.GameSlug,
+		"team_blue_score":   p.TeamBlueScore,
+		"team_orange_score": p.TeamOrangeScore,
+		"seconds_remaining": p.SecondsRemaining,
+		"overtime":          p.Overtime,
+		"goals":             p.Goals,
+		"assists":           p.Assists,
+		"saves":             p.Saves,
+		"shots":             p.Shots,
+		"score":             p.Score,
+		"demos":             p.Demos,
 	}
 }
 
