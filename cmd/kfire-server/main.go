@@ -22,6 +22,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/games"
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
+	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -84,6 +85,7 @@ func main() {
 	// hub les lit sans jamais les modifier.
 	recorders := matchrecord.NewRegistry(
 		hearthstone.NewRecorder(st),
+		rocketleague.NewRecorder(st),
 	)
 	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL, recorders)
 

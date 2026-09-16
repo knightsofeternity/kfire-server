@@ -26,6 +26,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
+	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -84,6 +85,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	lolPlugin := riotsync.NewLolPlugin(st, riotSync, riotConn)
 	plugins.Register(lolPlugin)
 	plugins.Register(hearthstone.New(st))
+	plugins.Register(rocketleague.New(st))
 	if err := plugins.Load(context.Background()); err != nil {
 		slog.Error("game plugins load", "err", err)
 	}
