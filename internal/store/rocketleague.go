@@ -86,8 +86,8 @@ func (s *Store) RocketLeagueStatsByGame(ctx context.Context, gameID string) ([]R
 		       coalesce(sum(m.duration_seconds), 0)     AS play_time,
 		       max(m.played_at)                         AS last_played_at
 		FROM rocket_league_matches m
-		JOIN users u ON u.id = m.user_id
-		WHERE m.game_id = $1 AND u.banned_at IS NULL
+		JOIN users u ON u.id = m.user_id AND u.banned_at IS NULL
+		WHERE m.game_id = $1
 		GROUP BY m.user_id, u.username, u.avatar_url
 		ORDER BY matches DESC, u.username ASC`, gameID)
 	if err != nil {
