@@ -2,6 +2,8 @@ package ws
 
 import (
 	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -44,4 +46,65 @@ func TestLiveExpire(t *testing.T) {
 	if fresh.expired(now) {
 		t.Errorf("une entrée d'il y a une seconde ne doit pas être expirée")
 	}
+}
+
+func TestLiveEtatPartage(t *testing.T) {
+	// Un hub sans dépendances suffit : setLive et LiveMatch ne touchent que la
+	// carte en mémoire. C'est ce qui rend cet état testable alors que le reste
+	// du hub ne l'est pas.
+	h := NewHub(nil, nil, "", nil)
+
+	p := livePayload{
+		GameSlug: "rocket-league", TeamBlueScore: 2, TeamOrangeScore: 1,
+		SecondsRemaining: 143, Goals: 1, Saves: 2, Shots: 3, Score: 310,
+	}
+	h.setLive("u1", p)
+
+	got := h.LiveMatch("u1")
+	if got == nil {
+		t.Fatal("LiveMatch rend nil juste après setLive")
+	}
+	if got["team_blue_score"] != 2 || got["seconds_remaining"] != 143 {
+		t.Errorf("état relu incorrect : %v", got)
+	}
+	if _, nomme := got["user_id"]; nomme {
+		t.Error("l'état diffusé ne doit pas porter d'identité, le hub l'ajoute autour")
+	}
+
+	// Un membre sans match en cours n'a pas d'état.
+	if h.LiveMatch("inconnu") != nil {
+		t.Error("LiveMatch rend un état pour un membre qui ne joue pas")
+	}
+
+	// La fin de match efface.
+	h.setLive("u1", livePayload{GameSlug: "rocket-league", Ended: true})
+	if h.LiveMatch("u1") != nil {
+		t.Error("l'état survit à la fin du match")
+	}
+}
+
+// Ce test n'a de valeur que lancé avec -race : il fait se croiser lectures et
+// écritures sur la carte partagée, ce qu'aucun autre test du paquet ne fait.
+// Sans lui, `go test -race ./internal/ws/` ne prouve rien sur h.live.
+func TestLiveAccesConcurrent(t *testing.T) {
+	h := NewHub(nil, nil, "", nil)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(2)
+		membre := fmt.Sprintf("u%d", i%3)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				h.setLive(membre, livePayload{GameSlug: "rocket-league", TeamBlueScore: j % 5})
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				_ = h.LiveMatch(membre)
+			}
+		}()
+	}
+	wg.Wait()
 }
