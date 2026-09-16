@@ -55,6 +55,18 @@ type gameEventPayload struct {
 	GameSlug string `json:"game_slug"`
 }
 
+// matchEnvelope est tout ce que le hub a besoin de comprendre d'un résultat de
+// match : quel jeu, et le reste tel quel. La forme de ce reste appartient au
+// jeu, pas au plan de contrôle.
+//
+// Identique à gameEventPayload aujourd'hui, et pourtant distinct à dessein : un
+// évènement de jeu est un état de présence que le hub interprète en entier,
+// alors que ceci n'est que l'étiquette d'un corps que le hub ne lira jamais. Les
+// fusionner ferait croire qu'ils évoluent ensemble.
+type matchEnvelope struct {
+	GameSlug string `json:"game_slug"`
+}
+
 // client is one WebSocket connection.
 type client struct {
 	conn          *websocket.Conn
@@ -417,18 +429,15 @@ func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
 	}
 }
 
-// matchEnvelope est tout ce que le hub a besoin de comprendre d'un résultat de
-// match : quel jeu, et le reste tel quel. La forme de ce reste appartient au
-// jeu, pas au plan de contrôle.
-type matchEnvelope struct {
-	GameSlug string `json:"game_slug"`
-}
-
 // handleMatchResult enregistre un match terminé rapporté par le client.
 //
 // Contrairement à un évènement de jeu, cela ne change aucune présence et ne
 // diffuse rien : un match est de l'histoire, pas un état.
 func (c *client) handleMatchResult(h *Hub, env Envelope) {
+	// La charge utile est décodée DEUX fois, ici pour le seul slug puis dans
+	// l'enregistreur pour les champs du jeu. C'est voulu : faire circuler un
+	// décodage partiel rendrait au hub la connaissance du jeu qu'on vient de lui
+	// retirer, pour économiser quelques microsecondes sur un message par match.
 	var e matchEnvelope
 	if err := json.Unmarshal(env.Payload, &e); err != nil || e.GameSlug == "" {
 		c.sendError("invalid_match", "charge utile de résultat de match malformée", false)
