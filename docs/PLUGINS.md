@@ -149,6 +149,47 @@ the limit. A 429 from Riot during a refresh is not fatal: nothing is written,
 so the stored profile is left untouched and the next view simply retries
 after the throttle window.
 
+**Rocket League** (`rocket-league`) has no connector at all, unlike every
+plugin above:
+
+- `Connector()` returns `""` and `Available()` is always `true`. There is no
+  credential layer to configure, so the admin switch in the `game_plugins`
+  registry is the only way to turn this plugin off.
+- It crawls nothing: `Refresh()` is inert. Results arrive over the WebSocket
+  control plane as a `match_result` message that the desktop client sends
+  when a match ends, not from any server-initiated pull. See "Routing a
+  match result" in `docs/ARCHITECTURE.md` for how that message reaches
+  `internal/rocketleague/recorder.go`.
+- The desktop client obtains this from a TCP socket the game itself opens
+  locally on the player's machine, enabled by a file named
+  `DefaultStatsAPI.ini` in the game's install directory. This is entirely
+  client-side; the server never talks to the game.
+- `rocket_league_matches` (`migrations/0035_rocket_league_matches.sql`) has
+  no free-text column except `result`, and `result` is a `CHECK`'d enum
+  (`win`/`loss`/`draw`), not free text. This is deliberate: Rocket League's
+  feed names every player in the match, team-mates and opponents alike, and
+  the desktop client only ever reports facts about the member running it.
+  The table is structurally incapable of holding a pseudonym, whatever a
+  client sends -- there is no column to put one in.
+- `playlist` is stored as Psyonix's raw integer id and never translated
+  server-side, for the same reason `hero_card_id` is left untranslated for
+  Hearthstone: the identifier is the fact, the label is presentation, and
+  the label is localized.
+- Turning the plugin off hides the guild record and the per-member match
+  list (`rl_players`, `rl_matches`), leaving generic presence intact, like
+  every other plugin.
+
+**Disabling does not stop collection, for either Rocket League or
+Hearthstone.** This is worth stating plainly because the opposite is the
+natural assumption. `internal/matchrecord.Registry`, which routes an
+incoming `match_result` to the recorder that can read it, has no knowledge of
+the `game_plugins` admin switch above. It keeps writing matches to
+`rocket_league_matches` (and to Hearthstone's table) while a plugin is
+disabled and its blocks are hidden from every page. An admin flipping the
+switch off can reasonably expect it to also stop the writes; it does not.
+This has always been true of Hearthstone too, and was never written down
+until now.
+
 ## Architecture pointers
 
 Key files for the plugin system:

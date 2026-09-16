@@ -66,6 +66,50 @@ well, so a pattern stays useful only while it discriminates.
 Clients before v0.4.0 ignore pattern entries: they index them like any other name and
 never match, so publishing patterns is safe for a mixed fleet.
 
+## Match results and the live match
+
+Two WebSocket messages carry per-game data that the hub itself does not
+understand: `match_result`, a finished match reported by the desktop client,
+and `live_match`, the score while a match is still in progress.
+
+**Routing a match result.** `match_result` carries a `game_slug`; the hub
+(`internal/ws/hub.go`, `handleMatchResult`) reads only that slug and hands the
+whole payload, undecoded, to `internal/matchrecord.Registry`, which resolves
+it to the `Recorder` that claims that slug (`hearthstone.NewRecorder`,
+`rocketleague.NewRecorder`, built in `cmd/kfire-server/main.go`). The hub
+itself knows no game: adding a third game means writing a `Recorder`
+(`Slug()` + `Record()`) and registering it in that list, without touching
+`hub.go`.
+
+**Two registries, easy to confuse.** `internal/gameplugin` and
+`internal/matchrecord` are both registries a new game gets added to, and they
+answer different questions:
+
+- `internal/gameplugin.Registry` governs what the pages display -- it carries
+  the admin on/off switch (`game_plugins` table) and the crawl. See
+  [PLUGINS.md](PLUGINS.md). A plugin is registered in `internal/api/router.go`.
+- `internal/matchrecord.Registry` only routes an incoming match to the code
+  that can read it. It has no admin switch and does not know whether the
+  matching plugin is enabled. A recorder is registered separately, in
+  `cmd/kfire-server/main.go`.
+
+A game that reports match results is registered in **both**, in two
+different files, for two different reasons. Disabling the plugin hides the
+display; it does not stop the recorder from writing, because the recorder
+never consults the plugin registry. See [PLUGINS.md](PLUGINS.md) for the
+consequence this has for Hearthstone and Rocket League.
+
+**The live match** (`live_match`) is the ephemeral counterpart: the current
+score, broadcast to the hub's normal presence channel while a match is still
+running, and never written to the database (`internal/ws/live.go`,
+`handleLiveMatch`). It is kept in memory next to presence, expires if no
+update refreshes it within `liveTTL`, and is swept on a timer
+(`Hub.SweepLive`, started from `cmd/kfire-server/main.go`) so a game that
+crashes without closing the socket doesn't leave a frozen score on screen
+forever. It is also cut immediately, not just on expiry, the moment a member
+chooses to be invisible (`Hub.SetVisibility`): a member who asks not to be
+seen must stop being seen right away, not at the next reconnect.
+
 ## Key data
 
 `orgs`, `users`, `refresh_tokens` (device-bound), `device_pairings`, `invites`, `games`,
