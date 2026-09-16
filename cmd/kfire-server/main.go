@@ -20,6 +20,8 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/games"
+	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
+	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
@@ -78,7 +80,12 @@ func main() {
 		return c.Next()
 	})
 
-	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL)
+	// Les enregistreurs de match sont construits ici, avant le hub, parce que le
+	// hub les lit sans jamais les modifier.
+	recorders := matchrecord.NewRegistry(
+		hearthstone.NewRecorder(st),
+	)
+	hub := ws.NewHub([]byte(cfg.JWTSecret), st, cfg.PublicURL, recorders)
 
 	// Shared context for all background pollers.
 	pollCtx, cancelPoll := context.WithCancel(context.Background())

@@ -6,8 +6,8 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/contrib/websocket"
 
 	"github.com/knightsofeternity/kfire-server/internal/auth"
+	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
@@ -52,64 +53,6 @@ type helloPayload struct {
 
 type gameEventPayload struct {
 	GameSlug string `json:"game_slug"`
-}
-
-// matchResultPayload is one finished match, already summarised by the desktop
-// client. The client reads the game's log files and sends only this: never the
-// opponent's name, never a card.
-//
-// Turns and Placement are pointers because a match is worth recording even when
-// a secondary field was unreadable.
-// clockSkewTolerance is how far ahead of the server a client's clock may be
-// before its match results are rejected.
-const clockSkewTolerance = 5 * time.Minute
-
-type matchResultPayload struct {
-	GameSlug  string `json:"game_slug"`
-	Mode      string `json:"mode"`
-	Result    string `json:"result"`
-	Turns     *int   `json:"turns"`
-	Placement *int   `json:"placement"`
-	// HeroCardID is the Battlegrounds hero, as the card identifier the game
-	// writes in its own log. Never the hero's name: the log is localised, so
-	// two members playing the same hero would report two different strings.
-	HeroCardID *string   `json:"hero_card_id"`
-	PlayedAt   time.Time `json:"played_at"`
-}
-
-// heroCardID is the shape of a card identifier. Refusing anything else keeps
-// the column incapable of carrying a name, which is the whole point.
-var heroCardID = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
-
-// valid reports whether the payload is worth persisting. The database enforces
-// the same rules, but rejecting here gives the client a clear error instead of
-// an opaque write failure.
-func (p matchResultPayload) valid() bool {
-	if p.GameSlug == "" || p.PlayedAt.IsZero() {
-		return false
-	}
-	if p.Mode != "battlegrounds" && p.Mode != "constructed" {
-		return false
-	}
-	if p.Result != "win" && p.Result != "loss" && p.Result != "draw" {
-		return false
-	}
-	if p.Placement != nil && (*p.Placement < 1 || *p.Placement > 8) {
-		return false
-	}
-	if p.Turns != nil && *p.Turns < 0 {
-		return false
-	}
-	if p.HeroCardID != nil && !heroCardID.MatchString(*p.HeroCardID) {
-		return false
-	}
-	// A queued match can be old, never future. The tolerance absorbs a
-	// desktop clock that drifts a little without letting a badly set one
-	// poison the last-played date of the whole roster.
-	if p.PlayedAt.After(time.Now().Add(clockSkewTolerance)) {
-		return false
-	}
-	return true
 }
 
 // client is one WebSocket connection.
@@ -166,19 +109,22 @@ type Hub struct {
 	jwtSecret []byte
 	store     *store.Store
 	publicURL string
+	recorders *matchrecord.Registry
 	mu        sync.RWMutex
 	clients   map[*client]struct{}
 	online    map[string]*onlineState // by user ID
 }
 
-// NewHub creates an empty hub. jwtSecret verifies the access tokens presented
-// in `hello` handshakes; st persists sessions and resolves games; publicURL
-// builds image-proxy URLs in presence broadcasts.
-func NewHub(jwtSecret []byte, st *store.Store, publicURL string) *Hub {
+// NewHub crée un hub vide. jwtSecret vérifie les jetons d'accès présentés dans
+// les poignées de main `hello` ; st persiste les sessions et résout les jeux ;
+// publicURL construit les URL du proxy d'images dans les diffusions de présence ;
+// recorders aiguille un résultat de match vers le jeu qui sait le lire.
+func NewHub(jwtSecret []byte, st *store.Store, publicURL string, recorders *matchrecord.Registry) *Hub {
 	return &Hub{
 		jwtSecret: jwtSecret,
 		store:     st,
 		publicURL: publicURL,
+		recorders: recorders,
 		clients:   make(map[*client]struct{}),
 		online:    make(map[string]*onlineState),
 	}
@@ -471,39 +417,55 @@ func (c *client) handleGameEvent(h *Hub, env Envelope, started bool) {
 	}
 }
 
-// handleMatchResult records one finished match reported by the client.
+// matchEnvelope est tout ce que le hub a besoin de comprendre d'un résultat de
+// match : quel jeu, et le reste tel quel. La forme de ce reste appartient au
+// jeu, pas au plan de contrôle.
+type matchEnvelope struct {
+	GameSlug string `json:"game_slug"`
+}
+
+// handleMatchResult enregistre un match terminé rapporté par le client.
 //
-// Unlike a game event, this changes no presence and broadcasts nothing: a match
-// is history, not a state.
+// Contrairement à un évènement de jeu, cela ne change aucune présence et ne
+// diffuse rien : un match est de l'histoire, pas un état.
 func (c *client) handleMatchResult(h *Hub, env Envelope) {
-	var p matchResultPayload
-	if err := json.Unmarshal(env.Payload, &p); err != nil || !p.valid() {
-		c.sendError("invalid_match", "malformed match result payload", false)
+	var e matchEnvelope
+	if err := json.Unmarshal(env.Payload, &e); err != nil || e.GameSlug == "" {
+		c.sendError("invalid_match", "charge utile de résultat de match malformée", false)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	game, err := h.store.GetGameBySlug(ctx, p.GameSlug)
+	game, err := h.store.GetGameBySlug(ctx, e.GameSlug)
 	if err != nil {
-		c.sendError("unknown_game", "game slug not in the catalog: "+p.GameSlug, false)
+		c.sendError("unknown_game", "slug absent du catalogue : "+e.GameSlug, false)
 		return
 	}
 
-	if err := h.store.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{
-		UserID: c.userID, GameID: game.ID, Mode: p.Mode, Result: p.Result,
-		Turns: p.Turns, Placement: p.Placement, HeroCardID: p.HeroCardID,
-		PlayedAt: p.PlayedAt,
-	}); err != nil {
-		slog.Error("ws: persist match result", "user_id", c.userID, "err", err)
-		// Tell the client, otherwise it drops the match from its queue
-		// believing it landed.
-		c.sendError("match_not_recorded", "could not record match result", false)
-		return
+	err = h.recorders.Record(ctx, e.GameSlug, c.userID, game.ID, env.Payload)
+	switch {
+	case err == nil:
+		slog.Info("ws: match result", "user_id", c.userID, "slug", game.Slug)
+	case errors.Is(err, matchrecord.ErrUnknownGame):
+		// Le jeu est au catalogue mais aucun enregistreur ne le suit : c'est un
+		// client en avance sur ce serveur, pas une erreur d'écriture.
+		c.sendError("unknown_game", "ce serveur ne suit pas les matchs de "+e.GameSlug, false)
+	case errors.Is(err, matchrecord.ErrInvalidPayload):
+		// Le client ne reçoit qu'un code générique, il n'a que faire de nos
+		// règles internes. Le journal, lui, porte la raison exacte : sans elle,
+		// un client dont la sérialisation est cassée et une donnée légitime
+		// tombée sur une règle écrite trop tôt se ressemblent, et aucune des
+		// deux ne se diagnostique.
+		slog.Warn("ws: match result refusé", "user_id", c.userID, "slug", game.Slug, "err", err)
+		c.sendError("invalid_match", "charge utile de résultat de match malformée", false)
+	default:
+		slog.Error("ws: persist match result", "user_id", c.userID, "slug", game.Slug, "err", err)
+		// Le dire au client, sinon il retire le match de sa file en croyant
+		// qu'il est arrivé.
+		c.sendError("match_not_recorded", "impossible d'enregistrer le résultat du match", false)
 	}
-	slog.Info("ws: match result", "user_id", c.userID, "slug", game.Slug,
-		"mode", p.Mode, "result", p.Result)
 }
 
 // sendEnvelope queues a typed message for this client.
