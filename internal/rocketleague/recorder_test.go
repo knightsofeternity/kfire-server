@@ -5,12 +5,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 )
+
+// payloadFields rend les noms JSON acceptés, dans l'ordre de déclaration. Sert
+// au test qui épingle la liste de ce qui quitte la machine d'un membre.
+func payloadFields() []string {
+	t := reflect.TypeOf(payload{})
+	out := make([]string, 0, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		out = append(out, t.Field(i).Tag.Get("json"))
+	}
+	return out
+}
 
 func TestPayloadValidation(t *testing.T) {
 	cases := []struct {
@@ -111,7 +123,7 @@ func TestRecordRendLaSentinelleDansLesDeuxCas(t *testing.T) {
 	if !errors.Is(champsRefuses, matchrecord.ErrInvalidPayload) {
 		t.Errorf("champs refusés = %v, want ErrInvalidPayload", champsRefuses)
 	}
-	if !strings.Contains(champsRefuses.Error(), "playlist=73") {
+	if !strings.Contains(champsRefuses.Error(), "Playlist:73") {
 		t.Errorf("le message doit porter la playlist fautive, got %q", champsRefuses)
 	}
 }

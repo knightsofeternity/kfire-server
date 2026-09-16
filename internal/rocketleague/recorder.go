@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
@@ -21,6 +20,11 @@ const clockSkewTolerance = 5 * time.Minute
 
 // maxDuration borne la durée d'un match. Une prolongation peut s'éterniser, une
 // horloge folle ne doit pas empoisonner le temps de jeu de la guilde.
+//
+// DOIT rester égal au plafond de duration_seconds dans la migration 0035. Si les
+// deux divergent, une charge utile passe la validation puis se fait refuser par
+// la contrainte, le hub la classe en erreur transitoire, et le client la
+// réémet indéfiniment.
 const maxDuration = 7200
 
 // trainingPlaylists sont les identifiants Psyonix que le client ne doit jamais
@@ -53,17 +57,6 @@ type payload struct {
 	MVP             bool      `json:"mvp"`
 	DurationSeconds int       `json:"duration_seconds"`
 	PlayedAt        time.Time `json:"played_at"`
-}
-
-// payloadFields rend les noms JSON acceptés, dans l'ordre de déclaration. Sert
-// au test qui épingle la liste de ce qui quitte la machine d'un membre.
-func payloadFields() []string {
-	t := reflect.TypeOf(payload{})
-	out := make([]string, 0, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		out = append(out, t.Field(i).Tag.Get("json"))
-	}
-	return out
 }
 
 // expectedResult rend le résultat que les scores imposent, du point de vue de
@@ -154,8 +147,15 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		return fmt.Errorf("%w: json illisible: %v", matchrecord.ErrInvalidPayload, err)
 	}
 	if !p.valid() {
-		return fmt.Errorf("%w: champs refusés (playlist=%d result=%q)",
-			matchrecord.ErrInvalidPayload, p.Playlist, p.Result)
+		// La charge utile ENTIÈRE part au journal, et c'est sans danger par
+		// construction : tous ses champs sont des nombres, des booléens ou une
+		// énumération, par la même conception qui rend la table incapable de
+		// porter un pseudonyme. Il n'y a rien de personnel à y fuiter.
+		//
+		// N'en nommer que deux obligerait l'exploitant à rejouer à la main
+		// chaque règle de valid() sur une charge utile qui, elle, n'était pas
+		// journalisée.
+		return fmt.Errorf("%w: champs refusés (%+v)", matchrecord.ErrInvalidPayload, p)
 	}
 	return r.st.InsertRocketLeagueMatch(ctx, store.RocketLeagueMatch{
 		UserID: userID, GameID: gameID,
