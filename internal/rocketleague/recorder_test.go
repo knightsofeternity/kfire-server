@@ -1,10 +1,15 @@
 package rocketleague
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
 )
 
 func TestPayloadValidation(t *testing.T) {
@@ -15,6 +20,7 @@ func TestPayloadValidation(t *testing.T) {
 	}{
 		{"victoire bleue complete", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`), true},
 		{"defaite orange", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":5,"team_orange_score":1,"result":"loss","goals":0,"assists":0,"saves":1,"shots":2,"score":180,"demos":0,"mvp":false,"duration_seconds":300`), true},
+		{"victoire orange", body(`"playlist":13,"team_size":3,"player_team":1,"team_blue_score":2,"team_orange_score":5,"result":"win","goals":3,"assists":1,"saves":0,"shots":4,"score":520,"demos":2,"mvp":true,"duration_seconds":345`), true},
 		{"match nul", body(`"playlist":6,"team_size":3,"player_team":0,"team_blue_score":2,"team_orange_score":2,"result":"draw","goals":1,"assists":0,"saves":0,"shots":3,"score":250,"demos":0,"mvp":false,"duration_seconds":300`), true},
 
 		{"entrainement refuse", body(`"playlist":73,"team_size":1,"player_team":0,"team_blue_score":0,"team_orange_score":0,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":60`), false},
@@ -86,5 +92,26 @@ func TestChampsAcceptes(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("champ %d = %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+func TestRecordRendLaSentinelleDansLesDeuxCas(t *testing.T) {
+	r := NewRecorder(nil)
+
+	jsonCasse := r.Record(context.Background(), "u1", "g1", json.RawMessage(`{`))
+	if !errors.Is(jsonCasse, matchrecord.ErrInvalidPayload) {
+		t.Errorf("json illisible = %v, want ErrInvalidPayload", jsonCasse)
+	}
+	if !strings.Contains(jsonCasse.Error(), "json illisible") {
+		t.Errorf("le message doit nommer la classe d'échec, got %q", jsonCasse)
+	}
+
+	champsRefuses := r.Record(context.Background(), "u1", "g1",
+		json.RawMessage(`{"playlist":73,"team_size":1,"player_team":0,"team_blue_score":0,"team_orange_score":0,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":60,"played_at":"2026-08-02T17:44:59Z"}`))
+	if !errors.Is(champsRefuses, matchrecord.ErrInvalidPayload) {
+		t.Errorf("champs refusés = %v, want ErrInvalidPayload", champsRefuses)
+	}
+	if !strings.Contains(champsRefuses.Error(), "playlist=73") {
+		t.Errorf("le message doit porter la playlist fautive, got %q", champsRefuses)
 	}
 }
