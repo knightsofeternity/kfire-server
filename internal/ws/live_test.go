@@ -113,3 +113,53 @@ func TestLiveAccesConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestLiveVisibiliteCoupeLeDirect(t *testing.T) {
+	h := NewHub(nil, nil, "", nil)
+	h.setLiveVisible("u1", true, "online")
+	if !h.liveAllowed("u1") {
+		t.Fatal("un membre visible doit pouvoir diffuser")
+	}
+	h.setLive("u1", livePayload{GameSlug: "rocket-league", TeamBlueScore: 1})
+
+	// Il se cache en pleine partie.
+	h.SetVisibility("u1", true, "invisible")
+	if h.liveAllowed("u1") {
+		t.Error("un membre invisible ne doit plus diffuser")
+	}
+	if h.LiveMatch("u1") != nil {
+		t.Error("son match en direct devait disparaître immédiatement")
+	}
+
+	// Un membre qui masque son activité sans se déclarer invisible, aussi.
+	h.setLiveVisible("u2", false, "online")
+	if h.liveAllowed("u2") {
+		t.Error("activité masquée doit suffire à couper le direct")
+	}
+}
+
+// La bascule de visibilité arrive par un fil HTTP pendant que la boucle de
+// lecture de la connexion consulte l'autorisation. C'est exactement le
+// croisement qui rendait la première version de ce correctif inacceptable.
+func TestLiveVisibiliteAccesConcurrent(t *testing.T) {
+	h := NewHub(nil, nil, "", nil)
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 300; j++ {
+				h.SetVisibility("u1", j%2 == 0, "online")
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 300; j++ {
+				if h.liveAllowed("u1") {
+					h.setLive("u1", livePayload{GameSlug: "rocket-league"})
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}

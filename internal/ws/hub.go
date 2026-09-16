@@ -126,6 +126,15 @@ type Hub struct {
 	clients   map[*client]struct{}
 	online    map[string]*onlineState // by user ID
 	live      map[string]liveEntry    // état de match en cours, par ID membre
+	// liveVisible dit, par membre, si son match en direct peut être diffusé.
+	//
+	// Cet état vit dans le hub, sous h.mu, et NON sur la connexion, contrairement
+	// aux champs équivalents lus au moment du hello. C'est délibéré : la bascule
+	// d'invisibilité arrive par une requête HTTP, donc depuis un autre fil que la
+	// boucle de lecture de la connexion. Y écrire les champs de la connexion
+	// serait une course, vérifiée au détecteur. Ici, c'est le verrou qui protège
+	// déjà tout le reste de l'état partagé qui s'en charge.
+	liveVisible map[string]bool
 }
 
 // NewHub crée un hub vide. jwtSecret vérifie les jetons d'accès présentés dans
@@ -134,13 +143,14 @@ type Hub struct {
 // recorders aiguille un résultat de match vers le jeu qui sait le lire.
 func NewHub(jwtSecret []byte, st *store.Store, publicURL string, recorders *matchrecord.Registry) *Hub {
 	return &Hub{
-		jwtSecret: jwtSecret,
-		store:     st,
-		publicURL: publicURL,
-		recorders: recorders,
-		clients:   make(map[*client]struct{}),
-		online:    make(map[string]*onlineState),
-		live:      make(map[string]liveEntry),
+		jwtSecret:   jwtSecret,
+		store:       st,
+		publicURL:   publicURL,
+		recorders:   recorders,
+		clients:     make(map[*client]struct{}),
+		online:      make(map[string]*onlineState),
+		live:        make(map[string]liveEntry),
+		liveVisible: make(map[string]bool),
 	}
 }
 
@@ -215,6 +225,7 @@ func (h *Hub) unregister(c *client) {
 				wasLastConn = true
 				hadLive = h.live[c.userID].payload.GameSlug != ""
 				delete(h.live, c.userID)
+				delete(h.liveVisible, c.userID)
 			}
 		}
 	}
@@ -385,6 +396,7 @@ func (c *client) handleHello(h *Hub, env Envelope) {
 	c.avatarURL = u.AvatarURL
 	c.activityVisible = u.ActivityVisible
 	c.presenceStatus = u.PresenceStatus
+	h.setLiveVisible(u.ID, u.ActivityVisible, u.PresenceStatus)
 	c.authenticated.Store(true)
 	firstConn := h.connect(c)
 	_ = c.conn.SetReadDeadline(time.Now().Add(livenessTimeout))
@@ -503,10 +515,9 @@ func (c *client) handleLiveMatch(h *Hub, env Envelope) {
 	}
 
 	// Un membre invisible ou hors ligne par choix ne diffuse pas son match. La
-	// présence applique déjà cette règle ; la contourner par le direct
-	// reviendrait à trahir le réglage.
-	if !c.activityVisible ||
-		store.ApplyPresenceOverride(c.presenceStatus, "in_game") != "in_game" {
+	// décision est lue dans le hub et non sur la connexion, parce qu'elle peut
+	// changer par l'API pendant que la connexion vit.
+	if !h.liveAllowed(c.userID) {
 		return
 	}
 
@@ -523,6 +534,46 @@ func (h *Hub) setLive(userID string, p livePayload) {
 		return
 	}
 	h.live[userID] = liveEntry{payload: p, updatedAt: time.Now()}
+}
+
+// setLiveVisible retient ce qu'un membre autorise pour son match en direct.
+func (h *Hub) setLiveVisible(userID string, activityVisible bool, presenceStatus string) bool {
+	autorise := activityVisible &&
+		store.ApplyPresenceOverride(presenceStatus, "in_game") == "in_game"
+	h.mu.Lock()
+	h.liveVisible[userID] = autorise
+	h.mu.Unlock()
+	return autorise
+}
+
+// liveAllowed dit si le match en direct de ce membre peut être diffusé.
+func (h *Hub) liveAllowed(userID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.liveVisible[userID]
+}
+
+// SetVisibility prend acte d'un changement de visibilité arrivé par l'API, et
+// coupe immédiatement le match en direct si le membre vient de se cacher.
+//
+// Sans ceci, un membre passé invisible en pleine partie continuerait d'être
+// diffusé à toute la guilde, deux fois par seconde, jusqu'à sa prochaine
+// reconnexion. Quelqu'un qui demande à ne plus être vu doit cesser de l'être
+// tout de suite.
+func (h *Hub) SetVisibility(userID string, activityVisible bool, presenceStatus string) {
+	if h.setLiveVisible(userID, activityVisible, presenceStatus) {
+		return
+	}
+	h.mu.Lock()
+	_, avaitUnMatch := h.live[userID]
+	delete(h.live, userID)
+	h.mu.Unlock()
+
+	// Hors du verrou : Broadcast prend h.mu en lecture, et un RWMutex n'est pas
+	// réentrant.
+	if avaitUnMatch {
+		h.Broadcast("live_match", map[string]any{"user_id": userID, "match": nil})
+	}
 }
 
 // LiveMatch rend l'état de match courant d'un membre, ou nil s'il n'y en a pas

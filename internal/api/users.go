@@ -48,6 +48,7 @@ func (h *handlers) updateMe(c *fiber.Ctx) error {
 		u, err := h.store.GetUserByID(c.Context(), claims.UserID)
 		if err == nil {
 			h.hub.BroadcastPresence(c.Context(), presenceUser(u))
+			h.hub.SetVisibility(u.ID, u.ActivityVisible, u.PresenceStatus)
 		}
 	}
 	if req.ActivityVisible != nil {
@@ -58,6 +59,7 @@ func (h *handlers) updateMe(c *fiber.Ctx) error {
 		u, err := h.store.GetUserByID(c.Context(), claims.UserID)
 		if err == nil {
 			h.hub.BroadcastPresence(c.Context(), presenceUser(u))
+			h.hub.SetVisibility(u.ID, u.ActivityVisible, u.PresenceStatus)
 		}
 	}
 	if req.SessionsVisible != nil {
