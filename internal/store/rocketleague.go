@@ -97,14 +97,14 @@ func (s *Store) RocketLeagueStatsByGame(ctx context.Context, gameID string) ([]R
 
 	var out []RocketLeagueMemberStats
 	for rows.Next() {
-		var s RocketLeagueMemberStats
-		if err := rows.Scan(&s.UserID, &s.Username, &s.AvatarURL,
-			&s.Matches, &s.Wins, &s.MVPs,
-			&s.Goals, &s.Assists, &s.Saves, &s.Shots, &s.Demos, &s.Score,
-			&s.PlayTime, &s.LastPlayedAt); err != nil {
+		var r RocketLeagueMemberStats
+		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL,
+			&r.Matches, &r.Wins, &r.MVPs,
+			&r.Goals, &r.Assists, &r.Saves, &r.Shots, &r.Demos, &r.Score,
+			&r.PlayTime, &r.LastPlayedAt); err != nil {
 			return nil, err
 		}
-		out = append(out, s)
+		out = append(out, r)
 	}
 	return out, rows.Err()
 }
