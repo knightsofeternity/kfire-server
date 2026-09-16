@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +24,10 @@ func TestLivePayloadValidation(t *testing.T) {
 		{"chrono aberrant", `{"game_slug":"rocket-league","team_blue_score":2,"team_orange_score":1,"seconds_remaining":99999}`, false},
 		{"stat negative", `{"game_slug":"rocket-league","team_blue_score":2,"team_orange_score":1,"seconds_remaining":143,"saves":-2}`, false},
 		{"score de match aberrant", `{"game_slug":"rocket-league","team_blue_score":999,"team_orange_score":1,"seconds_remaining":143}`, false},
+		{"slug avec du html", `{"game_slug":"<script>alert(1)</script>","team_blue_score":2,"team_orange_score":1,"seconds_remaining":143}`, false},
+		{"slug a rallonge", fmt.Sprintf(`{"game_slug":%q,"team_blue_score":2,"team_orange_score":1,"seconds_remaining":143}`, strings.Repeat("a", 200)), false},
+		{"slug majuscule", `{"game_slug":"Rocket-League","team_blue_score":2,"team_orange_score":1,"seconds_remaining":143}`, false},
+		{"stat aberrante", `{"game_slug":"rocket-league","team_blue_score":2,"team_orange_score":1,"seconds_remaining":143,"score":2147483647}`, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

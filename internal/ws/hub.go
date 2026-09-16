@@ -544,6 +544,39 @@ func (h *Hub) liveJSON(userID string) map[string]any {
 	return map[string]any{"user_id": userID, "match": h.LiveMatch(userID)}
 }
 
+// SweepLive efface les états de match qu'aucun échantillon n'a rafraîchis depuis
+// liveTTL, et annonce leur fin.
+//
+// Sans ce balayage, un membre dont le jeu plante pendant que KFIRE reste
+// connecté laisserait un score figé à l'écran de toute la guilde pour toujours :
+// la socket ne se ferme pas, donc unregister ne passe jamais. L'expiration
+// paresseuse de LiveMatch ne suffit pas, puisqu'elle ne prévient personne.
+func (h *Hub) SweepLive(ctx context.Context) {
+	t := time.NewTicker(liveTTL / 3)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-t.C:
+			h.mu.Lock()
+			var finis []string
+			for id, e := range h.live {
+				if e.expired(now) {
+					finis = append(finis, id)
+					delete(h.live, id)
+				}
+			}
+			h.mu.Unlock()
+			// Hors du verrou : Broadcast prend h.mu en lecture, et un RWMutex
+			// n'est pas réentrant.
+			for _, id := range finis {
+				h.Broadcast("live_match", map[string]any{"user_id": id, "match": nil})
+			}
+		}
+	}
+}
+
 // liveEntryJSON est la forme envoyée au navigateur.
 func liveEntryJSON(p livePayload) map[string]any {
 	return map[string]any{

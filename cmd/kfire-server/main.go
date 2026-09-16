@@ -97,6 +97,10 @@ func main() {
 	// list. Runs in the background so startup stays fast when upstream is slow.
 	go refreshCatalog(pollCtx, st)
 
+	// Balaie les états de match en direct qu'aucun échantillon n'a rafraîchis
+	// depuis liveTTL, pour le membre dont le jeu a planté sans fermer la socket.
+	go hub.SweepLive(pollCtx)
+
 	// Steam connector + background library/achievement poller.
 	steamConn := steam.New(cfg.SteamAPIKey)
 	if cfg.SteamLoginBase != "" {

@@ -1,6 +1,9 @@
 package ws
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 // liveTTL est la durée au bout de laquelle un état de match sans nouvelle est
 // considéré comme terminé. Le client émet à 2 Hz, donc 15 secondes laissent une
@@ -14,6 +17,25 @@ const maxMatchScore = 99
 
 // maxSecondsRemaining borne le chrono affiché, prolongation comprise.
 const maxSecondsRemaining = 7200
+
+// maxStat borne les statistiques du membre. Large exprès : ce n'est pas une
+// règle de jeu, c'est un garde-fou contre une valeur absurde diffusée à tout le
+// monde. Les scores d'équipe et le chrono sont déjà bornés, ceux-ci ne l'étaient
+// pas, sans raison.
+const maxStat = 100000
+
+// slugPattern est la forme d'un slug de catalogue.
+//
+// Ce message est le SEUL de toute la fonctionnalité dont le contenu est
+// retransmis à d'autres membres. Le reste finit en base, protégé par des
+// contraintes. Ici, une chaîne libre partirait telle quelle vers tous les
+// navigateurs de la guilde, donc elle est bornée en longueur ET en alphabet :
+// un slug ne peut contenir ni balise, ni espace, ni dix mégaoctets.
+//
+// Résoudre le slug dans le catalogue serait plus strict, mais ce message arrive
+// deux fois par seconde et par joueur : frapper la base à ce rythme pour
+// valider une constante n'aurait aucun sens.
+var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
 
 // livePayload est l'état courant d'un match, diffusé et JAMAIS écrit.
 //
@@ -39,7 +61,7 @@ type livePayload struct {
 // valid dit si l'état mérite d'être rediffusé. Il part vers tous les clients de
 // l'org, donc il est validé avec la même rigueur qu'une donnée écrite.
 func (p livePayload) valid() bool {
-	if p.GameSlug == "" {
+	if !slugPattern.MatchString(p.GameSlug) {
 		return false
 	}
 	if p.Ended {
@@ -52,9 +74,10 @@ func (p livePayload) valid() bool {
 	if p.SecondsRemaining < 0 || p.SecondsRemaining > maxSecondsRemaining {
 		return false
 	}
-	if p.Goals < 0 || p.Assists < 0 || p.Saves < 0 ||
-		p.Shots < 0 || p.Score < 0 || p.Demos < 0 {
-		return false
+	for _, v := range []int{p.Goals, p.Assists, p.Saves, p.Shots, p.Score, p.Demos} {
+		if v < 0 || v > maxStat {
+			return false
+		}
 	}
 	return true
 }
