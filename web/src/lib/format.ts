@@ -7,6 +7,14 @@ export function formatDuration(seconds: number): string {
 	return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+/** A match clock as "M:SS", e.g. 143 seconds -> "2:23". */
+export function formatClock(seconds: number): string {
+	const s = Math.max(0, Math.floor(seconds));
+	const m = Math.floor(s / 60);
+	const r = s % 60;
+	return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
 /** Relative time like "3m ago", "2h ago", "5d ago". */
 export function timeAgo(iso: string | undefined): string {
 	if (!iso) return '';

@@ -85,7 +85,9 @@ export const en = {
 		heading: 'Players',
 		searchPlaceholder: 'Search...',
 		loading: 'Loading...',
-		empty: 'No players found.'
+		empty: 'No players found.',
+		rlLive: 'Live',
+		rlOvertime: 'OT'
 	},
 	profile: {
 		loading: 'Loading...',

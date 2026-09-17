@@ -86,7 +86,9 @@ export const fr: Catalog = {
 		heading: 'Joueurs',
 		searchPlaceholder: 'Rechercher...',
 		loading: 'Chargement...',
-		empty: 'Aucun joueur trouvé.'
+		empty: 'Aucun joueur trouvé.',
+		rlLive: 'En direct',
+		rlOvertime: 'Prol.'
 	},
 	profile: {
 		loading: 'Chargement...',

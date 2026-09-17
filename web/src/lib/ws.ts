@@ -7,6 +7,31 @@ type Status = 'connecting' | 'connected' | 'disconnected';
 
 export type PresenceSocket = { close: () => void };
 
+/**
+ * The state of a match in progress, broadcast twice a second while a member
+ * plays and never persisted. `null` (delivered as the `match` field of a
+ * `live_match` event) means that member's match just ended.
+ */
+export type LiveMatch = {
+	game_slug: string;
+	team_blue_score: number;
+	team_orange_score: number;
+	seconds_remaining: number;
+	overtime: boolean;
+	goals: number;
+	assists: number;
+	saves: number;
+	shots: number;
+	score: number;
+	demos: number;
+};
+
+/** A `live_match` event: one member's current match state, or its end. */
+export type LiveMatchUpdate = {
+	user_id: string;
+	match: LiveMatch | null;
+};
+
 const HEARTBEAT_MS = 30_000;
 
 function wsUrl(): string {
@@ -16,14 +41,16 @@ function wsUrl(): string {
 
 /**
  * Opens an authenticated presence socket. Calls `onUpdate` for every
- * presence_update and `onStatus` on connection state changes. Reconnects with
- * exponential backoff + jitter. `getToken` returns a currently-valid access
- * token (refreshed by the auth store).
+ * presence_update, `onLive` for every live_match (a member's match state, or
+ * `null` when it ends), and `onStatus` on connection state changes.
+ * Reconnects with exponential backoff + jitter. `getToken` returns a
+ * currently-valid access token (refreshed by the auth store).
  */
 export function connectPresence(
 	getToken: () => string | null,
 	onUpdate: (entry: PresenceEntry) => void,
-	onStatus: (status: Status) => void
+	onStatus: (status: Status) => void,
+	onLive?: (update: LiveMatchUpdate) => void
 ): PresenceSocket {
 	let socket: WebSocket | null = null;
 	let heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -68,7 +95,7 @@ export function connectPresence(
 		};
 
 		ws.onmessage = (e) => {
-			let msg: { type: string; payload: PresenceEntry };
+			let msg: { type: string; payload: PresenceEntry & LiveMatchUpdate };
 			try {
 				msg = JSON.parse(e.data);
 			} catch {
@@ -82,6 +109,8 @@ export function connectPresence(
 				}, HEARTBEAT_MS);
 			} else if (msg.type === 'presence_update') {
 				onUpdate(msg.payload);
+			} else if (msg.type === 'live_match') {
+				onLive?.(msg.payload);
 			}
 		};
 
