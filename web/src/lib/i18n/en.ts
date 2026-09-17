@@ -189,7 +189,7 @@ export const en = {
 		rlTimePlayed: 'Time played',
 		rlLastPlayed: 'Last played',
 		rlRankingNote:
-			'Ranked by win rate, then matches played: the order the server sends is by match count only, not a ranking.',
+			'Ranked by wins. A single match won is 100%, so win rate alone would not be a ranking.',
 		rlAssists: 'Assists',
 		rlShots: 'Shots',
 		rlDemos: 'Demos',

@@ -196,7 +196,7 @@ export type HsProfile = {
 
 /**
  * One member's guild-wide Rocket League record. Ordered by the server by
- * match count then name only, which is NOT a ranking: see `rlByWinRate`.
+ * match count then name only, which is NOT a ranking: see `rlByWins`.
  */
 export type RlPlayer = {
 	user_id: string;

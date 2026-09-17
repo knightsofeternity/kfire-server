@@ -190,7 +190,7 @@ export const fr: Catalog = {
 		rlTimePlayed: 'Temps joué',
 		rlLastPlayed: 'Dernière partie',
 		rlRankingNote:
-			"Classé par taux de victoire, puis par matchs joués : l'ordre envoyé par le serveur est seulement par nombre de matchs, ce n'est pas un classement.",
+			"Classé par victoires. Un seul match gagné fait 100 %, donc le taux seul ne serait pas un classement.",
 		rlAssists: 'Passes',
 		rlShots: 'Tirs',
 		rlDemos: 'Démolitions',

@@ -20,7 +20,7 @@
 		heroName,
 		heroArt
 	} from '$lib/hearthstone';
-	import { rlWinRate, rlByWinRate, rlTotalMatches, rlTotalGoals } from '$lib/rocketleague';
+	import { rlWinRate, rlByWins, rlTotalMatches, rlTotalGoals } from '$lib/rocketleague';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -73,7 +73,7 @@
 	const hsHeroes = $derived((detail?.hs_heroes ?? []).slice(0, 6));
 
 	const rlPlayers = $derived(detail?.rl_players ?? []);
-	const rlRanked = $derived(rlByWinRate(rlPlayers));
+	const rlRanked = $derived(rlByWins(rlPlayers));
 
 	const wowChars = $derived(detail?.wow_characters ?? []);
 	const wowRosterList = $derived(wowRosters(wowChars));

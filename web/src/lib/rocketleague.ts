@@ -9,16 +9,16 @@ export function rlWinRate(p: RlPlayer): number {
 }
 
 /**
- * Members ordered by win rate, best first, then by match count.
+ * Members ranked by wins, then win rate, then matches played.
  *
- * The server's own order is by match count then name, which says nothing
- * about who is good: it is explicitly not a ranking. Win rate is the one
- * number every member here has, whatever their game count, so it is what
- * this page sorts on. Ties fall back to matches played, then name, so the
- * order is stable and never arbitrary.
+ * Wins and not win rate: a member who has played one match and won it sits at
+ * 100%, and ranking on that would put him above someone at 65% over forty
+ * matches. An absolute count cannot be inflated by playing less, and it reads
+ * the same way on the first evening as on the hundredth.
  */
-export function rlByWinRate(players: RlPlayer[]): RlPlayer[] {
+export function rlByWins(players: RlPlayer[]): RlPlayer[] {
 	return [...players].sort((a, b) => {
+		if (a.wins !== b.wins) return b.wins - a.wins;
 		const wa = rlWinRate(a);
 		const wb = rlWinRate(b);
 		if (wa !== wb) return wb - wa;
