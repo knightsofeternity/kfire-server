@@ -6,6 +6,7 @@
 	import { t } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon, wowVersionGroups, wowVersionIcon, wowVersionName } from '$lib/wow';
 	import { heroArt, heroName, hsHeroRate, hsPlacementBars, hsTrend } from '$lib/hearthstone';
+	import { rlModeLabel, rlSideScore } from '$lib/rocketleague';
 
 	let detail = $state<PlayerGameDetail | null>(null);
 	let loading = $state(true);
@@ -121,6 +122,13 @@
 	/** Short day-and-month stamp for a match, in the reader's locale. */
 	function hsMatchDate(iso: string): string {
 		return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+	}
+
+	/** The result's label and accent colour, text carrying the meaning first. */
+	function rlResultInfo(result: string): { label: string; colorClass: string } {
+		if (result === 'win') return { label: t('game.rlWin'), colorClass: 'text-[var(--color-online)]' };
+		if (result === 'loss') return { label: t('game.rlLoss'), colorClass: 'text-[var(--color-magenta)]' };
+		return { label: t('game.rlDraw'), colorClass: 'text-[var(--color-muted)]' };
 	}
 
 	/**
@@ -678,6 +686,87 @@
 			{/if}
 
 			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingNote')}</p>
+		</section>
+	{/if}
+
+	<!-- Rocket League: the member's own matches -->
+	{#if detail.rl_matches?.length}
+		{@const matches = detail.rl_matches}
+		{@const wins = matches.filter((m) => m.result === 'win').length}
+		{@const losses = matches.filter((m) => m.result === 'loss').length}
+		{@const draws = matches.filter((m) => m.result === 'draw').length}
+		{@const goals = matches.reduce((n, m) => n + m.goals, 0)}
+		{@const saves = matches.reduce((n, m) => n + m.saves, 0)}
+		{@const mvps = matches.filter((m) => m.mvp).length}
+		<section class="mb-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('game.rlRecord')}
+			</h2>
+
+			<!-- Counters: over the last ten matches only, same set the list below shows -->
+			<div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlRecordTile')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-text)]">
+						{wins}-{losses}-{draws}
+					</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlGoals')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-brand-bright)]">{goals}</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlSaves')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-cyan)]">{saves}</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlMvps')}</p>
+					<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{mvps}</p>
+				</div>
+			</div>
+
+			<!-- Recent matches -->
+			<h3 class="mt-5 mb-2 font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">
+				{t('game.rlRecentMatches')}
+			</h3>
+			<ul class="flex flex-col gap-2">
+				{#each matches as m (m.played_at)}
+					{@const info = rlResultInfo(m.result)}
+					{@const side = rlSideScore(m)}
+					<li class="pd-card flex flex-wrap items-center gap-3 p-3">
+						<span class="w-14 shrink-0 font-display text-sm font-bold {info.colorClass}">{info.label}</span>
+
+						<span class="flex items-center gap-1.5 font-display text-sm tabular-nums">
+							<span
+								class="inline-block h-2.5 w-2.5 rounded-full {m.player_team === 0
+									? 'bg-[var(--color-blue)]'
+									: 'bg-[var(--color-brand-bright)]'}"
+								title={m.player_team === 0 ? t('game.rlBlue') : t('game.rlOrange')}
+							></span>
+							<span class="text-[var(--color-text)]">{side.own}</span>
+							<span class="text-[var(--color-muted)]">-</span>
+							<span class="text-[var(--color-muted)]">{side.opponent}</span>
+						</span>
+
+						<span class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{rlModeLabel(m)}</span>
+
+						{#if m.mvp}
+							<span class="pd-cut-sm bg-[var(--color-gold)]/15 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wide text-[var(--color-gold)]">
+								{t('game.rlMvpBadge')}
+							</span>
+						{/if}
+
+						<span class="ml-auto flex items-center gap-3 text-xs tabular-nums text-[var(--color-muted)]">
+							<span>{m.goals} {t('game.rlGoals').toLowerCase()}</span>
+							<span>{m.assists} {t('game.rlAssists').toLowerCase()}</span>
+							<span>{m.saves} {t('game.rlSaves').toLowerCase()}</span>
+							<span>{formatDuration(m.duration_seconds)}</span>
+							<span>{timeAgo(m.played_at)}</span>
+						</span>
+					</li>
+				{/each}
+			</ul>
 		</section>
 	{/if}
 

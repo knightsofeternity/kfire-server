@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type GameDetail } from '$lib/api';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { formatDuration } from '$lib/format';
+	import { formatDuration, timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
 	import {
@@ -20,6 +20,7 @@
 		heroName,
 		heroArt
 	} from '$lib/hearthstone';
+	import { rlWinRate, rlByWinRate, rlTotalMatches, rlTotalGoals } from '$lib/rocketleague';
 
 	let detail = $state<GameDetail | null>(null);
 	let loading = $state(true);
@@ -70,6 +71,9 @@
 	// Already ordered by the server, most played first. Six fills two rows on a
 	// phone and one on a desktop, which is enough to read a habit.
 	const hsHeroes = $derived((detail?.hs_heroes ?? []).slice(0, 6));
+
+	const rlPlayers = $derived(detail?.rl_players ?? []);
+	const rlRanked = $derived(rlByWinRate(rlPlayers));
 
 	const wowChars = $derived(detail?.wow_characters ?? []);
 	const wowRosterList = $derived(wowRosters(wowChars));
@@ -495,6 +499,69 @@
 			{/if}
 
 			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingNote')}</p>
+		</section>
+	{/if}
+
+	<!-- Rocket League, guild record -->
+	{#if rlPlayers.length}
+		<section class="mt-6">
+			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
+				{t('game.rlRecord')}
+			</h2>
+
+			<div class="mb-3 grid grid-cols-3 gap-3">
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlPlayers')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-text)]">{rlPlayers.length}</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlMatches')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-cyan)]">{rlTotalMatches(rlPlayers)}</p>
+				</div>
+				<div class="pd-card p-3">
+					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlGoals')}</p>
+					<p class="font-display text-2xl font-bold text-[var(--color-brand-bright)]">{rlTotalGoals(rlPlayers)}</p>
+				</div>
+			</div>
+
+			<div class="pd-card overflow-x-auto">
+				<table class="w-full min-w-[680px] border-collapse">
+					<thead>
+						<tr class="border-b border-[var(--color-border)]">
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.member')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlWinRate')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlMatches')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlGoals')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlSaves')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlMvps')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlTimePlayed')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.rlLastPlayed')}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each rlRanked as p (p.user_id)}
+							<tr class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]">
+								<td class="px-3 py-2">
+									<a href="/players/{p.user_id}" class="flex items-center gap-2 hover:underline">
+										<Avatar username={p.username} url={p.avatar_url} size={28} />
+										<span class="truncate font-display font-semibold text-[var(--color-text)]">{p.username}</span>
+									</a>
+								</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-brand-bright)]">{rlWinRate(p)}%</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-muted)]">{p.matches}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">{p.goals}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">{p.saves}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">{p.mvps}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-cyan)]">{formatDuration(p.play_time_seconds)}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm text-[var(--color-muted)]">{timeAgo(p.last_played_at)}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.rlRankingNote')}</p>
 		</section>
 	{/if}
 

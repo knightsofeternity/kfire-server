@@ -194,6 +194,54 @@ export type HsProfile = {
 	recent: HsRecentMatch[];
 };
 
+/**
+ * One member's guild-wide Rocket League record. Ordered by the server by
+ * match count then name only, which is NOT a ranking: see `rlByWinRate`.
+ */
+export type RlPlayer = {
+	user_id: string;
+	username: string;
+	avatar_url?: string;
+	matches: number;
+	wins: number;
+	mvps: number;
+	goals: number;
+	assists: number;
+	saves: number;
+	shots: number;
+	demos: number;
+	score: number;
+	play_time_seconds: number;
+	last_played_at: string;
+};
+
+/**
+ * One Rocket League match, from the member's own history, newest first.
+ *
+ * `playlist` is almost always absent: the game's protocol never sends it, so
+ * the mode shown to a member is derived from `team_size` instead (see
+ * `rlModeLabel`). It is kept here only in case it is ever populated; it must
+ * never be rendered to a member, since it is an internal Psyonix identifier.
+ */
+export type RlMatch = {
+	playlist?: number | null;
+	team_size: number;
+	/** 0 (blue) or 1 (orange): which side the member played. */
+	player_team: number;
+	team_blue_score: number;
+	team_orange_score: number;
+	result: 'win' | 'loss' | 'draw';
+	goals: number;
+	assists: number;
+	saves: number;
+	shots: number;
+	score: number;
+	demos: number;
+	mvp: boolean;
+	duration_seconds: number;
+	played_at: string;
+};
+
 export type GameDetail = {
 	game: Game;
 	total_seconds: number;
@@ -209,6 +257,7 @@ export type GameDetail = {
 	lol_synced_at?: string;
 	hs_players?: HsPlayer[];
 	hs_heroes?: HsHero[];
+	rl_players?: RlPlayer[];
 };
 
 export type PlayerGameAchievement = {
@@ -268,6 +317,8 @@ export type PlayerGameDetail = {
 	lol_profile?: LolProfile;
 	lol_live?: LolLive;
 	hs_profile?: HsProfile;
+	/** The member's last ten Rocket League matches, newest first. */
+	rl_matches?: RlMatch[];
 	achievements?: PlayerGameAchievement[];
 };
 
