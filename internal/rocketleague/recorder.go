@@ -40,8 +40,13 @@ var trainingPlaylists = map[int]struct{}{0: {}, 9: {}, 19: {}, 21: {}, 73: {}}
 // playlist is Psyonix's raw numeric identifier. It is never translated here:
 // the identifier is the fact, the label is presentation, and it is
 // localized.
+//
+// It is a pointer because the real protocol never sends it: UpdateStateData
+// carries only MatchGuid, Players and Game, and GameState has no playlist,
+// mode or ranked flag anywhere. The field is kept for a future Psyonix
+// addition and for any client that still sends one, but it is optional.
 type payload struct {
-	Playlist        int       `json:"playlist"`
+	Playlist        *int      `json:"playlist"`
 	TeamSize        int       `json:"team_size"`
 	PlayerTeam      int       `json:"player_team"`
 	TeamBlueScore   int       `json:"team_blue_score"`
@@ -56,6 +61,23 @@ type payload struct {
 	MVP             bool      `json:"mvp"`
 	DurationSeconds int       `json:"duration_seconds"`
 	PlayedAt        time.Time `json:"played_at"`
+}
+
+// String renders the payload for the log. It exists only because Playlist
+// is now a pointer: without it, %+v would print an address instead of the
+// value, which is useless to an operator reading the log after a rejection.
+func (p payload) String() string {
+	playlist := "<nil>"
+	if p.Playlist != nil {
+		playlist = fmt.Sprintf("%d", *p.Playlist)
+	}
+	return fmt.Sprintf(
+		"{Playlist:%s TeamSize:%d PlayerTeam:%d TeamBlueScore:%d TeamOrangeScore:%d "+
+			"Result:%s Goals:%d Assists:%d Saves:%d Shots:%d Score:%d Demos:%d "+
+			"MVP:%t DurationSeconds:%d PlayedAt:%v}",
+		playlist, p.TeamSize, p.PlayerTeam, p.TeamBlueScore, p.TeamOrangeScore,
+		p.Result, p.Goals, p.Assists, p.Saves, p.Shots, p.Score, p.Demos,
+		p.MVP, p.DurationSeconds, p.PlayedAt)
 }
 
 // expectedResult returns the result the scores impose, from the member's
@@ -84,11 +106,15 @@ func (p payload) valid() bool {
 	if p.PlayedAt.IsZero() {
 		return false
 	}
-	if p.Playlist < 0 {
-		return false
-	}
-	if _, training := trainingPlaylists[p.Playlist]; training {
-		return false
+	// An absent playlist is valid: the real protocol never sends one. A
+	// present playlist must still be a sane, non-training identifier.
+	if p.Playlist != nil {
+		if *p.Playlist < 0 {
+			return false
+		}
+		if _, training := trainingPlaylists[*p.Playlist]; training {
+			return false
+		}
 	}
 	if p.TeamSize < 1 || p.TeamSize > 4 {
 		return false

@@ -35,6 +35,13 @@ func TestPayloadValidation(t *testing.T) {
 		{"victoire orange", body(`"playlist":13,"team_size":3,"player_team":1,"team_blue_score":2,"team_orange_score":5,"result":"win","goals":3,"assists":1,"saves":0,"shots":4,"score":520,"demos":2,"mvp":true,"duration_seconds":345`), true},
 		{"match nul", body(`"playlist":6,"team_size":3,"player_team":0,"team_blue_score":2,"team_orange_score":2,"result":"draw","goals":1,"assists":0,"saves":0,"shots":3,"score":250,"demos":0,"mvp":false,"duration_seconds":300`), true},
 
+		// The real protocol has no playlist field at all: a payload that
+		// omits it entirely must still be accepted.
+		{"playlist absente", body(`"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`), true},
+		{"playlist presente et valide", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`), true},
+		{"playlist presente mais entrainement", body(`"playlist":73,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`), false},
+		{"playlist presente mais negative", body(`"playlist":-1,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`), false},
+
 		{"entrainement refuse", body(`"playlist":73,"team_size":1,"player_team":0,"team_blue_score":0,"team_orange_score":0,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":60`), false},
 		{"partie libre refusee", body(`"playlist":0,"team_size":1,"player_team":0,"team_blue_score":0,"team_orange_score":0,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":60`), false},
 

@@ -11,7 +11,7 @@ import (
 type RocketLeagueMatch struct {
 	UserID          string
 	GameID          string
-	Playlist        int
+	Playlist        *int
 	TeamSize        int
 	PlayerTeam      int
 	TeamBlueScore   int
