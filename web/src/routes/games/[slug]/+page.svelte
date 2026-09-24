@@ -5,7 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { formatDuration, timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 	import {
 		wowClassColor, wowClassIcon, wowRosters, wowMemberCount,
 		wowVersionName, wowVersionIcon
@@ -447,10 +447,10 @@
 			</div>
 
 			{#if hsHasRating}
-				<div class="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted)]">
+				<div class="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted)]" role="group" aria-label={t('game.hsSortBy')}>
 					<span>{t('game.hsSortBy')}</span>
-					<button type="button" class="rounded px-2 py-1 {hsSort === 'placement' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'placement')}>{t('game.hsSortPlacement')}</button>
-					<button type="button" class="rounded px-2 py-1 {hsSort === 'rating' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'rating')}>{t('game.hsSortRating')}</button>
+					<button type="button" aria-pressed={hsSort === 'placement'} class="rounded px-2 py-1 {hsSort === 'placement' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'placement')}>{t('game.hsSortPlacement')}</button>
+					<button type="button" aria-pressed={hsSort === 'rating'} class="rounded px-2 py-1 {hsSort === 'rating' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'rating')}>{t('game.hsSortRating')}</button>
 				</div>
 			{/if}
 			<div class="pd-card overflow-x-auto">
@@ -488,7 +488,7 @@
 								{#if hsHasRating}
 									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
 										{#if p.rating !== undefined}
-											<span class="font-display text-[var(--color-gold)]">{p.rating.toLocaleString()}</span>
+											<span class="font-display text-[var(--color-gold)]">{p.rating.toLocaleString(getLocale())}</span>
 											{#if p.rating_at && hsRatingStale(p)}
 												<span class="text-xs text-[var(--color-muted)]">{t('game.hsRatingAt', { date: hsDay(p.rating_at) })}</span>
 											{/if}

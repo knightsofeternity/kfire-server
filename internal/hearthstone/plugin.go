@@ -55,6 +55,9 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 		if s.AvatarURL != nil {
 			m["avatar_url"] = *s.AvatarURL
 		}
+		if s.LastBGPlayedAt != nil {
+			m["last_bg_played_at"] = *s.LastBGPlayedAt
+		}
 		if s.AvgPlacement != nil {
 			m["avg_placement"] = *s.AvgPlacement
 		}

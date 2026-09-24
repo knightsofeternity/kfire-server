@@ -8,14 +8,20 @@ const player = (p: Partial<HsPlayer>): HsPlayer => ({
 });
 
 describe('hsRatingStale', () => {
-	it('is fresh when the rating comes from the last match', () => {
-		expect(hsRatingStale({ rating_at: '2026-09-21T12:00:00Z', last_played_at: '2026-09-21T12:00:00Z' })).toBe(false);
+	it('is fresh when the rating comes from the last Battlegrounds match', () => {
+		expect(hsRatingStale({ rating_at: '2026-09-21T12:00:00Z', last_bg_played_at: '2026-09-21T12:00:00Z' })).toBe(false);
 	});
-	it('is stale when later matches carried no rating', () => {
-		expect(hsRatingStale({ rating_at: '2026-09-20T12:00:00Z', last_played_at: '2026-09-21T12:00:00Z' })).toBe(true);
+	it('is stale when later Battlegrounds matches carried no rating', () => {
+		expect(hsRatingStale({ rating_at: '2026-09-20T12:00:00Z', last_bg_played_at: '2026-09-21T12:00:00Z' })).toBe(true);
 	});
 	it('is not stale without any rating', () => {
-		expect(hsRatingStale({ last_played_at: '2026-09-21T12:00:00Z' })).toBe(false);
+		expect(hsRatingStale({ last_bg_played_at: '2026-09-21T12:00:00Z' })).toBe(false);
+	});
+	it('is not stale for a member whose newest match is constructed', () => {
+		// last_bg_played_at is the last BATTLEGROUNDS match, not the last
+		// match of any mode, so it equals rating_at even though the member
+		// played a (unrated) constructed game more recently.
+		expect(hsRatingStale({ rating_at: '2026-09-21T12:00:00Z', last_bg_played_at: '2026-09-21T12:00:00Z' })).toBe(false);
 	});
 });
 

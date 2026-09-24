@@ -38,6 +38,11 @@ type HearthstoneMemberStats struct {
 	AvgPlacement *float64
 	Top4         int
 	LastPlayedAt time.Time
+	// LastBGPlayedAt is when the member's last Battlegrounds match ended, nil
+	// when they never played one. HDT only ever rates Battlegrounds, so a
+	// rating is only stale against THIS instant, never against a constructed
+	// match played since.
+	LastBGPlayedAt *time.Time
 }
 
 // InsertHearthstoneMatch records one match. A match the client already sent is
@@ -68,7 +73,8 @@ func (s *Store) HearthstoneStatsByGame(ctx context.Context, gameID string) ([]He
 		       count(m.placement)                       AS ranked,
 		       avg(m.placement)                         AS avg_placement,
 		       count(*) FILTER (WHERE m.placement <= 4) AS top4,
-		       max(m.played_at)                         AS last_played_at
+		       max(m.played_at)                         AS last_played_at,
+		       max(m.played_at) FILTER (WHERE m.mode = 'battlegrounds') AS last_bg_played_at
 		FROM hearthstone_matches m
 		JOIN users u ON u.id = m.user_id AND u.banned_at IS NULL
 		WHERE m.game_id = $1
@@ -83,7 +89,8 @@ func (s *Store) HearthstoneStatsByGame(ctx context.Context, gameID string) ([]He
 	for rows.Next() {
 		var r HearthstoneMemberStats
 		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.Matches,
-			&r.Wins, &r.Ranked, &r.AvgPlacement, &r.Top4, &r.LastPlayedAt); err != nil {
+			&r.Wins, &r.Ranked, &r.AvgPlacement, &r.Top4, &r.LastPlayedAt,
+			&r.LastBGPlayedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

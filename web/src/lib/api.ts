@@ -176,6 +176,11 @@ export type HsPlayer = {
 	rating?: number;
 	/** When the match carrying that rating ended. */
 	rating_at?: string;
+	/** When the member's last Battlegrounds match ended: HDT only ever rates
+	 *  that mode, so this is what a rating's staleness is measured against,
+	 *  never `last_played_at`, which also counts constructed games. Absent
+	 *  when the member never played Battlegrounds. */
+	last_bg_played_at?: string;
 	last_played_at: string;
 };
 

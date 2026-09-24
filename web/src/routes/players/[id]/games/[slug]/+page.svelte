@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type PlayerGameDetail, type WowAchievementEntry } from '$lib/api';
 	import { formatDate, formatDuration, timeAgo } from '$lib/format';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon, wowVersionGroups, wowVersionIcon, wowVersionName } from '$lib/wow';
 	import {
 		heroArt,
@@ -540,6 +540,7 @@
 		{@const ratingSeries = hsRatingSeries(hs.recent ?? [])}
 		{@const heroes = (hs.heroes ?? []).slice(0, 6)}
 		{@const recent = (hs.recent ?? []).slice(0, 10)}
+		{@const lastBGMatch = (hs.recent ?? []).find((m) => m.mode === 'battlegrounds')}
 		<section class="mb-6">
 			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
@@ -563,8 +564,8 @@
 				{#if hs.rating !== undefined}
 					<div class="pd-card p-3">
 						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRating')}</p>
-						<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{hs.rating.toLocaleString()}</p>
-						{#if hs.rating_at && recent[0] && new Date(hs.rating_at).getTime() < new Date(recent[0].played_at).getTime()}
+						<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{hs.rating.toLocaleString(getLocale())}</p>
+						{#if hs.rating_at && lastBGMatch && new Date(hs.rating_at).getTime() < new Date(lastBGMatch.played_at).getTime()}
 							<p class="text-xs text-[var(--color-muted)]">{t('game.hsRatingAt', { date: hsMatchDate(hs.rating_at) })}</p>
 						{/if}
 					</div>
@@ -655,8 +656,8 @@
 						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRatingCurve')}</p>
 						<div class="flex items-stretch gap-2">
 							<div class="flex shrink-0 flex-col justify-between py-0.5 text-[10px] tabular-nums text-[var(--color-muted)]">
-								<span>{rchart.hi.toLocaleString()}</span>
-								<span>{rchart.lo.toLocaleString()}</span>
+								<span>{rchart.hi.toLocaleString(getLocale())}</span>
+								<span>{rchart.lo.toLocaleString(getLocale())}</span>
 							</div>
 							<svg
 								viewBox="0 0 100 40"
@@ -749,7 +750,7 @@
 									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
 										{#if m.rating_after !== undefined}
 											{@const d = hsRatingDelta(m)}
-											<span class="text-[var(--color-text)]">{m.rating_after.toLocaleString()}</span>
+											<span class="text-[var(--color-text)]">{m.rating_after.toLocaleString(getLocale())}</span>
 											{#if d !== null}
 												<span class={d >= 0 ? 'text-[var(--color-online)]' : 'text-[var(--color-magenta)]'}>({d >= 0 ? '+' : ''}{d})</span>
 											{/if}

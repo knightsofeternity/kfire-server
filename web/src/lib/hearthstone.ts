@@ -252,13 +252,18 @@ export const HDT_URL = 'https://hsreplay.net/downloads/';
 const HS_RATING_WINDOW = 20;
 
 /**
- * Whether a member's rating is older than their last match: they played since
- * without HDT recording it. The page then dates the rating, so an old figure
- * never reads as today's.
+ * Whether a member's rating is older than their last Battlegrounds match:
+ * they played since without HDT recording it. The page then dates the
+ * rating, so an old figure never reads as today's.
+ *
+ * Compared against the last BATTLEGROUNDS match, never the last match of any
+ * mode: HDT only ever rates Battlegrounds, so a member who played a
+ * constructed game since their last rated Battlegrounds match has not made
+ * their rating stale.
  */
-export function hsRatingStale(p: { rating_at?: string; last_played_at: string }): boolean {
-	if (!p.rating_at) return false;
-	return new Date(p.rating_at).getTime() < new Date(p.last_played_at).getTime();
+export function hsRatingStale(p: { rating_at?: string; last_bg_played_at?: string }): boolean {
+	if (!p.rating_at || !p.last_bg_played_at) return false;
+	return new Date(p.rating_at).getTime() < new Date(p.last_bg_played_at).getTime();
 }
 
 /** Members by rating, highest first; members without one last, by name. */

@@ -100,6 +100,36 @@ func TestHearthstoneRatingIsStoredAndTheLatestKnownWins(t *testing.T) {
 	if len(recent) != 3 || recent[0].Rating != nil || recent[1].RatingAfter == nil || *recent[1].RatingAfter != 5644 {
 		t.Fatalf("recent = %+v", recent)
 	}
+
+	// A constructed match played after the Battlegrounds ones must not move
+	// last_bg_played_at: HDT never rates constructed, so a stale-rating check
+	// against the wrong instant would misfire for a member who plays both.
+	if err := st.InsertHearthstoneMatch(ctx, HearthstoneMatch{UserID: userID, GameID: gameID,
+		Mode: "constructed", Result: "win", PlayedAt: t0.Add(3 * time.Hour)}); err != nil {
+		t.Fatalf("insert constructed: %v", err)
+	}
+
+	byGameStats, err := st.HearthstoneStatsByGame(ctx, gameID)
+	if err != nil {
+		t.Fatalf("stats by game: %v", err)
+	}
+	var found *HearthstoneMemberStats
+	for i := range byGameStats {
+		if byGameStats[i].UserID == userID {
+			found = &byGameStats[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("member %s not found in stats", userID)
+	}
+	wantBG := t0.Add(2 * time.Hour)
+	if found.LastBGPlayedAt == nil || !found.LastBGPlayedAt.Equal(wantBG) {
+		t.Fatalf("LastBGPlayedAt = %+v, want %v (the last Battlegrounds match, not the constructed one)", found.LastBGPlayedAt, wantBG)
+	}
+	if !found.LastPlayedAt.Equal(t0.Add(3 * time.Hour)) {
+		t.Fatalf("LastPlayedAt = %v, want the constructed match at t0+3h (its own meaning is unchanged)", found.LastPlayedAt)
+	}
 }
 
 func TestAMemberWithoutRatingHasNone(t *testing.T) {
