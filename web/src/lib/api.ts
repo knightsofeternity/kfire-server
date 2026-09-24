@@ -172,6 +172,10 @@ export type HsPlayer = {
 	top4: number;
 	/** Absent when the member has no Battlegrounds match yet. */
 	avg_placement?: number;
+	/** Last known Battlegrounds rating, from Hearthstone Deck Tracker. Absent for members who never had one. */
+	rating?: number;
+	/** When the match carrying that rating ended. */
+	rating_at?: string;
 	last_played_at: string;
 };
 
@@ -211,6 +215,9 @@ export type HsRecentMatch = {
 	placement?: number;
 	/** Absent when the log did not name a hero. */
 	hero_card_id?: string;
+	/** Rating before and after the match, when HDT recorded it. */
+	rating?: number;
+	rating_after?: number;
 };
 
 /** One member's own Hearthstone record, absent until they report a match. */
@@ -222,6 +229,10 @@ export type HsProfile = {
 	top4: number;
 	/** Absent when the member has no Battlegrounds match yet. */
 	avg_placement?: number;
+	/** Last known Battlegrounds rating, from Hearthstone Deck Tracker. Absent for members who never had one. */
+	rating?: number;
+	/** When the match carrying that rating ended. */
+	rating_at?: string;
 	/** Sparse: places never reached are simply missing, they count as zero. */
 	by_placement: HsPlacementCount[];
 	/** Most played first, placed matches only. */
