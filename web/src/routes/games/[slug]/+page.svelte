@@ -5,7 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { formatDuration, timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 	import {
 		wowClassColor, wowClassIcon, wowRosters, wowMemberCount,
 		wowVersionName, wowVersionIcon
@@ -17,9 +17,12 @@
 		hsWinRate,
 		hsTop4Rate,
 		hsByPlacement,
+		hsByRating,
+		hsRatingStale,
 		hsTotalMatches,
 		heroName,
-		heroArt
+		heroArt,
+		HDT_URL
 	} from '$lib/hearthstone';
 	import { rlWinRate, rlByWins, rlTotalMatches, rlTotalGoals } from '$lib/rocketleague';
 	import {
@@ -80,7 +83,14 @@
 	);
 
 	const hsPlayers = $derived(detail?.hs_players ?? []);
-	const hsRanked = $derived(hsByPlacement(hsPlayers));
+	let hsSort = $state<'placement' | 'rating'>('placement');
+	const hsHasRating = $derived(hsPlayers.some((p) => p.rating !== undefined));
+	const hsRanked = $derived(
+		hsSort === 'rating' ? hsByRating(hsPlayers) : hsByPlacement(hsPlayers)
+	);
+	function hsDay(iso: string): string {
+		return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' });
+	}
 	// Already ordered by the server, most played first. Six fills two rows on a
 	// phone and one on a desktop, which is enough to read a habit.
 	const hsHeroes = $derived((detail?.hs_heroes ?? []).slice(0, 6));
@@ -436,12 +446,22 @@
 				</div>
 			</div>
 
+			{#if hsHasRating}
+				<div class="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted)]" role="group" aria-label={t('game.hsSortBy')}>
+					<span>{t('game.hsSortBy')}</span>
+					<button type="button" aria-pressed={hsSort === 'placement'} class="rounded px-2 py-1 {hsSort === 'placement' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'placement')}>{t('game.hsSortPlacement')}</button>
+					<button type="button" aria-pressed={hsSort === 'rating'} class="rounded px-2 py-1 {hsSort === 'rating' ? 'bg-[var(--color-surface-2)] text-[var(--color-text)]' : ''}" onclick={() => (hsSort = 'rating')}>{t('game.hsSortRating')}</button>
+				</div>
+			{/if}
 			<div class="pd-card overflow-x-auto">
 				<table class="w-full min-w-[560px] border-collapse">
 					<thead>
 						<tr class="border-b border-[var(--color-border)]">
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('lol.member')}</th>
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsAvgPlacement')}</th>
+							{#if hsHasRating}
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRating')}</th>
+							{/if}
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTop4')}</th>
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsWinRate')}</th>
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsMatches')}</th>
@@ -465,6 +485,18 @@
 										<span class="text-xs italic text-[var(--color-muted)]">{t('game.hsNoPlacement')}</span>
 									{/if}
 								</td>
+								{#if hsHasRating}
+									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
+										{#if p.rating !== undefined}
+											<span class="font-display text-[var(--color-gold)]">{p.rating.toLocaleString(getLocale())}</span>
+											{#if p.rating_at && hsRatingStale(p)}
+												<span class="text-xs text-[var(--color-muted)]">{t('game.hsRatingAt', { date: hsDay(p.rating_at) })}</span>
+											{/if}
+										{:else}
+											<span class="text-[var(--color-muted)]">&ndash;</span>
+										{/if}
+									</td>
+								{/if}
 								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
 									{#if p.ranked > 0}{hsTop4Rate(p)}%{/if}
 								</td>
@@ -514,7 +546,10 @@
 				</div>
 			{/if}
 
-			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingNote')}</p>
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">
+				{t('game.hsRatingNote')}
+				<a href={HDT_URL} target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--color-text)]">{t('game.hsRatingLink')}</a>
+			</p>
 		</section>
 	{/if}
 

@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type PlayerGameDetail, type WowAchievementEntry } from '$lib/api';
 	import { formatDate, formatDuration, timeAgo } from '$lib/format';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 	import { wowClassColor, wowClassIcon, wowVersionGroups, wowVersionIcon, wowVersionName } from '$lib/wow';
 	import {
 		heroArt,
@@ -11,7 +11,10 @@
 		hsHeroRate,
 		hsModeLabel,
 		hsPlacementBars,
-		hsTrend
+		hsRatingDelta,
+		hsRatingSeries,
+		hsTrend,
+		HDT_URL
 	} from '$lib/hearthstone';
 	import { rlModeLabel, rlSideScore } from '$lib/rocketleague';
 	import { pubgIsChickenDinner, pubgMapLabel, pubgModeLabel } from '$lib/pubg';
@@ -157,6 +160,26 @@
 			})
 			.join(' ');
 		return { points, best, worst };
+	}
+
+	/**
+	 * The rating curve inside a 100x40 viewBox, with the bounds it was drawn
+	 * against so the axis can be labelled truthfully. Unlike the placement
+	 * trend, the rating's own scale sets the axis: the highest rating sits at
+	 * the top, since a higher rating is always the better one.
+	 */
+	function hsRatingChart(series: number[]): { points: string; lo: number; hi: number } {
+		const lo = Math.min(...series);
+		const hi = Math.max(...series);
+		const span = Math.max(hi - lo, 1);
+		const points = series
+			.map((v, i) => {
+				const x = series.length > 1 ? (i * 100) / (series.length - 1) : 50;
+				const y = 40 - ((v - lo) / span) * 40;
+				return `${x.toFixed(2)},${y.toFixed(2)}`;
+			})
+			.join(' ');
+		return { points, lo, hi };
 	}
 
 	onMount(load);
@@ -514,8 +537,10 @@
 		{@const hs = detail.hs_profile}
 		{@const bars = hsPlacementBars(hs)}
 		{@const trend = hsTrend(hs.recent ?? [])}
+		{@const ratingSeries = hsRatingSeries(hs.recent ?? [])}
 		{@const heroes = (hs.heroes ?? []).slice(0, 6)}
 		{@const recent = (hs.recent ?? []).slice(0, 10)}
+		{@const lastBGMatch = (hs.recent ?? []).find((m) => m.mode === 'battlegrounds')}
 		<section class="mb-6">
 			<h2 class="pd-heading mb-3 flex items-center gap-2 text-sm text-[var(--color-brand-bright)]">
 				<span class="inline-block h-4 w-1 bg-[var(--color-brand)]"></span>
@@ -523,7 +548,7 @@
 			</h2>
 
 			<!-- Counters -->
-			<div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<div class="mb-3 grid grid-cols-2 gap-3 {hs.rating !== undefined ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}">
 				<div class="pd-card p-3">
 					<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsMatches')}</p>
 					<p class="font-display text-2xl font-bold text-[var(--color-text)]">{hs.matches}</p>
@@ -534,6 +559,15 @@
 						<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-brand-bright)]">
 							{hs.avg_placement.toFixed(1)}
 						</p>
+					</div>
+				{/if}
+				{#if hs.rating !== undefined}
+					<div class="pd-card p-3">
+						<p class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRating')}</p>
+						<p class="font-display text-2xl font-bold tabular-nums text-[var(--color-gold)]">{hs.rating.toLocaleString(getLocale())}</p>
+						{#if hs.rating_at && lastBGMatch && new Date(hs.rating_at).getTime() < new Date(lastBGMatch.played_at).getTime()}
+							<p class="text-xs text-[var(--color-muted)]">{t('game.hsRatingAt', { date: hsMatchDate(hs.rating_at) })}</p>
+						{/if}
 					</div>
 				{/if}
 				<div class="pd-card p-3">
@@ -548,7 +582,7 @@
 				</div>
 			</div>
 
-			<div class="grid grid-cols-1 gap-3 {trend.length ? 'lg:grid-cols-2' : ''}">
+			<div class="grid grid-cols-1 gap-3 {trend.length || ratingSeries.length >= 2 ? 'lg:grid-cols-2' : ''}">
 				<!-- Placement spread: the shape of the bars is what tells two players apart -->
 				<div class="pd-card p-3">
 					<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsSpread')}</p>
@@ -614,6 +648,38 @@
 						<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsTrendCaption')}</p>
 					</div>
 				{/if}
+
+				<!-- Rating curve: drawn with the highest rating at the top -->
+				{#if ratingSeries.length >= 2}
+					{@const rchart = hsRatingChart(ratingSeries)}
+					<div class="pd-card p-3">
+						<p class="mb-2 text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRatingCurve')}</p>
+						<div class="flex items-stretch gap-2">
+							<div class="flex shrink-0 flex-col justify-between py-0.5 text-[10px] tabular-nums text-[var(--color-muted)]">
+								<span>{rchart.hi.toLocaleString(getLocale())}</span>
+								<span>{rchart.lo.toLocaleString(getLocale())}</span>
+							</div>
+							<svg
+								viewBox="0 0 100 40"
+								preserveAspectRatio="none"
+								class="h-24 w-full"
+								role="img"
+								aria-label={t('game.hsRatingCurveCaption')}
+							>
+								<polyline
+									points={rchart.points}
+									fill="none"
+									stroke="var(--color-gold)"
+									stroke-width="2"
+									stroke-linejoin="round"
+									stroke-linecap="round"
+									vector-effect="non-scaling-stroke"
+								/>
+							</svg>
+						</div>
+						<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingCurveCaption')}</p>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Heroes -->
@@ -660,6 +726,7 @@
 								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsHero')}</th>
 								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsPlacement')}</th>
 								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTurns')}</th>
+								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRating')}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -680,6 +747,15 @@
 									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-muted)]">
 										{#if m.turns !== undefined}{m.turns}{/if}
 									</td>
+									<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
+										{#if m.rating_after !== undefined}
+											{@const d = hsRatingDelta(m)}
+											<span class="text-[var(--color-text)]">{m.rating_after.toLocaleString(getLocale())}</span>
+											{#if d !== null}
+												<span class={d >= 0 ? 'text-[var(--color-online)]' : 'text-[var(--color-magenta)]'}>({d >= 0 ? '+' : ''}{d})</span>
+											{/if}
+										{/if}
+									</td>
 								</tr>
 							{/each}
 						</tbody>
@@ -687,7 +763,10 @@
 				</div>
 			{/if}
 
-			<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('game.hsRatingNote')}</p>
+			<p class="mt-2 text-xs text-[var(--color-muted)]/80">
+				{t('game.hsRatingNote')}
+				<a href={HDT_URL} target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--color-text)]">{t('game.hsRatingLink')}</a>
+			</p>
 		</section>
 	{/if}
 

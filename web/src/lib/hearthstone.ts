@@ -244,3 +244,54 @@ export function hsTrend(recent: HsRecentMatch[]): number[] {
 export function hsHeroRate(hero: HsProfileHero): number {
 	return hero.matches > 0 ? Math.round((hero.top4 * 100) / hero.matches) : 0;
 }
+
+/** Where members get Hearthstone Deck Tracker, the only source of the rating. */
+export const HDT_URL = 'https://hsreplay.net/downloads/';
+
+/** How many rated matches the rating curve spans. */
+const HS_RATING_WINDOW = 20;
+
+/**
+ * Whether a member's rating is older than their last Battlegrounds match:
+ * they played since without HDT recording it. The page then dates the
+ * rating, so an old figure never reads as today's.
+ *
+ * Compared against the last BATTLEGROUNDS match, never the last match of any
+ * mode: HDT only ever rates Battlegrounds, so a member who played a
+ * constructed game since their last rated Battlegrounds match has not made
+ * their rating stale.
+ */
+export function hsRatingStale(p: { rating_at?: string; last_bg_played_at?: string }): boolean {
+	if (!p.rating_at || !p.last_bg_played_at) return false;
+	return new Date(p.rating_at).getTime() < new Date(p.last_bg_played_at).getTime();
+}
+
+/** Members by rating, highest first; members without one last, by name. */
+export function hsByRating(players: HsPlayer[]): HsPlayer[] {
+	return [...players].sort((a, b) => {
+		const ra = a.rating ?? -1;
+		const rb = b.rating ?? -1;
+		if (ra !== rb) return rb - ra;
+		return a.username.localeCompare(b.username);
+	});
+}
+
+/**
+ * The rating after each rated match, oldest first, over the last twenty rated
+ * matches. Matches without a rating are skipped, never counted as zero.
+ */
+export function hsRatingSeries(recent: HsRecentMatch[]): number[] {
+	const out: number[] = [];
+	for (const m of recent ?? []) {
+		if (typeof m.rating_after === 'number') out.push(m.rating_after);
+		if (out.length === HS_RATING_WINDOW) break;
+	}
+	return out.reverse();
+}
+
+/** What one match did to the rating, or null when HDT did not record both ends. */
+export function hsRatingDelta(m: HsRecentMatch): number | null {
+	return typeof m.rating === 'number' && typeof m.rating_after === 'number'
+		? m.rating_after - m.rating
+		: null;
+}
