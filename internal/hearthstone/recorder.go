@@ -29,13 +29,32 @@ type payload struct {
 	// HeroCardID is the Battlegrounds hero, as the card identifier the game
 	// writes in its own log. Never the hero's name: the log is localized, so
 	// two members playing the same hero would report two different strings.
-	HeroCardID *string   `json:"hero_card_id"`
-	PlayedAt   time.Time `json:"played_at"`
+	HeroCardID *string `json:"hero_card_id"`
+	// Rating and RatingAfter come from Hearthstone Deck Tracker, read by the
+	// client when the member enabled the option. Usually absent.
+	Rating      *int      `json:"rating"`
+	RatingAfter *int      `json:"rating_after"`
+	PlayedAt    time.Time `json:"played_at"`
 }
 
 // heroCardID is the shape of a card identifier. Rejecting anything else keeps
 // the column incapable of carrying a name, which is the whole point.
 var heroCardID = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+
+// maxRating bounds a Battlegrounds rating. Far above any real one: it exists
+// so a corrupt value cannot reach the guild's leaderboard.
+const maxRating = 20000
+
+func validRating(r *int) bool { return r == nil || (*r >= 0 && *r <= maxRating) }
+
+// ratings returns the ratings worth storing: none outside Battlegrounds, where
+// a rating means nothing, dropped rather than refused like the placement.
+func (p payload) ratings() (*int, *int) {
+	if p.Mode != modeBattlegrounds {
+		return nil, nil
+	}
+	return p.Rating, p.RatingAfter
+}
 
 // valid reports whether the payload deserves to be written. The database
 // enforces the same rules, but rejecting here gives the client a clear error
@@ -59,6 +78,9 @@ func (p payload) valid() bool {
 		return false
 	}
 	if p.HeroCardID != nil && !heroCardID.MatchString(*p.HeroCardID) {
+		return false
+	}
+	if !validRating(p.Rating) || !validRating(p.RatingAfter) {
 		return false
 	}
 	// A queued match can be old, never future. The tolerance absorbs a
@@ -117,10 +139,12 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 	if p.Mode != modeBattlegrounds {
 		placement = nil
 	}
+	rating, ratingAfter := p.ratings()
 	return r.st.InsertHearthstoneMatch(ctx, store.HearthstoneMatch{
 		UserID: userID, GameID: gameID,
 		Mode: p.Mode, Result: p.Result,
 		Turns: p.Turns, Placement: placement, HeroCardID: p.HeroCardID,
 		PlayedAt: p.PlayedAt,
+		Rating:   rating, RatingAfter: ratingAfter,
 	})
 }

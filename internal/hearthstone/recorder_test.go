@@ -34,6 +34,10 @@ func TestPayloadValidation(t *testing.T) {
 		{"heros avec skin", `{"mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"TB_BaconShop_HERO_45_SKIN_F","played_at":"2026-08-02T17:44:59Z"}`, true},
 		{"heros nomme au lieu d etre identifie", `{"mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"Rafaam l'evade","played_at":"2026-08-02T17:44:59Z"}`, false},
 		{"heros vide", `{"mode":"battlegrounds","result":"loss","placement":5,"hero_card_id":"","played_at":"2026-08-02T17:44:59Z"}`, false},
+		{"cote complete", `{"mode":"battlegrounds","result":"loss","placement":2,"rating":5571,"rating_after":5644,"played_at":"2026-08-02T17:44:59Z"}`, true},
+		{"cote negative", `{"mode":"battlegrounds","result":"loss","placement":2,"rating":-1,"rating_after":5644,"played_at":"2026-08-02T17:44:59Z"}`, false},
+		{"cote apres trop grande", `{"mode":"battlegrounds","result":"loss","placement":2,"rating":5571,"rating_after":20001,"played_at":"2026-08-02T17:44:59Z"}`, false},
+		{"cote a zero", `{"mode":"battlegrounds","result":"loss","placement":2,"rating":0,"rating_after":0,"played_at":"2026-08-02T17:44:59Z"}`, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -52,6 +56,18 @@ func TestPayloadValidation(t *testing.T) {
 func matchBody(at time.Time) string {
 	return fmt.Sprintf(`{"mode":"battlegrounds","result":"loss","placement":4,"played_at":%q}`,
 		at.UTC().Format(time.RFC3339))
+}
+
+func TestRatingOutsideBattlegroundsIsDropped(t *testing.T) {
+	var p payload
+	body := `{"mode":"constructed","result":"win","rating":5571,"rating_after":5644,"played_at":"2026-08-02T17:44:59Z"}`
+	if err := json.Unmarshal([]byte(body), &p); err != nil || !p.valid() {
+		t.Fatalf("a rating must not make a constructed game invalid: %v", err)
+	}
+	r, a := p.ratings()
+	if r != nil || a != nil {
+		t.Errorf("ratings() = %v, %v; want nil, nil outside Battlegrounds", r, a)
+	}
 }
 
 func TestRecorderClaimsItsSlug(t *testing.T) {
