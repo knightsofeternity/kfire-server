@@ -40,6 +40,10 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 	if err != nil {
 		return nil, err
 	}
+	ratings, err := p.st.HearthstoneLatestRatingsByGame(ctx, g.ID)
+	if err != nil {
+		return nil, err
+	}
 	cards := make([]map[string]any, len(stats))
 	for i, s := range stats {
 		m := map[string]any{
@@ -53,6 +57,10 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 		}
 		if s.AvgPlacement != nil {
 			m["avg_placement"] = *s.AvgPlacement
+		}
+		if r, ok := ratings[s.UserID]; ok {
+			m["rating"] = r.RatingAfter
+			m["rating_at"] = r.At
 		}
 		cards[i] = m
 	}
@@ -106,6 +114,10 @@ func (p *Plugin) UserGameDetail(ctx context.Context, userID string, g store.Game
 	if err != nil {
 		return nil, err
 	}
+	rating, err := p.st.HearthstoneLatestRatingFor(ctx, userID, g.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Every list is materialised, never left nil: the browser iterates over
 	// them and a missing key would read as an error rather than as nothing.
@@ -134,6 +146,12 @@ func (p *Plugin) UserGameDetail(ctx context.Context, userID string, g store.Game
 		if m.HeroCardID != nil {
 			e["hero_card_id"] = *m.HeroCardID
 		}
+		if m.Rating != nil {
+			e["rating"] = *m.Rating
+		}
+		if m.RatingAfter != nil {
+			e["rating_after"] = *m.RatingAfter
+		}
 		ms[i] = e
 	}
 
@@ -143,6 +161,10 @@ func (p *Plugin) UserGameDetail(ctx context.Context, userID string, g store.Game
 	}
 	if totals.AvgPlacement != nil {
 		profile["avg_placement"] = *totals.AvgPlacement
+	}
+	if rating != nil {
+		profile["rating"] = rating.RatingAfter
+		profile["rating_at"] = rating.At
 	}
 	return map[string]any{"hs_profile": profile}, nil
 }
