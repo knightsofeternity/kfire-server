@@ -9,7 +9,7 @@
 <script lang="ts">
 	import { api, type RlBoardRow } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { t } from '$lib/i18n/store.svelte';
+	import { t } from '$lib/i18n';
 
 	let { matchId }: { matchId: string } = $props();
 
