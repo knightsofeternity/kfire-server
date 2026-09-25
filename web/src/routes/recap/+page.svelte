@@ -223,12 +223,16 @@
 		memberOptions.find((m) => m.user_id === memberFilter)?.username ?? t('recap.filterStale')
 	);
 
+	// The server sends the evening oldest first; the page shows the latest
+	// match on top, so the one just played is read without scrolling.
 	const timeline = $derived(
-		(recap?.timeline ?? []).filter(
-			(e) =>
-				(gameFilter === '' || e.game_id === gameFilter) &&
-				(memberFilter === '' || e.user_id === memberFilter)
-		)
+		(recap?.timeline ?? [])
+			.filter(
+				(e) =>
+					(gameFilter === '' || e.game_id === gameFilter) &&
+					(memberFilter === '' || e.user_id === memberFilter)
+			)
+			.reverse()
 	);
 
 	/**
@@ -526,8 +530,8 @@
 			</section>
 		{/each}
 
-		<!-- Timeline: every game merged, oldest first, exactly as the server sent
-		     it. Each line names the member the match came from, and only them. -->
+		<!-- Timeline: every game merged, latest first (the server sends it oldest
+		     first). Each line names the member the match came from, and only them. -->
 		<h2 class="pd-heading mt-6 mb-3 text-sm text-[var(--color-brand-bright)]">
 			{t('recap.timeline')}
 		</h2>
