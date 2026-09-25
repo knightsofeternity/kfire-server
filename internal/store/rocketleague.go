@@ -197,9 +197,9 @@ func (s *Store) RocketLeagueStatsByGame(ctx context.Context, gameID string) ([]R
 // most recent first.
 func (s *Store) RocketLeagueRecentMatches(ctx context.Context, userID, gameID string, limit int) ([]RocketLeagueMatch, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT playlist, team_size, player_team, team_blue_score, team_orange_score,
+		SELECT id, playlist, team_size, player_team, team_blue_score, team_orange_score,
 		       result, goals, assists, saves, shots, score, demos, mvp,
-		       duration_seconds, played_at
+		       duration_seconds, played_at, match_key
 		FROM rocket_league_matches
 		WHERE user_id = $1 AND game_id = $2
 		ORDER BY played_at DESC
@@ -212,13 +212,106 @@ func (s *Store) RocketLeagueRecentMatches(ctx context.Context, userID, gameID st
 	var out []RocketLeagueMatch
 	for rows.Next() {
 		m := RocketLeagueMatch{UserID: userID, GameID: gameID}
-		if err := rows.Scan(&m.Playlist, &m.TeamSize, &m.PlayerTeam,
+		if err := rows.Scan(&m.ID, &m.Playlist, &m.TeamSize, &m.PlayerTeam,
 			&m.TeamBlueScore, &m.TeamOrangeScore, &m.Result,
 			&m.Goals, &m.Assists, &m.Saves, &m.Shots, &m.Score, &m.Demos,
-			&m.MVP, &m.DurationSeconds, &m.PlayedAt); err != nil {
+			&m.MVP, &m.DurationSeconds, &m.PlayedAt, &m.MatchKey); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// RocketLeagueReport is one member's report of a match, reduced to what the
+// scoreboard needs. Line.Team is the side the member played.
+type RocketLeagueReport struct {
+	MatchID   string
+	UserID    string
+	Username  string
+	AvatarURL *string
+	// Visible says whether the viewer may see this member named: the member
+	// themself, an admin, or a member who left sessions_visible on.
+	Visible         bool
+	MatchKey        *string
+	TeamBlueScore   int
+	TeamOrangeScore int
+	Line            RocketLeaguePlayer
+}
+
+// rocketLeagueReportColumns uses $2 (the viewer's id) and $3 (whether the
+// viewer is an admin); $1 and $4 belong to each query.
+const rocketLeagueReportColumns = `
+		SELECT m.id, m.user_id, u.username, u.avatar_url,
+		       (u.sessions_visible OR u.id = $2 OR $3) AS visible,
+		       m.match_key, m.team_blue_score, m.team_orange_score,
+		       m.player_team, m.score, m.goals, m.assists, m.saves, m.shots, m.demos
+		FROM rocket_league_matches m
+		JOIN users u ON u.id = m.user_id AND u.banned_at IS NULL`
+
+func scanRocketLeagueReport(row pgx.Row) (RocketLeagueReport, error) {
+	var r RocketLeagueReport
+	err := row.Scan(&r.MatchID, &r.UserID, &r.Username, &r.AvatarURL, &r.Visible,
+		&r.MatchKey, &r.TeamBlueScore, &r.TeamOrangeScore,
+		&r.Line.Team, &r.Line.Score, &r.Line.Goals, &r.Line.Assists,
+		&r.Line.Saves, &r.Line.Shots, &r.Line.Demos)
+	return r, err
+}
+
+// RocketLeagueReportByID returns one report, ErrNotFound when it does not
+// exist or its author is banned. Visibility is computed for the viewer, not
+// enforced: the caller decides what an invisible author means.
+func (s *Store) RocketLeagueReportByID(ctx context.Context, matchID string, v RecapViewer) (RocketLeagueReport, error) {
+	r, err := scanRocketLeagueReport(s.pool.QueryRow(ctx,
+		rocketLeagueReportColumns+` WHERE m.id = $1`, matchID, v.UserID, v.IsAdmin))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return r, ErrNotFound
+	}
+	return r, err
+}
+
+// RocketLeagueReportsByKey returns every other member's report of the same
+// match, banned members excluded, ordered by name so the scoreboard is built
+// the same way on every call.
+func (s *Store) RocketLeagueReportsByKey(ctx context.Context, key, excludeMatchID string, v RecapViewer) ([]RocketLeagueReport, error) {
+	rows, err := s.pool.Query(ctx,
+		rocketLeagueReportColumns+` WHERE m.match_key = $1 AND m.id <> $4 ORDER BY u.username`,
+		key, v.UserID, v.IsAdmin, excludeMatchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []RocketLeagueReport
+	for rows.Next() {
+		r, err := scanRocketLeagueReport(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// RocketLeagueMatchPlayers returns the other players of one report, in the
+// order the client sent them.
+func (s *Store) RocketLeagueMatchPlayers(ctx context.Context, matchID string) ([]RocketLeaguePlayer, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT team, score, goals, assists, saves, shots, demos, left_early
+		FROM rocket_league_match_players
+		WHERE match_id = $1
+		ORDER BY position`, matchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []RocketLeaguePlayer
+	for rows.Next() {
+		var p RocketLeaguePlayer
+		if err := rows.Scan(&p.Team, &p.Score, &p.Goals, &p.Assists,
+			&p.Saves, &p.Shots, &p.Demos, &p.Left); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
 	}
 	return out, rows.Err()
 }
