@@ -156,6 +156,26 @@ export const fr: Catalog = {
 			turns: 'Tours'
 		}
 	},
+	rlBoard: {
+		show: 'Voir le tableau des scores',
+		hide: 'Masquer le tableau des scores',
+		loading: 'Chargement du tableau...',
+		error: 'Impossible de charger le tableau des scores.',
+		blue: 'Bleu',
+		orange: 'Orange',
+		winner: 'Gagnant',
+		player: 'Joueur',
+		score: 'Score',
+		goals: 'Buts',
+		assists: 'Passes',
+		saves: 'Arrêts',
+		shots: 'Tirs',
+		mvp: 'MVP',
+		left: 'a quitté',
+		teammate: 'Coéquipier {n}',
+		opponent: 'Adversaire {n}',
+		betweenMembers: 'Match entre membres'
+	},
 	profile: {
 		loading: 'Chargement...',
 		loadError: 'impossible de charger le profil',
