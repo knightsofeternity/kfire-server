@@ -117,3 +117,64 @@ func TestInsertRocketLeagueMatchAvecJoueurs(t *testing.T) {
 		t.Fatalf("%d matchs et %d joueurs, attendu 1 et 1", matches, players)
 	}
 }
+
+// Relit un rapport avec ses joueurs : les trois lectures du tableau des
+// scores, contre une vraie base.
+func TestLecturesDuTableauDesScores(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	userID := os.Getenv("TEST_USER_ID")
+	gameID := os.Getenv("TEST_GAME_ID")
+	if dsn == "" || userID == "" || gameID == "" {
+		t.Skip("TEST_DATABASE_URL, TEST_USER_ID ou TEST_GAME_ID absent")
+	}
+	ctx := context.Background()
+	st, err := New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	key := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	defer st.pool.Exec(ctx, `DELETE FROM rocket_league_matches WHERE match_key = $1`, key)
+	m := RocketLeagueMatch{
+		UserID: userID, GameID: gameID, TeamSize: 2, PlayerTeam: 1,
+		TeamBlueScore: 1, TeamOrangeScore: 3, Result: "win",
+		Goals: 2, Assists: 1, Score: 450, DurationSeconds: 310, PlayedAt: time.Now().UTC(),
+		MatchKey: &key,
+		Others: []RocketLeaguePlayer{
+			{Team: 1, Score: 200, Goals: 1},
+			{Team: 0, Score: 300, Goals: 1, Left: true},
+			{Team: 0, Score: 100},
+		},
+	}
+	if err := st.InsertRocketLeagueMatch(ctx, m); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	recent, err := st.RocketLeagueRecentMatches(ctx, userID, gameID, 1)
+	if err != nil || len(recent) != 1 || recent[0].MatchKey == nil || *recent[0].MatchKey != key {
+		t.Fatalf("recent: %v %+v", err, recent)
+	}
+	id := recent[0].ID
+
+	// Un inconnu non admin : visibilite selon sessions_visible, sans erreur.
+	ref, err := st.RocketLeagueReportByID(ctx, id, RecapViewer{UserID: userID})
+	if err != nil {
+		t.Fatalf("report: %v", err)
+	}
+	if !ref.Visible || ref.Line.Team != 1 || ref.Line.Score != 450 || ref.TeamOrangeScore != 3 {
+		t.Fatalf("rapport inattendu : %+v", ref)
+	}
+	if _, err := st.RocketLeagueReportByID(ctx, "00000000-0000-0000-0000-000000000000", RecapViewer{UserID: userID}); err != ErrNotFound {
+		t.Fatalf("id inconnu : %v, attendu ErrNotFound", err)
+	}
+	players, err := st.RocketLeagueMatchPlayers(ctx, id)
+	if err != nil || len(players) != 3 || players[1].Score != 300 || !players[1].Left {
+		t.Fatalf("joueurs : %v %+v", err, players)
+	}
+	recap, err := st.RocketLeagueMatchesBetween(ctx, m.PlayedAt.Add(-time.Minute), m.PlayedAt.Add(time.Minute), RecapViewer{UserID: userID})
+	if err != nil || len(recap) != 1 || recap[0].ID != id || recap[0].MatchKey == nil {
+		t.Fatalf("bilan : %v %+v", err, recap)
+	}
+	peers, err := st.RocketLeagueReportsByKey(ctx, key, id, RecapViewer{UserID: userID})
+	if err != nil || len(peers) != 0 {
+		t.Fatalf("pairs : %v %+v, attendu aucun (le rapport lui-meme est exclu)", err, peers)
+	}
+}
