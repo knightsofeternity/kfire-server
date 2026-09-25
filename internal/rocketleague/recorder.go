@@ -268,6 +268,13 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		// logged.
 		return fmt.Errorf("%w: rejected fields (%+v)", matchrecord.ErrInvalidPayload, p)
 	}
+	var others []store.RocketLeaguePlayer
+	for _, o := range p.Others {
+		others = append(others, store.RocketLeaguePlayer{
+			Team: o.Team, Score: o.Score, Goals: o.Goals, Assists: o.Assists,
+			Saves: o.Saves, Shots: o.Shots, Demos: o.Demos, Left: o.Left,
+		})
+	}
 	return r.st.InsertRocketLeagueMatch(ctx, store.RocketLeagueMatch{
 		UserID: userID, GameID: gameID,
 		Playlist: p.Playlist, TeamSize: p.TeamSize, PlayerTeam: p.PlayerTeam,
@@ -277,5 +284,6 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		Shots: p.Shots, Score: p.Score, Demos: p.Demos,
 		MVP: p.MVP, DurationSeconds: p.DurationSeconds,
 		PlayedAt: p.PlayedAt,
+		MatchKey: p.MatchKey, Others: others,
 	})
 }

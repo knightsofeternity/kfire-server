@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // RocketLeagueMatch is a reported match. Every field is a fact about the
@@ -26,6 +29,25 @@ type RocketLeagueMatch struct {
 	MVP             bool
 	DurationSeconds int
 	PlayedAt        time.Time
+	// ID is set when the match is read back, empty when it is written.
+	ID string
+	// MatchKey and Others are nil for a report from a client older than the
+	// scoreboard, and for every match recorded before it.
+	MatchKey *string
+	Others   []RocketLeaguePlayer
+}
+
+// RocketLeaguePlayer is one player of a match other than the reporting
+// member. Numbers and one flag: there is no field able to hold a name.
+type RocketLeaguePlayer struct {
+	Team    int
+	Score   int
+	Goals   int
+	Assists int
+	Saves   int
+	Shots   int
+	Demos   int
+	Left    bool
 }
 
 // RocketLeagueMemberStats is a member's record for a game, already
@@ -71,14 +93,24 @@ const duplicateWindow = 3 * time.Minute
 // v0.6.0-beta.3 report on both -- the second time with a duration reset to
 // near zero. This guard is what keeps those out of members' statistics without
 // waiting for every client to be updated.
+//
+// The match and its other players are written in one transaction. A match
+// the guards turn away writes nothing at all, players included.
 func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch) error {
-	_, err := s.pool.Exec(ctx, `
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var id string
+	err = tx.QueryRow(ctx, `
 		INSERT INTO rocket_league_matches
 			(user_id, game_id, playlist, team_size, player_team,
 			 team_blue_score, team_orange_score, result,
 			 goals, assists, saves, shots, score, demos,
-			 mvp, duration_seconds, played_at)
-		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+			 mvp, duration_seconds, played_at, match_key)
+		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $19
 		WHERE NOT EXISTS (
 			SELECT 1 FROM rocket_league_matches
 			 WHERE user_id = $1
@@ -93,12 +125,29 @@ func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch
 			   AND score = $13
 			   AND demos = $14
 		)
-		ON CONFLICT (user_id, played_at) DO NOTHING`,
+		ON CONFLICT (user_id, played_at) DO NOTHING
+		RETURNING id`,
 		m.UserID, m.GameID, m.Playlist, m.TeamSize, m.PlayerTeam,
 		m.TeamBlueScore, m.TeamOrangeScore, m.Result,
 		m.Goals, m.Assists, m.Saves, m.Shots, m.Score, m.Demos,
-		m.MVP, m.DurationSeconds, m.PlayedAt, duplicateWindow)
-	return err
+		m.MVP, m.DurationSeconds, m.PlayedAt, duplicateWindow, m.MatchKey).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Turned away by a guard: not an error, the match is already there.
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for i, p := range m.Others {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO rocket_league_match_players
+				(match_id, position, team, score, goals, assists, saves, shots, demos, left_early)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			id, i, p.Team, p.Score, p.Goals, p.Assists, p.Saves, p.Shots, p.Demos, p.Left); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 // RocketLeagueStatsByGame returns one row per member who reported a match,
