@@ -257,3 +257,53 @@ func TestIconeDuJeuSeulementQuandElleExiste(t *testing.T) {
 		t.Fatalf("un jeu sans icône ne doit pas porter icon_url : %v", out["icon_url"])
 	}
 }
+
+func keyed(m store.RecapRocketLeagueMatch, id, key string, team int) store.RecapRocketLeagueMatch {
+	m.ID, m.MatchKey, m.PlayerTeam = id, &key, team
+	return m
+}
+
+func TestTimelineRegroupeUnMatchPartage(t *testing.T) {
+	don := owner("u1", "DonZeZe")
+	osi := owner("u2", "Osiris")
+	kae := owner("u3", "Kaeloo")
+	rl := []store.RecapRocketLeagueMatch{
+		keyed(rlMatch(osi, debut, "win", 1), "m-osi", "k1", 0),
+		keyed(rlMatch(don, debut.Add(20*time.Second), "win", 2), "m-don", "k1", 0),
+		rlMatch(kae, debut.Add(time.Hour), "loss", 0),
+	}
+	tl := mergeRecapTimeline("", rl, nil)
+	if len(tl) != 2 {
+		t.Fatalf("%d entrees, attendu 2 (un match partage, un match seul)", len(tl))
+	}
+	g := tl[0]
+	members := g["members"].([]fiber.Map)
+	if len(members) != 2 || members[0]["username"] != "DonZeZe" || members[1]["username"] != "Osiris" {
+		t.Fatalf("membres inattendus : %v", members)
+	}
+	// Reference : le premier membre par ordre alphabetique.
+	if g["id"] != "m-don" || g["has_scoreboard"] != true || g["mixed"] != false {
+		t.Fatalf("entree regroupee inattendue : %v", g)
+	}
+	// Heure : le rapport le plus ancien du groupe.
+	if !g["played_at"].(time.Time).Equal(debut) {
+		t.Fatalf("heure %v, attendu %v", g["played_at"], debut)
+	}
+	solo := tl[1]
+	if solo["has_scoreboard"] != false || len(solo["members"].([]fiber.Map)) != 1 {
+		t.Fatalf("entree seule inattendue : %v", solo)
+	}
+}
+
+func TestTimelineMatchEntreMembres(t *testing.T) {
+	don := owner("u1", "DonZeZe")
+	kae := owner("u3", "Kaeloo")
+	rl := []store.RecapRocketLeagueMatch{
+		keyed(rlMatch(don, debut, "win", 2), "m-don", "k2", 0),
+		keyed(rlMatch(kae, debut.Add(5*time.Second), "loss", 0), "m-kae", "k2", 1),
+	}
+	tl := mergeRecapTimeline("", rl, nil)
+	if len(tl) != 1 || tl[0]["mixed"] != true {
+		t.Fatalf("attendu une seule entree marquee entre membres : %v", tl)
+	}
+}
