@@ -28,16 +28,19 @@ const maxDuration = 7200
 
 // minDuration rejects a match too short to have been played.
 //
-// A Rocket League match lasts five minutes, and even a forfeit cannot end in
-// under a minute. Anything shorter is not a game: it is the phantom the
-// desktop client builds out of the frames the game keeps sending on the
-// post-match screen, whose stopwatch starts at the end of the real match.
+// It used to be a full minute, to refuse the phantom that clients up to
+// v0.6.0-beta.3 built out of the frames the game keeps sending on the
+// post-match screen (15 to 40 seconds, stopwatch restarted at the end of the
+// real match). Since v0.6.0-beta.4 the client's MatchGate no longer lets a
+// state frame start a match after an end, so that phantom is gone at the
+// source, and the duplicate guard in InsertRocketLeagueMatch still catches an
+// old client's exact copy.
 //
-// Refusing it here is what keeps those out of members' averages without
-// waiting for every client to be updated. It follows the rule this whole
-// feature is built on: report nothing rather than report something invented,
-// because a wrong figure is indistinguishable from a right one once stored.
-const minDuration = 60
+// A minute also turned out to refuse real matches: on 24/09/2026 a member won
+// by forfeit after 22 seconds of play (44 seconds measured by the client) and
+// the match was dropped. Ten seconds keeps a sanity floor, below anything a
+// forfeit can take, without calling a real win a phantom.
+const minDuration = 10
 
 // trainingPlaylists are the Psyonix identifiers the client must never
 // report: free play, workshop maps and training. They have no opponent and

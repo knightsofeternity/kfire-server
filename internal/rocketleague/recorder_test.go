@@ -38,8 +38,11 @@ func TestPayloadValidation(t *testing.T) {
 		// trames sur l'écran de fin de partie, le client en fabrique un match
 		// dont le chronomètre démarre à la fin du vrai match. Aucune partie de
 		// Rocket League ne dure trente secondes, même abandonnée.
-		{"duree de fantome", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":30`), false},
-		{"duree tout juste plausible", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":60`), true},
+		{"duree trop courte pour un match", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":5`), false},
+		{"duree tout juste plausible", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":10`), true},
+		// Payload reel rejete en prod le 24/09/2026 : victoire par forfait, 22 s
+		// de jeu d'apres Rocket League, 44 s mesurees par le client.
+		{"victoire par forfait eclair", body(`"team_size":3,"player_team":1,"team_blue_score":0,"team_orange_score":1,"result":"win","goals":0,"assists":1,"saves":0,"shots":0,"score":66,"demos":0,"mvp":false,"duration_seconds":44`), true},
 
 		// The real protocol has no playlist field at all: a payload that
 		// omits it entirely must still be accepted.
