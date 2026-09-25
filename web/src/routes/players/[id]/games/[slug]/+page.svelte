@@ -19,10 +19,13 @@
 	import { rlModeLabel, rlSideScore } from '$lib/rocketleague';
 	import { pubgIsChickenDinner, pubgMapLabel, pubgModeLabel } from '$lib/pubg';
 	import HsResult from '$lib/components/HsResult.svelte';
+	import Scoreboard from '$lib/components/rocketleague/Scoreboard.svelte';
 
 	let detail = $state<PlayerGameDetail | null>(null);
 	let loading = $state(true);
 	let error = $state('');
+	// Which recent Rocket League matches are unfolded, by match id.
+	let openBoards = $state<Record<string, boolean>>({});
 
 	const id = $derived(page.params.id ?? '');
 	const slug = $derived(page.params.slug ?? '');
@@ -812,39 +815,57 @@
 				{t('game.rlRecentMatches')}
 			</h3>
 			<ul class="flex flex-col gap-2">
-				{#each matches as m (m.played_at)}
+				{#each matches as m (m.id)}
 					{@const info = rlResultInfo(m.result)}
 					{@const side = rlSideScore(m)}
-					<li class="pd-card flex flex-wrap items-center gap-3 p-3">
-						<span class="w-14 shrink-0 font-display text-sm font-bold {info.colorClass}">{info.label}</span>
+					<li class="pd-card">
+						<div class="flex flex-wrap items-center gap-3 p-3">
+							{#if m.has_scoreboard}
+								<button
+									type="button"
+									class="w-4 text-[var(--color-brand-bright)]"
+									aria-expanded={!!openBoards[m.id]}
+									title={openBoards[m.id] ? t('rlBoard.hide') : t('rlBoard.show')}
+									onclick={() => (openBoards[m.id] = !openBoards[m.id])}
+								>
+									{openBoards[m.id] ? '▾' : '▸'}
+								</button>
+							{/if}
+							<span class="w-14 shrink-0 font-display text-sm font-bold {info.colorClass}">{info.label}</span>
 
-						<span class="flex items-center gap-1.5 font-display text-sm tabular-nums">
-							<span
-								class="inline-block h-2.5 w-2.5 rounded-full {m.player_team === 0
-									? 'bg-[var(--color-blue)]'
-									: 'bg-[var(--color-brand-bright)]'}"
-								title={m.player_team === 0 ? t('game.rlBlue') : t('game.rlOrange')}
-							></span>
-							<span class="text-[var(--color-text)]">{side.own}</span>
-							<span class="text-[var(--color-muted)]">-</span>
-							<span class="text-[var(--color-muted)]">{side.opponent}</span>
-						</span>
-
-						<span class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{rlModeLabel(m)}</span>
-
-						{#if m.mvp}
-							<span class="pd-cut-sm bg-[var(--color-gold)]/15 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wide text-[var(--color-gold)]">
-								{t('game.rlMvpBadge')}
+							<span class="flex items-center gap-1.5 font-display text-sm tabular-nums">
+								<span
+									class="inline-block h-2.5 w-2.5 rounded-full {m.player_team === 0
+										? 'bg-[var(--color-blue)]'
+										: 'bg-[var(--color-brand-bright)]'}"
+									title={m.player_team === 0 ? t('game.rlBlue') : t('game.rlOrange')}
+								></span>
+								<span class="text-[var(--color-text)]">{side.own}</span>
+								<span class="text-[var(--color-muted)]">-</span>
+								<span class="text-[var(--color-muted)]">{side.opponent}</span>
 							</span>
-						{/if}
 
-						<span class="ml-auto flex items-center gap-3 text-xs tabular-nums text-[var(--color-muted)]">
-							<span>{m.goals} {t('game.rlGoals').toLowerCase()}</span>
-							<span>{m.assists} {t('game.rlAssists').toLowerCase()}</span>
-							<span>{m.saves} {t('game.rlSaves').toLowerCase()}</span>
-							<span>{formatDuration(m.duration_seconds)}</span>
-							<span>{timeAgo(m.played_at)}</span>
-						</span>
+							<span class="text-xs uppercase tracking-wide text-[var(--color-muted)]">{rlModeLabel(m)}</span>
+
+							{#if m.mvp}
+								<span class="pd-cut-sm bg-[var(--color-gold)]/15 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-wide text-[var(--color-gold)]">
+									{t('game.rlMvpBadge')}
+								</span>
+							{/if}
+
+							<span class="ml-auto flex items-center gap-3 text-xs tabular-nums text-[var(--color-muted)]">
+								<span>{m.goals} {t('game.rlGoals').toLowerCase()}</span>
+								<span>{m.assists} {t('game.rlAssists').toLowerCase()}</span>
+								<span>{m.saves} {t('game.rlSaves').toLowerCase()}</span>
+								<span>{formatDuration(m.duration_seconds)}</span>
+								<span>{timeAgo(m.played_at)}</span>
+							</span>
+						</div>
+						{#if m.has_scoreboard && openBoards[m.id]}
+							<div class="border-t border-[var(--color-border)]">
+								<Scoreboard matchId={m.id} />
+							</div>
+						{/if}
 					</li>
 				{/each}
 			</ul>
