@@ -50,9 +50,9 @@ func parseRecapWindow(from, to string) (recapWindow, string, error) {
 }
 
 // recapMember is the identity half of a per-member line. It says which member
-// a match CAME FROM and nothing else: who played with whom is not knowable
-// here, and guessing it from two members playing at the same minute would be a
-// supposition displayed as a fact.
+// a match CAME FROM. Who played with whom is known only through match_key
+// (see groupRocketLeague), never guessed from two members playing at the same
+// minute.
 type recapMember struct {
 	UserID    string
 	Username  string
@@ -335,6 +335,8 @@ func rocketLeagueEntryJSON(base string, m store.RecapRocketLeagueMatch) fiber.Ma
 	out["demos"] = m.Demos
 	out["mvp"] = m.MVP
 	out["duration_seconds"] = m.DurationSeconds
+	out["id"] = m.ID
+	out["has_scoreboard"] = m.MatchKey != nil
 	return out
 }
 
@@ -348,27 +350,87 @@ func hearthstoneEntryJSON(base string, m store.RecapHearthstoneMatch) fiber.Map 
 	return out
 }
 
+// rocketLeagueGroup is one Rocket League match as the timeline shows it: every
+// member who reported the same match_key, on one line.
+//
+// The reference, whose report the line and its scoreboard are built from, is
+// the first member by name, so the line does not depend on who reported
+// first. The time shown is the earliest report of the group.
+type rocketLeagueGroup struct {
+	ref     store.RecapRocketLeagueMatch
+	members []store.RecapMatchOwner
+	mixed   bool
+	at      time.Time
+}
+
+// groupRocketLeague folds the reports that share a match_key. Reports without
+// one stay alone, as before the scoreboard existed. rl arrives oldest first,
+// so a group's first report is its earliest and the groups stay in order.
+func groupRocketLeague(rl []store.RecapRocketLeagueMatch) []rocketLeagueGroup {
+	out := make([]rocketLeagueGroup, 0, len(rl))
+	byKey := map[string]int{}
+	for _, m := range rl {
+		if m.MatchKey != nil {
+			if i, ok := byKey[*m.MatchKey]; ok {
+				g := &out[i]
+				g.members = append(g.members, m.RecapMatchOwner)
+				if m.PlayerTeam != g.ref.PlayerTeam {
+					g.mixed = true
+				}
+				if m.Username < g.ref.Username {
+					g.ref = m
+				}
+				continue
+			}
+			byKey[*m.MatchKey] = len(out)
+		}
+		out = append(out, rocketLeagueGroup{
+			ref: m, members: []store.RecapMatchOwner{m.RecapMatchOwner}, at: m.PlayedAt,
+		})
+	}
+	for i := range out {
+		ms := out[i].members
+		sort.SliceStable(ms, func(a, b int) bool { return ms[a].Username < ms[b].Username })
+	}
+	return out
+}
+
+// rocketLeagueGroupJSON renders a group: the reference's entry, the earliest
+// time, every member present, and whether members played on both sides.
+func rocketLeagueGroupJSON(base string, g rocketLeagueGroup) fiber.Map {
+	out := rocketLeagueEntryJSON(base, g.ref)
+	out["played_at"] = g.at.UTC()
+	members := make([]fiber.Map, 0, len(g.members))
+	for _, o := range g.members {
+		members = append(members, recapMemberJSON(recapMember{o.UserID, o.Username, o.AvatarURL}))
+	}
+	out["members"] = members
+	out["mixed"] = g.mixed
+	return out
+}
+
 // mergeRecapTimeline interleaves the per-game lists into the single
 // oldest-first order the evening actually happened in.
 //
-// Both inputs arrive sorted by the database. On an exact tie the Rocket League
-// entry comes first, which is arbitrary but stable: two members playing at the
-// same instant is a coincidence, never a shared match, and the order between
-// them carries no meaning.
+// Rocket League reports are first folded into matches: the reports that
+// carry the same match_key are one game played together, the only link
+// between two members that is a fact rather than a guess. On an exact tie the
+// Rocket League entry comes first, which is arbitrary but stable.
 func mergeRecapTimeline(base string, rl []store.RecapRocketLeagueMatch, hs []store.RecapHearthstoneMatch) []fiber.Map {
-	out := make([]fiber.Map, 0, len(rl)+len(hs))
+	groups := groupRocketLeague(rl)
+	out := make([]fiber.Map, 0, len(groups)+len(hs))
 	i, j := 0, 0
-	for i < len(rl) && j < len(hs) {
-		if hs[j].PlayedAt.Before(rl[i].PlayedAt) {
+	for i < len(groups) && j < len(hs) {
+		if hs[j].PlayedAt.Before(groups[i].at) {
 			out = append(out, hearthstoneEntryJSON(base, hs[j]))
 			j++
 			continue
 		}
-		out = append(out, rocketLeagueEntryJSON(base, rl[i]))
+		out = append(out, rocketLeagueGroupJSON(base, groups[i]))
 		i++
 	}
-	for ; i < len(rl); i++ {
-		out = append(out, rocketLeagueEntryJSON(base, rl[i]))
+	for ; i < len(groups); i++ {
+		out = append(out, rocketLeagueGroupJSON(base, groups[i]))
 	}
 	for ; j < len(hs); j++ {
 		out = append(out, hearthstoneEntryJSON(base, hs[j]))

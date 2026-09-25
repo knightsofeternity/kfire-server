@@ -150,6 +150,7 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	// Session recap over a hand-picked range. NOT /sessions above, which
 	// serves presence sessions.
 	v1.Get("/recap", h.requireAuth, h.recap)
+	v1.Get("/rocket-league/matches/:id/scoreboard", h.requireAuth, h.rocketLeagueScoreboard)
 	v1.Get("/achievements", h.requireAuth, h.userAchievements)
 
 	// External account connectors. The OpenID callback is a public browser

@@ -7,11 +7,10 @@ import (
 
 // RecapMatchOwner is the member a match CAME FROM, and nothing more.
 //
-// There is deliberately no notion of teammate or opponent anywhere in this
-// file. The match tables have no column able to hold another player, by
-// design; inferring a line-up from two members having played at the same
-// minute would be a guess served as a fact, and two members can perfectly well
-// play on their own side at the same moment.
+// Nothing here infers a line-up from two members having played at the same
+// minute: that would be a guess served as a fact. The only link between two
+// members' matches is the match_key their clients computed from the game's own
+// match identifier, which the API uses to group their reports.
 type RecapMatchOwner struct {
 	UserID    string
 	Username  string
@@ -36,6 +35,11 @@ type RecapGame struct {
 type RecapRocketLeagueMatch struct {
 	RecapMatchOwner
 	RecapGame
+	// ID is the match row, so the page can ask for its scoreboard.
+	ID string
+	// MatchKey is shared by every member of the same match; nil for a report
+	// without a scoreboard. The recap groups on it.
+	MatchKey        *string
 	Playlist        *int
 	TeamSize        int
 	PlayerTeam      int
@@ -90,7 +94,8 @@ type RecapViewer struct {
 
 func (s *Store) RocketLeagueMatchesBetween(ctx context.Context, from, to time.Time, v RecapViewer) ([]RecapRocketLeagueMatch, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT m.user_id, u.username, u.avatar_url,
+		SELECT m.id, m.match_key,
+		       m.user_id, u.username, u.avatar_url,
 		       m.game_id, g.slug, g.name, g.icon_url,
 		       m.playlist, m.team_size, m.player_team,
 		       m.team_blue_score, m.team_orange_score, m.result,
@@ -110,7 +115,8 @@ func (s *Store) RocketLeagueMatchesBetween(ctx context.Context, from, to time.Ti
 	var out []RecapRocketLeagueMatch
 	for rows.Next() {
 		var m RecapRocketLeagueMatch
-		if err := rows.Scan(&m.UserID, &m.Username, &m.AvatarURL,
+		if err := rows.Scan(&m.ID, &m.MatchKey,
+			&m.UserID, &m.Username, &m.AvatarURL,
 			&m.GameID, &m.GameSlug, &m.GameName, &m.GameIcon,
 			&m.Playlist, &m.TeamSize, &m.PlayerTeam,
 			&m.TeamBlueScore, &m.TeamOrangeScore, &m.Result,

@@ -79,6 +79,7 @@ func (p *Plugin) UserGameDetail(ctx context.Context, targetUserID string, g stor
 			"saves": m.Saves, "shots": m.Shots, "score": m.Score, "demos": m.Demos,
 			"mvp": m.MVP, "duration_seconds": m.DurationSeconds,
 			"played_at": m.PlayedAt,
+			"id":        m.ID, "has_scoreboard": m.MatchKey != nil,
 		}
 	}
 	return map[string]any{"rl_matches": out}, nil

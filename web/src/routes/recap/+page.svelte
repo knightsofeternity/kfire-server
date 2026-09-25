@@ -26,6 +26,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import HsResult from '$lib/components/HsResult.svelte';
 	import GameIcon from '$lib/components/GameIcon.svelte';
+	import Scoreboard from '$lib/components/rocketleague/Scoreboard.svelte';
 	import { t } from '$lib/i18n';
 
 	type Range = { from: string; to: string };
@@ -169,6 +170,8 @@
 
 	let recap = $state<Recap | null>(null);
 	let loading = $state(true);
+	// Which Rocket League lines are unfolded, by match id.
+	let openBoards = $state<Record<string, boolean>>({});
 	let errorMessage = $state('');
 	// Guards against a slow request landing after a newer one: the reader would
 	// otherwise be shown a recap for a range they have already left.
@@ -230,25 +233,39 @@
 			.filter(
 				(e) =>
 					(gameFilter === '' || e.game_id === gameFilter) &&
-					(memberFilter === '' || e.user_id === memberFilter)
+					(memberFilter === '' ||
+						e.user_id === memberFilter ||
+						((e as { members?: { user_id: string }[] }).members ?? []).some(
+							(m) => m.user_id === memberFilter
+						))
 			)
 			.reverse()
 	);
+
+	/**
+	 * How many reported matches a timeline line stands for: the server counts
+	 * each member's report, and a Rocket League match played together is one
+	 * line listing several members. Filtered on a member, it is theirs alone.
+	 */
+	function reportsIn(e: RecapEntry): number {
+		if (memberFilter !== '') return 1;
+		return (e as { members?: unknown[] }).members?.length ?? 1;
+	}
 
 	/**
 	 * The summary, cut down to what the timeline still shows.
 	 *
 	 * The per-game count is recounted off the filtered timeline instead of
 	 * being summed from the member rows: a game this portal has no columns for
-	 * carries rows without any count at all, while the timeline holds one line
-	 * per match whatever the game. Both halves of the page then rest on the
-	 * same measure and cannot contradict each other.
+	 * carries rows without any count at all, while the timeline holds a line
+	 * for every match whatever the game. Both halves of the page then rest on
+	 * the same measure and cannot contradict each other.
 	 */
 	const gameBlocks = $derived.by((): RecapGameBlock[] => {
 		if (!recap) return [];
 		if (!filterActive) return recap.games;
 		const counts = new Map<string, number>();
-		for (const e of timeline) counts.set(e.game_id, (counts.get(e.game_id) ?? 0) + 1);
+		for (const e of timeline) counts.set(e.game_id, (counts.get(e.game_id) ?? 0) + reportsIn(e));
 		return recap.games
 			.filter((b) => counts.has(b.game_id))
 			.map((b) => ({
@@ -261,10 +278,13 @@
 			}));
 	});
 
-	// Unfiltered, the server's own total is kept rather than the timeline
-	// length: they agree today, and the figure the server computed is the one
-	// to trust if they ever stop agreeing.
-	const shownMatches = $derived(filterActive ? timeline.length : (recap?.total_matches ?? 0));
+	// Unfiltered, the server's own total is kept: it counts every member's
+	// report, while the timeline shows a match played together as one line.
+	const shownMatches = $derived(
+		filterActive
+			? timeline.reduce((n, e) => n + reportsIn(e), 0)
+			: (recap?.total_matches ?? 0)
+	);
 
 	// The summary rows and the timeline entries carry a shape that depends on
 	// the game, and the payload says which only through `game_slug`. These are
@@ -553,15 +573,34 @@
 							class="border-b border-[var(--color-border)]/50 last:border-b-0 hover:bg-[var(--color-surface-2)]"
 						>
 							<td class="px-3 py-2 text-sm whitespace-nowrap text-[var(--color-muted)] tabular-nums">
-								{stamp(entry.played_at)}
+								<span class="flex items-center gap-1">
+									{#if rl?.has_scoreboard}
+										<button
+											type="button"
+											class="w-4 text-[var(--color-brand-bright)]"
+											aria-expanded={!!openBoards[rl.id]}
+											title={openBoards[rl.id] ? t('rlBoard.hide') : t('rlBoard.show')}
+											onclick={() => (openBoards[rl.id] = !openBoards[rl.id])}
+										>
+											{openBoards[rl.id] ? '▾' : '▸'}
+										</button>
+									{:else}
+										<span class="w-4"></span>
+									{/if}
+									{stamp(entry.played_at)}
+								</span>
 							</td>
 							<td class="px-3 py-2">
-								<a href="/players/{entry.user_id}" class="flex items-center gap-2 hover:underline">
-									<Avatar username={entry.username} url={entry.avatar_url} size={24} />
-									<span class="font-display truncate text-sm font-semibold text-[var(--color-text)]">
-										{entry.username}
-									</span>
-								</a>
+								<span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+									{#each rl?.members ?? [entry] as m (m.user_id)}
+										<a href="/players/{m.user_id}" class="flex items-center gap-2 hover:underline">
+											<Avatar username={m.username} url={m.avatar_url} size={24} />
+											<span class="font-display truncate text-sm font-semibold text-[var(--color-text)]">
+												{m.username}
+											</span>
+										</a>
+									{/each}
+								</span>
 							</td>
 							<td class="px-3 py-2 text-sm whitespace-nowrap text-[var(--color-muted)]">
 								<span class="flex items-center gap-2">
@@ -574,21 +613,29 @@
 									{@const side = rlSideScore(rl)}
 									{@const info = resultInfo(rl.result)}
 									<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-										<span class="font-display font-bold {info.colorClass}">{info.label}</span>
+										{#if rl.mixed}
+											<span class="font-display font-bold text-[var(--color-muted)]">{t('rlBoard.betweenMembers')}</span>
+										{:else}
+											<span class="font-display font-bold {info.colorClass}">{info.label}</span>
+										{/if}
 										<span class="font-display font-bold tabular-nums">
 											{side.own}-{side.opponent}
 										</span>
 										<span class="text-xs text-[var(--color-muted)]">{rlModeLabel(rl)}</span>
-										<span class="text-xs tabular-nums">
-											{t('recap.rl.goals')}
-											{rl.goals} · {t('recap.rl.assists')}
-											{rl.assists} · {t('recap.rl.saves')}
-											{rl.saves}
-										</span>
-										{#if rl.mvp}
-											<span class="font-display text-xs font-bold text-[var(--color-gold)]">
-												{t('recap.rl.mvps')}
+										<!-- A shared line is several members: one member's own numbers would
+										     be read as everyone's. The scoreboard carries them all. -->
+										{#if rl.members.length === 1}
+											<span class="text-xs tabular-nums">
+												{t('recap.rl.goals')}
+												{rl.goals} · {t('recap.rl.assists')}
+												{rl.assists} · {t('recap.rl.saves')}
+												{rl.saves}
 											</span>
+											{#if rl.mvp}
+												<span class="font-display text-xs font-bold text-[var(--color-gold)]">
+													{t('recap.rl.mvps')}
+												</span>
+											{/if}
 										{/if}
 										<span class="text-xs text-[var(--color-muted)] tabular-nums">
 											{formatClock(rl.duration_seconds)}
@@ -617,6 +664,13 @@
 								{/if}
 							</td>
 						</tr>
+						{#if rl?.has_scoreboard && openBoards[rl.id]}
+							<tr class="border-b border-[var(--color-border)]/50">
+								<td colspan="4" class="bg-[var(--color-surface-2)]/40">
+									<Scoreboard matchId={rl.id} />
+								</td>
+							</tr>
+						{/if}
 					{/each}
 				</tbody>
 			</table>

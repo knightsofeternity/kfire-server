@@ -155,6 +155,26 @@ export const en = {
 			turns: 'Turns'
 		}
 	},
+	rlBoard: {
+		show: 'Show the scoreboard',
+		hide: 'Hide the scoreboard',
+		loading: 'Loading the scoreboard...',
+		error: 'The scoreboard could not be loaded.',
+		blue: 'Blue',
+		orange: 'Orange',
+		winner: 'Winner',
+		player: 'Player',
+		score: 'Score',
+		goals: 'Goals',
+		assists: 'Assists',
+		saves: 'Saves',
+		shots: 'Shots',
+		mvp: 'MVP',
+		left: 'left',
+		teammate: 'Teammate {n}',
+		opponent: 'Opponent {n}',
+		betweenMembers: 'Match between members'
+	},
 	profile: {
 		loading: 'Loading...',
 		loadError: 'failed to load profile',

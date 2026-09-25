@@ -276,6 +276,10 @@ export type RlPlayer = {
  * never be rendered to a member, since it is an internal Psyonix identifier.
  */
 export type RlMatch = {
+	/** The match row, used to fetch its scoreboard. */
+	id: string;
+	/** False for a match recorded before the scoreboard, or by an older client. */
+	has_scoreboard: boolean;
 	playlist?: number | null;
 	team_size: number;
 	/** 0 (blue) or 1 (orange): which side the member played. */
@@ -292,6 +296,41 @@ export type RlMatch = {
 	mvp: boolean;
 	duration_seconds: number;
 	played_at: string;
+};
+
+/**
+ * One line of a Rocket League scoreboard. A member visible to the reader has
+ * user_id and username; anyone else has anon_index instead, and no name field
+ * at all.
+ */
+export type RlBoardRow = {
+	user_id?: string;
+	username?: string;
+	avatar_url?: string;
+	anon_index?: number;
+	score: number;
+	goals: number;
+	assists: number;
+	saves: number;
+	shots: number;
+	/** Seen during the match, gone before the end. */
+	left: boolean;
+	mvp: boolean;
+};
+
+/** One side: 0 is blue, 1 is orange. */
+export type RlBoardTeam = {
+	team: 0 | 1;
+	score: number;
+	winner: boolean;
+	rows: RlBoardRow[];
+};
+
+/** A whole match. reference_team decides who is a teammate. */
+export type RlScoreboard = {
+	match_id: string;
+	reference_team: 0 | 1;
+	teams: RlBoardTeam[];
 };
 
 /**
@@ -343,13 +382,12 @@ export type PubgMatch = {
 };
 
 /**
- * The member a recap row CAME FROM, and nothing else.
+ * The member a recap row CAME FROM.
  *
- * There is deliberately no second player anywhere in a recap: the match tables
- * carry no column able to hold one, so no teammate and no opponent ever leaves
- * a member's machine. Two members having a match on the same minute is a
- * coincidence, never evidence they played together, and pairing them here
- * would turn a guess into a displayed fact.
+ * Two members having a match on the same minute is a coincidence, never
+ * evidence they played together. The only pairing is a Rocket League match
+ * whose reports share the key the clients computed from the game's own match
+ * identifier: the server folds those into one line listing its `members`.
  */
 export type RecapMember = {
 	user_id: string;
@@ -418,6 +456,15 @@ export type RecapEntry = RecapMember & {
 
 /** A Rocket League timeline entry. Unlike a live sample, it has team_size. */
 export type RecapRlEntry = RecapEntry & {
+	id: string;
+	has_scoreboard: boolean;
+	/**
+	 * Every member who reported this match, by name; one entry for a match
+	 * played alone. The line's own fields are the first member's report.
+	 */
+	members: RecapMember[];
+	/** Members played on both sides: the line has no single result. */
+	mixed: boolean;
 	result: 'win' | 'loss' | 'draw';
 	/** Null, not absent; an internal Psyonix identifier, never rendered. */
 	playlist: number | null;
@@ -1030,6 +1077,13 @@ export const api = {
 	 * wrong; `json` turns it into an ApiError carrying that sentence, and the
 	 * page shows it rather than a generic message.
 	 */
+	/** A Rocket League match's scoreboard. 404 when there is none to show. */
+	async getRlScoreboard(id: string): Promise<RlScoreboard> {
+		return json(
+			await authFetch(`/api/v1/rocket-league/matches/${encodeURIComponent(id)}/scoreboard`)
+		);
+	},
+
 	async getRecap(from: string, to: string): Promise<Recap> {
 		return json(
 			await authFetch(

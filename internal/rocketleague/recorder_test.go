@@ -24,6 +24,21 @@ func payloadFields() []string {
 	return out
 }
 
+// key est une empreinte valide : 64 caracteres hexadecimaux minuscules.
+const key = `"match_key":"` + "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" + `"`
+
+// base3v3 est un match 3v3 valide, gagne par l'equipe bleue du membre.
+const base3v3 = `"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":2,"assists":1,"saves":3,"shots":5,"score":640,"demos":1,"mvp":true,"duration_seconds":330`
+
+// other rend une entree d'autre joueur.
+func other(team, score int, left bool) string {
+	return fmt.Sprintf(`{"team":%d,"score":%d,"goals":1,"assists":0,"saves":1,"shots":2,"demos":0,"left":%t}`, team, score, left)
+}
+
+func others(entries ...string) string {
+	return `"others":[` + strings.Join(entries, ",") + `]`
+}
+
 func TestPayloadValidation(t *testing.T) {
 	cases := []struct {
 		name string
@@ -34,10 +49,9 @@ func TestPayloadValidation(t *testing.T) {
 		{"defaite orange", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":5,"team_orange_score":1,"result":"loss","goals":0,"assists":0,"saves":1,"shots":2,"score":180,"demos":0,"mvp":false,"duration_seconds":300`), true},
 		{"victoire orange", body(`"playlist":13,"team_size":3,"player_team":1,"team_blue_score":2,"team_orange_score":5,"result":"win","goals":3,"assists":1,"saves":0,"shots":4,"score":520,"demos":2,"mvp":true,"duration_seconds":345`), true},
 		{"match nul", body(`"playlist":6,"team_size":3,"player_team":0,"team_blue_score":2,"team_orange_score":2,"result":"draw","goals":1,"assists":0,"saves":0,"shots":3,"score":250,"demos":0,"mvp":false,"duration_seconds":300`), true},
-		// Le fantôme remonté le 2026-09-18 : le jeu continue d'envoyer des
-		// trames sur l'écran de fin de partie, le client en fabrique un match
-		// dont le chronomètre démarre à la fin du vrai match. Aucune partie de
-		// Rocket League ne dure trente secondes, même abandonnée.
+		// Plancher de sanite : 10 s. Le fantome d'ecran de fin (15 a 40 s) est
+		// supprime cote client depuis la v0.6.0-beta.4, et une vraie victoire
+		// par forfait peut durer 22 s (24/09/2026).
 		{"duree trop courte pour un match", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":5`), false},
 		{"duree tout juste plausible", body(`"playlist":11,"team_size":2,"player_team":1,"team_blue_score":2,"team_orange_score":1,"result":"loss","goals":1,"assists":0,"saves":2,"shots":3,"score":210,"demos":0,"mvp":false,"duration_seconds":10`), true},
 		// Payload reel rejete en prod le 24/09/2026 : victoire par forfait, 22 s
@@ -68,6 +82,21 @@ func TestPayloadValidation(t *testing.T) {
 		{"victoire annoncee mais score perdant", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":1,"team_orange_score":4,"result":"win","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`), false},
 		{"nul annonce mais scores differents", body(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":3,"team_orange_score":1,"result":"draw","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`), false},
 		{"mvp sans victoire", body(`"playlist":13,"team_size":3,"player_team":1,"team_blue_score":4,"team_orange_score":2,"result":"loss","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":true,"duration_seconds":300`), false},
+
+		// Tableau des scores (2026-09-25).
+		{"tableau complet", body(base3v3 + "," + key + "," + others(other(0, 300, false), other(0, 200, false), other(1, 500, false), other(1, 400, false), other(1, 100, false))), true},
+		{"cle sans joueurs", body(base3v3 + "," + key), false},
+		{"joueurs sans cle", body(base3v3 + "," + others(other(1, 100, false))), false},
+		{"liste vide", body(base3v3 + "," + key + `,"others":[]`), false},
+		{"cle en majuscules", body(base3v3 + `,"match_key":"` + strings.Repeat("A", 64) + `",` + others(other(1, 100, false))), false},
+		{"cle trop courte", body(base3v3 + `,"match_key":"` + strings.Repeat("a", 63) + `",` + others(other(1, 100, false))), false},
+		{"huit autres joueurs", body(base3v3 + "," + key + "," + others(other(0, 1, false), other(0, 1, false), other(0, 1, false), other(1, 1, false), other(1, 1, false), other(1, 1, false), other(1, 1, false), other(1, 1, false))), false},
+		{"equipe hors domaine chez un autre", body(base3v3 + "," + key + "," + others(other(2, 100, false))), false},
+		{"score negatif chez un autre", body(base3v3 + "," + key + "," + others(other(1, -1, false))), false},
+		// team_size 3 : le membre plus trois coequipiers presents, c'est quatre.
+		{"trop de presents dans l equipe", body(base3v3 + "," + key + "," + others(other(0, 1, false), other(0, 1, false), other(0, 1, false), other(1, 1, false))), false},
+		// Un joueur parti ne compte pas : un remplacant a pu prendre sa place.
+		{"un parti et son remplacant", body(base3v3 + "," + key + "," + others(other(0, 1, false), other(0, 1, false), other(0, 1, true), other(1, 1, false))), true},
 
 		{"date manquante", `{"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300}`, false},
 		{"date future", bodyAt(`"playlist":13,"team_size":3,"player_team":0,"team_blue_score":4,"team_orange_score":2,"result":"win","goals":0,"assists":0,"saves":0,"shots":0,"score":0,"demos":0,"mvp":false,"duration_seconds":300`, time.Now().Add(time.Hour)), false},
@@ -112,6 +141,7 @@ func TestAcceptedFields(t *testing.T) {
 		"team_blue_score", "team_orange_score", "result",
 		"goals", "assists", "saves", "shots", "score", "demos",
 		"mvp", "duration_seconds", "played_at",
+		"match_key", "others",
 	}
 	got := payloadFields()
 	if len(got) != len(want) {

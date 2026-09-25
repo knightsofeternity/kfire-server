@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
@@ -47,6 +48,27 @@ const minDuration = 10
 // would skew every ratio.
 var trainingPlaylists = map[int]struct{}{0: {}, 9: {}, 19: {}, 21: {}, 73: {}}
 
+// maxOthers is the most other players a report may carry: four against four,
+// minus the member.
+const maxOthers = 7
+
+// matchKeyPattern is the only shape match_key may take: a SHA-256 in lowercase
+// hex. The database enforces the same with a CHECK.
+var matchKeyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// otherPlayer is one of the OTHER players of the match, as the client sends it:
+// numbers and one flag, never a name.
+type otherPlayer struct {
+	Team    int  `json:"team"`
+	Score   int  `json:"score"`
+	Goals   int  `json:"goals"`
+	Assists int  `json:"assists"`
+	Saves   int  `json:"saves"`
+	Shots   int  `json:"shots"`
+	Demos   int  `json:"demos"`
+	Left    bool `json:"left"`
+}
+
 // payload is a finished match, already summarised by the desktop client.
 //
 // The game's own stream carries the name of EVERY player in the match. The
@@ -77,6 +99,10 @@ type payload struct {
 	MVP             bool      `json:"mvp"`
 	DurationSeconds int       `json:"duration_seconds"`
 	PlayedAt        time.Time `json:"played_at"`
+	// MatchKey and Others arrive together or not at all, from clients that
+	// build the scoreboard. Older clients send neither and are unaffected.
+	MatchKey *string       `json:"match_key"`
+	Others   []otherPlayer `json:"others"`
 }
 
 // String renders the payload for the log. It exists only because Playlist
@@ -87,13 +113,17 @@ func (p payload) String() string {
 	if p.Playlist != nil {
 		playlist = fmt.Sprintf("%d", *p.Playlist)
 	}
+	key := "<nil>"
+	if p.MatchKey != nil {
+		key = *p.MatchKey
+	}
 	return fmt.Sprintf(
 		"{Playlist:%s TeamSize:%d PlayerTeam:%d TeamBlueScore:%d TeamOrangeScore:%d "+
 			"Result:%s Goals:%d Assists:%d Saves:%d Shots:%d Score:%d Demos:%d "+
-			"MVP:%t DurationSeconds:%d PlayedAt:%v}",
+			"MVP:%t DurationSeconds:%d PlayedAt:%v MatchKey:%s Others:%+v}",
 		playlist, p.TeamSize, p.PlayerTeam, p.TeamBlueScore, p.TeamOrangeScore,
 		p.Result, p.Goals, p.Assists, p.Saves, p.Shots, p.Score, p.Demos,
-		p.MVP, p.DurationSeconds, p.PlayedAt)
+		p.MVP, p.DurationSeconds, p.PlayedAt, key, p.Others)
 }
 
 // expectedResult returns the result the scores impose, from the member's
@@ -162,7 +192,47 @@ func (p payload) valid() bool {
 	if p.PlayedAt.After(time.Now().Add(clockSkewTolerance)) {
 		return false
 	}
+	if !p.validScoreboard() {
+		return false
+	}
 	return true
+}
+
+// validScoreboard checks the scoreboard half of a payload.
+//
+// The key and the players come together or not at all, so a stored match with
+// a key always has its players and the page never offers an empty scoreboard.
+// Each team may hold at most team_size players still present at the end,
+// counting the member: a player who left does not count, since a substitute
+// may have taken their place.
+func (p payload) validScoreboard() bool {
+	if p.MatchKey == nil && p.Others == nil {
+		return true
+	}
+	if p.MatchKey == nil || p.Others == nil {
+		return false
+	}
+	if !matchKeyPattern.MatchString(*p.MatchKey) {
+		return false
+	}
+	if len(p.Others) < 1 || len(p.Others) > maxOthers {
+		return false
+	}
+	present := [2]int{}
+	present[p.PlayerTeam]++
+	for _, o := range p.Others {
+		if o.Team != 0 && o.Team != 1 {
+			return false
+		}
+		if o.Score < 0 || o.Goals < 0 || o.Assists < 0 || o.Saves < 0 ||
+			o.Shots < 0 || o.Demos < 0 {
+			return false
+		}
+		if !o.Left {
+			present[o.Team]++
+		}
+	}
+	return present[0] <= p.TeamSize && present[1] <= p.TeamSize
 }
 
 // Recorder writes the Rocket League matches reported by the desktop client.
@@ -198,6 +268,13 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		// logged.
 		return fmt.Errorf("%w: rejected fields (%+v)", matchrecord.ErrInvalidPayload, p)
 	}
+	var others []store.RocketLeaguePlayer
+	for _, o := range p.Others {
+		others = append(others, store.RocketLeaguePlayer{
+			Team: o.Team, Score: o.Score, Goals: o.Goals, Assists: o.Assists,
+			Saves: o.Saves, Shots: o.Shots, Demos: o.Demos, Left: o.Left,
+		})
+	}
 	return r.st.InsertRocketLeagueMatch(ctx, store.RocketLeagueMatch{
 		UserID: userID, GameID: gameID,
 		Playlist: p.Playlist, TeamSize: p.TeamSize, PlayerTeam: p.PlayerTeam,
@@ -207,5 +284,6 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		Shots: p.Shots, Score: p.Score, Demos: p.Demos,
 		MVP: p.MVP, DurationSeconds: p.DurationSeconds,
 		PlayedAt: p.PlayedAt,
+		MatchKey: p.MatchKey, Others: others,
 	})
 }
