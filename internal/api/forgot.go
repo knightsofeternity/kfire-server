@@ -5,8 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"log/slog"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/knightsofeternity/kfire-server/internal/mail"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -123,4 +127,32 @@ func resetEmail(lang, org, username, link string) mail.Message {
 			"<p>If you did not ask for this, ignore this message: your password does not change.</p>",
 			u, o, l, l),
 	}
+}
+
+// POST /api/v1/auth/forgot  (public)
+//
+// Always answers 202 the same way, account or not, and does the work after
+// answering: a known account must not answer slower than an unknown one.
+func (h *handlers) forgotPassword(c *fiber.Ctx) error {
+	if h.forgot == nil {
+		return errorJSON(c, fiber.StatusNotFound, "not_available", "password reset by email is not configured")
+	}
+	var req struct {
+		Login string `json:"login"`
+		Lang  string `json:"lang"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "invalid JSON body")
+	}
+	login := strings.TrimSpace(req.Login)
+	if login == "" {
+		return errorJSON(c, fiber.StatusUnprocessableEntity, "validation_failed", "login is required")
+	}
+	go func(login, lang string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		// Neither the login nor the address is logged: only how it ended.
+		slog.Info("forgot: done", "outcome", h.forgot.handle(ctx, login, lang))
+	}(login, req.Lang)
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "sent_if_exists"})
 }

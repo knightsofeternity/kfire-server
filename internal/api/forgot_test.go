@@ -2,10 +2,14 @@ package api
 
 import (
 	"context"
+	"io"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/knightsofeternity/kfire-server/internal/mail"
 	"github.com/knightsofeternity/kfire-server/internal/store"
@@ -122,5 +126,55 @@ func TestGabaritEchappeLePseudo(t *testing.T) {
 	}
 	if !strings.Contains(m.Text, "<b>x</b>") {
 		t.Fatal("la version texte garde le pseudo tel quel")
+	}
+}
+
+func TestForgotHandlerReponseIdentique(t *testing.T) {
+	svc, _, _, _ := newForgotFixture()
+	h := &handlers{forgot: svc}
+	app := fiber.New()
+	app.Post("/forgot", h.forgotPassword)
+
+	var bodies []string
+	for _, login := range []string{"Djam", "inconnu"} {
+		req := httptest.NewRequest("POST", "/forgot", strings.NewReader(`{"login":"`+login+`","lang":"fr"}`))
+		req.Header.Set("Content-Type", "application/json")
+		res, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(res.Body)
+		if res.StatusCode != 202 {
+			t.Fatalf("%s : statut %d", login, res.StatusCode)
+		}
+		bodies = append(bodies, string(b))
+	}
+	if bodies[0] != bodies[1] {
+		t.Fatalf("reponses differentes : %q / %q", bodies[0], bodies[1])
+	}
+}
+
+func TestForgotHandlerEteint(t *testing.T) {
+	h := &handlers{}
+	app := fiber.New()
+	app.Post("/forgot", h.forgotPassword)
+	req := httptest.NewRequest("POST", "/forgot", strings.NewReader(`{"login":"x"}`))
+	req.Header.Set("Content-Type", "application/json")
+	res, _ := app.Test(req)
+	if res.StatusCode != 404 {
+		t.Fatalf("statut %d, attendu 404", res.StatusCode)
+	}
+}
+
+func TestForgotHandlerLoginVide(t *testing.T) {
+	svc, _, _, _ := newForgotFixture()
+	h := &handlers{forgot: svc}
+	app := fiber.New()
+	app.Post("/forgot", h.forgotPassword)
+	req := httptest.NewRequest("POST", "/forgot", strings.NewReader(`{"login":"  "}`))
+	req.Header.Set("Content-Type", "application/json")
+	res, _ := app.Test(req)
+	if res.StatusCode != 422 {
+		t.Fatalf("statut %d, attendu 422", res.StatusCode)
 	}
 }

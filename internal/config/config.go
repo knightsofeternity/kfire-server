@@ -60,6 +60,11 @@ type Config struct {
 	// PubgAPIKey is the PUBG Game Data Service key. Empty disables the
 	// connector entirely, and the account page then hides its card.
 	PubgAPIKey string
+	// BrevoAPIKey and MailFrom enable email (forgotten password). Both empty
+	// disables it. MailFromName defaults to OrgName.
+	BrevoAPIKey  string
+	MailFrom     string
+	MailFromName string
 	// RiotAPIBase overrides the Riot API host (tests only).
 	RiotAPIBase string
 	// RiotLivePollInterval is how often the League live-game loop runs.
@@ -93,6 +98,13 @@ func Load() (*Config, error) {
 		RiotLolKey:  os.Getenv("KFIRE_RIOT_LOL_KEY"),
 		PubgAPIKey:  os.Getenv("KFIRE_PUBG_API_KEY"),
 		RiotAPIBase: os.Getenv("KFIRE_RIOT_API_BASE"),
+
+		BrevoAPIKey:  os.Getenv("KFIRE_BREVO_API_KEY"),
+		MailFrom:     os.Getenv("KFIRE_MAIL_FROM"),
+		MailFromName: os.Getenv("KFIRE_MAIL_FROM_NAME"),
+	}
+	if cfg.MailFromName == "" {
+		cfg.MailFromName = cfg.OrgName
 	}
 
 	for name, val := range map[string]string{
