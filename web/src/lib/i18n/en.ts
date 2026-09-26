@@ -71,6 +71,12 @@ export const en = {
 		createOne: 'Create one',
 		signinLink: 'Sign in',
 		inviteOnly: 'Registration is invite-only. Ask an admin for an invite link.',
+		forgot: 'Forgot your password?',
+		forgotTitle: 'Receive a link by email to choose a new password.',
+		forgotSend: 'Send the link',
+		forgotSent: 'If an account matches, an email is on its way. Check your spam folder too.',
+		forgotTooMany: 'Too many requests, try again in a few minutes.',
+		backToSignin: 'Back to sign in',
 		genericError: 'something went wrong'
 	},
 	dashboard: {

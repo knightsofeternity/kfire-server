@@ -72,6 +72,12 @@ export const fr: Catalog = {
 		createOne: 'En créer un',
 		signinLink: 'Se connecter',
 		inviteOnly: "L'inscription est sur invitation. Demandez un lien à un administrateur.",
+		forgot: 'Mot de passe oublié ?',
+		forgotTitle: 'Recevez par e-mail un lien pour choisir un nouveau mot de passe.',
+		forgotSend: 'Envoyer le lien',
+		forgotSent: 'Si un compte correspond, un e-mail vient de partir. Pensez à vos spams.',
+		forgotTooMany: 'Trop de demandes, réessayez dans quelques minutes.',
+		backToSignin: 'Retour à la connexion',
 		genericError: "une erreur s'est produite"
 	},
 	dashboard: {
