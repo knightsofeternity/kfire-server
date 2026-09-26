@@ -26,6 +26,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
+	"github.com/knightsofeternity/kfire-server/internal/mail"
 	"github.com/knightsofeternity/kfire-server/internal/pubgsync"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
 	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
@@ -49,6 +50,8 @@ type handlers struct {
 	pubg      *pubg.Connector
 	cipher    *crypto.Cipher
 	plugins   *gameplugin.Registry
+	// forgot is nil when email is not configured: the feature is then off.
+	forgot *forgotService
 }
 
 // errorJSON writes the protocol's Error shape ({code, message}).
@@ -114,6 +117,9 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 		xblConn.APIBase = cfg.XblAPIBase
 	}
 	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, riot: riotConn, riotSync: riotSync, pubg: pubgConn, cipher: cipher, plugins: plugins}
+	if cfg.BrevoAPIKey != "" && cfg.MailFrom != "" {
+		h.forgot = newForgotService(st, mail.NewBrevo(cfg.BrevoAPIKey, cfg.MailFrom, cfg.MailFromName), cfg.PublicURL, cfg.OrgName)
+	}
 
 	app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -134,6 +140,12 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	// password from the link.
 	authGroup.Get("/reset/:token", h.peekReset)
 	authGroup.Post("/reset/:token", h.doReset)
+	// Five requests per IP per quarter of an hour: the limit is on the IP,
+	// so its 429 says nothing about any account.
+	authGroup.Post("/forgot", limiter.New(limiter.Config{Max: 5, Expiration: 15 * time.Minute,
+		LimitReached: func(c *fiber.Ctx) error {
+			return errorJSON(c, fiber.StatusTooManyRequests, "rate_limited", "too many requests")
+		}}), h.forgotPassword)
 
 	v1.Get("/users/me", h.requireAuth, h.me)
 	v1.Patch("/users/me", h.requireAuth, h.updateMe)

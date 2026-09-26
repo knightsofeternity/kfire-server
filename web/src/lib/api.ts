@@ -1101,6 +1101,8 @@ export async function getConfig(): Promise<{
 	accent: string;
 	has_logo: boolean;
 	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean };
+	/** A member can get a reset link by email from the sign-in screen. */
+	password_reset_self_service?: boolean;
 }> {
 	const res = await fetch('/api/v1/config');
 	return res.ok
@@ -1134,6 +1136,19 @@ export async function submitReset(token: string, password: string): Promise<void
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({ code: 'unknown', message: 'reset failed' }));
 		throw new ApiError(body.code ?? 'unknown', body.message ?? 'reset failed');
+	}
+}
+
+/** Ask for a reset link by email (no auth). Resolves the same way whether the account exists or not. */
+export async function requestPasswordReset(login: string, lang: string): Promise<void> {
+	const res = await fetch('/api/v1/auth/forgot', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ login, lang })
+	});
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({ code: 'unknown', message: 'request failed' }));
+		throw new ApiError(body.code ?? 'unknown', body.message ?? 'request failed');
 	}
 }
 

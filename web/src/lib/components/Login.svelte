@@ -2,11 +2,14 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { getConfig } from '$lib/api';
+	import { getConfig, requestPasswordReset, ApiError } from '$lib/api';
 	import { passwordStrength } from '$lib/password';
-	import { t } from '$lib/i18n';
+	import { t, getLocale } from '$lib/i18n';
 
-	let mode = $state<'login' | 'register'>('login');
+	let mode = $state<'login' | 'register' | 'forgot'>('login');
+	// Whether this instance can email a reset link, and whether one was asked for.
+	let selfReset = $state(false);
+	let forgotSent = $state(false);
 	let displayName = $state('');
 	// Holds an email when registering, a username or an email when signing in.
 	let identifier = $state('');
@@ -38,8 +41,15 @@
 		needsSetup = cfg.needs_setup;
 		serverHasLogo = cfg.has_logo;
 		orgName = cfg.org_name;
+		selfReset = !!cfg.password_reset_self_service;
 		if (inviteCode || needsSetup) mode = 'register';
 	});
+
+	function showForgot(on: boolean) {
+		mode = on ? 'forgot' : 'login';
+		forgotSent = false;
+		error = '';
+	}
 
 	function toggle() {
 		mode = mode === 'login' ? 'register' : 'login';
@@ -51,13 +61,23 @@
 		error = '';
 		busy = true;
 		try {
+			if (mode === 'forgot') {
+				await requestPasswordReset(identifier, getLocale());
+				forgotSent = true;
+				return;
+			}
 			if (mode === 'register') {
 				await auth.register(displayName, identifier, password, inviteCode ?? undefined);
 			} else {
 				await auth.login(identifier, password);
 			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : t('login.genericError');
+			error =
+				err instanceof ApiError && err.code === 'rate_limited'
+					? t('login.forgotTooMany')
+					: err instanceof Error
+						? err.message
+						: t('login.genericError');
 		} finally {
 			busy = false;
 		}
@@ -83,94 +103,125 @@
 			{/if}
 		</p>
 
-		<form onsubmit={submit} class="pd-card flex flex-col gap-4 p-6">
-			{#if mode === 'register' && inviteCode}
-				<p class="rounded-lg bg-[var(--color-brand)]/10 px-3 py-2 text-xs text-[var(--color-brand)]">
-					{t('login.invited')}
-				</p>
-			{/if}
+		{#if mode === 'forgot' && forgotSent}
+			<p class="pd-card p-6 text-sm text-[var(--color-text)]">{t('login.forgotSent')}</p>
+		{:else}
+			<form onsubmit={submit} class="pd-card flex flex-col gap-4 p-6">
+				{#if mode === 'forgot'}
+					<p class="text-xs text-[var(--color-muted)]">{t('login.forgotTitle')}</p>
+				{/if}
+				{#if mode === 'register' && inviteCode}
+					<p class="rounded-lg bg-[var(--color-brand)]/10 px-3 py-2 text-xs text-[var(--color-brand)]">
+						{t('login.invited')}
+					</p>
+				{/if}
 
-			{#if mode === 'register'}
-				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-					{t('login.displayName')}
-					<input
-						type="text"
-						bind:value={displayName}
-						autocomplete="nickname"
-						required
-						minlength={3}
-						maxlength={32}
-						class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
-					/>
-				</label>
-			{/if}
+				{#if mode === 'register'}
+					<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+						{t('login.displayName')}
+						<input
+							type="text"
+							bind:value={displayName}
+							autocomplete="nickname"
+							required
+							minlength={3}
+							maxlength={32}
+							class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+						/>
+					</label>
+				{/if}
 
-			<!-- Signing in accepts a username or an email (the server matches on
-			     either), so the login field must not be type="email" or the browser
-			     rejects a plain username before we ever send it. Registration still
-			     needs a real address. Svelte forbids a dynamic `type` on a bound
-			     input, hence the two branches. -->
-			{#if mode === 'register'}
-				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-					{t('login.email')}
-					<input
-						type="email"
-						bind:value={identifier}
-						autocomplete="email"
-						required
-						class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
-					/>
-				</label>
-			{:else}
-				<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-					{t('login.identifier')}
-					<input
-						type="text"
-						bind:value={identifier}
-						autocomplete="username"
-						required
-						class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
-					/>
-				</label>
-			{/if}
+				<!-- Signing in accepts a username or an email (the server matches on
+				     either), so the login field must not be type="email" or the browser
+				     rejects a plain username before we ever send it. Registration still
+				     needs a real address. Svelte forbids a dynamic `type` on a bound
+				     input, hence the two branches. -->
+				{#if mode === 'register'}
+					<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+						{t('login.email')}
+						<input
+							type="email"
+							bind:value={identifier}
+							autocomplete="email"
+							required
+							class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+						/>
+					</label>
+				{:else}
+					<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+						{t('login.identifier')}
+						<input
+							type="text"
+							bind:value={identifier}
+							autocomplete="username"
+							required
+							class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+						/>
+					</label>
+				{/if}
 
-			<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
-				{t('login.password')}
-				<input
-					type="password"
-					bind:value={password}
-					autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
-					required
-					minlength={mode === 'register' ? 12 : undefined}
-					class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
-				/>
-			</label>
+				{#if mode !== 'forgot'}
+					<label class="flex flex-col gap-1 text-xs text-[var(--color-muted)]">
+						{t('login.password')}
+						<input
+							type="password"
+							bind:value={password}
+							autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
+							required
+							minlength={mode === 'register' ? 12 : undefined}
+							class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)]"
+						/>
+					</label>
+				{/if}
 
-			{#if mode === 'register' && password}
-				<div class="-mt-2 flex flex-col gap-1">
-					<div class="flex gap-1">
-						{#each [0, 1, 2, 3] as i (i)}
-							<span
-								class="h-1 flex-1 rounded-full {strength.score > i
-									? barColors[strength.score]
-									: 'bg-[var(--color-border)]'}"
-							></span>
-						{/each}
+				{#if mode === 'register' && password}
+					<div class="-mt-2 flex flex-col gap-1">
+						<div class="flex gap-1">
+							{#each [0, 1, 2, 3] as i (i)}
+								<span
+									class="h-1 flex-1 rounded-full {strength.score > i
+										? barColors[strength.score]
+										: 'bg-[var(--color-border)]'}"
+								></span>
+							{/each}
+						</div>
+						<span class="text-xs text-[var(--color-muted)]">
+							{strength.key ? t('login.strength.' + strength.key) : ''} · {t('login.passwordHint')}
+						</span>
 					</div>
-					<span class="text-xs text-[var(--color-muted)]">
-						{strength.key ? t('login.strength.' + strength.key) : ''} · {t('login.passwordHint')}
-					</span>
-				</div>
-			{/if}
+				{/if}
 
-			{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
+				{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
-			<button type="submit" disabled={busy} class="btn-pd violet mt-1 w-full">
-				{busy ? t('login.pleaseWait') : mode === 'login' ? t('login.signin') : t('login.create')}
-			</button>
-		</form>
+				<button type="submit" disabled={busy} class="btn-pd violet mt-1 w-full">
+					{busy
+						? t('login.pleaseWait')
+						: mode === 'forgot'
+							? t('login.forgotSend')
+							: mode === 'login'
+								? t('login.signin')
+								: t('login.create')}
+				</button>
+			</form>
+		{/if}
 
-		{#if canRegister}
+		{#if mode === 'login' && selfReset}
+			<p class="mt-3 text-center text-sm">
+				<button type="button" onclick={() => showForgot(true)} class="text-[var(--color-brand)] hover:underline">
+					{t('login.forgot')}
+				</button>
+			</p>
+		{:else if mode === 'forgot'}
+			<p class="mt-3 text-center text-sm">
+				<button type="button" onclick={() => showForgot(false)} class="text-[var(--color-brand)] hover:underline">
+					{t('login.backToSignin')}
+				</button>
+			</p>
+		{/if}
+
+		{#if mode === 'forgot'}
+			<!-- No registration offer while asking for a reset link. -->
+		{:else if canRegister}
 			<p class="mt-4 text-center text-sm text-[var(--color-muted)]">
 				{mode === 'login' ? t('login.noAccount') : t('login.haveAccount')}
 				<button type="button" onclick={toggle} class="text-[var(--color-brand)] hover:underline">

@@ -43,6 +43,8 @@ func (h *handlers) publicConfig(c *fiber.Ctx) error {
 			"pubg":      h.pubg != nil && h.pubg.Enabled(),
 		},
 		"game_plugins": h.plugins.Active(),
+		// Whether a member can get a reset link by email from the sign-in screen.
+		"password_reset_self_service": h.forgot != nil,
 	})
 }
 
