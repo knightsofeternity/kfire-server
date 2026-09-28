@@ -98,7 +98,8 @@ func (s *Store) EndClientSessions(ctx context.Context, userID string) (int, erro
 func (s *Store) LatestOpenSession(ctx context.Context, userID string) (*Session, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT s.id, s.user_id, s.source, s.started_at,
-		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url
+		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
+		       NULLIF(g.steam_app_id, '')
 		FROM game_sessions s
 		-- A hidden game never makes someone "in game": an inner join drops the
 		-- row entirely, so the caller sees no open session and the member shows
@@ -119,7 +120,7 @@ func (s *Store) LatestOpenSession(ctx context.Context, userID string) (*Session,
 	var sess Session
 	if err := rows.Scan(&sess.ID, &sess.UserID, &sess.Source, &sess.StartedAt,
 		&sess.Game.ID, &sess.Game.Name, &sess.Game.Slug, &sess.Game.ExecutableNames,
-		&sess.Game.Platform, &sess.Game.IconURL); err != nil {
+		&sess.Game.Platform, &sess.Game.IconURL, &sess.Game.SteamAppID); err != nil {
 		return nil, err
 	}
 	return &sess, nil
@@ -142,7 +143,7 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 		SELECT DISTINCT ON (u.id)
 		       u.id, u.username, u.avatar_url, u.activity_visible, u.presence_status,
 		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
-		       s.started_at
+		       NULLIF(g.steam_app_id, ''), s.started_at
 		FROM users u
 		LEFT JOIN game_sessions s ON s.user_id = u.id AND s.ended_at IS NULL
 		-- NOT g.hidden lives in the JOIN and not in the WHERE on purpose: it must
@@ -167,16 +168,18 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 			exeNames  []string
 			platform  *string
 			iconURL   *string
+			steamApp  *string
 			startedAt *time.Time
 		)
 		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible, &r.PresenceStatus,
 			&gameID, &gameName, &gameSlug, &exeNames, &platform, &iconURL,
-			&startedAt); err != nil {
+			&steamApp, &startedAt); err != nil {
 			return nil, err
 		}
 		if gameID != nil {
 			r.Game = &Game{ID: *gameID, Name: *gameName, Slug: *gameSlug,
-				ExecutableNames: exeNames, Platform: *platform, IconURL: iconURL}
+				ExecutableNames: exeNames, Platform: *platform, IconURL: iconURL,
+				SteamAppID: steamApp}
 			r.StartedAt = startedAt
 		}
 		out = append(out, r)

@@ -15,7 +15,16 @@ export type User = {
 	created_at: string;
 };
 
-export type Game = { id: string; name: string; slug: string; icon_url?: string; cover_url?: string; hidden?: boolean };
+export type Game = {
+	id: string;
+	name: string;
+	slug: string;
+	icon_url?: string;
+	cover_url?: string;
+	hidden?: boolean;
+	/** Present on a game in progress (presence) when the catalog knows it: links to its Steam page. */
+	steam_app_id?: string;
+};
 
 export type LeaderboardEntry = {
 	user_id: string;

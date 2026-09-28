@@ -91,7 +91,10 @@ export const fr: Catalog = {
 		loading: 'Chargement...',
 		noMembers: "Aucun membre pour l'instant.",
 		since: 'depuis {time}',
-		onlineStatus: 'En ligne'
+		onlineStatus: 'En ligne',
+		hideOffline: 'Masquer les hors ligne',
+		nobodyOnline: "Personne n'est en ligne pour l'instant.",
+		onSteam: 'Voir {game} sur Steam'
 	},
 	players: {
 		heading: 'Joueurs',

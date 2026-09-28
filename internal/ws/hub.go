@@ -312,6 +312,9 @@ func (h *Hub) gameJSON(g store.Game) map[string]any {
 	if g.IconURL != nil {
 		m["icon_url"] = h.publicURL + "/img/games/" + g.ID + "/icon"
 	}
+	if g.SteamAppID != nil {
+		m["steam_app_id"] = *g.SteamAppID
+	}
 	return m
 }
 

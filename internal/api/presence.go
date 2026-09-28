@@ -94,6 +94,9 @@ func (h *handlers) gameJSON(g store.Game) fiber.Map {
 	if g.CoverURL != nil {
 		m["cover_url"] = h.cfg.PublicURL + "/img/games/" + g.ID + "/cover"
 	}
+	if g.SteamAppID != nil {
+		m["steam_app_id"] = *g.SteamAppID
+	}
 	return m
 }
 
