@@ -434,6 +434,7 @@
 								<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsRating')}</th>
 							{/if}
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsTop4')}</th>
+							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsFirsts')}</th>
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsWinRate')}</th>
 							<th class="px-3 py-2 text-left font-display text-xs uppercase tracking-wide text-[var(--color-muted)]">{t('game.hsMatches')}</th>
 						</tr>
@@ -471,7 +472,12 @@
 								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
 									{#if p.ranked > 0}{hsTop4Rate(p)}%{/if}
 								</td>
-								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">{hsWinRate(p)}%</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
+									{#if p.ranked > 0}{p.firsts}{/if}
+								</td>
+								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums">
+									{#if hsWinRate(p) !== null}{hsWinRate(p)}%{:else}<span class="text-[var(--color-muted)]">&ndash;</span>{/if}
+								</td>
 								<td class="px-3 py-2 whitespace-nowrap text-sm tabular-nums text-[var(--color-muted)]">{p.matches}</td>
 							</tr>
 						{/each}

@@ -37,7 +37,15 @@ type HearthstoneMemberStats struct {
 	Ranked       int // matches carrying a placement
 	AvgPlacement *float64
 	Top4         int
-	LastPlayedAt time.Time
+	// Constructed and ConstructedWins count the non-Battlegrounds matches
+	// only: that is where a win means winning. In Battlegrounds the game marks
+	// only the last player standing as the winner, so a win rate mixing the
+	// two modes reads as "top 1 rate" and misleads (report from Djam,
+	// 2026-09-28). Battlegrounds is judged by Top4, AvgPlacement and Firsts.
+	Constructed     int
+	ConstructedWins int
+	Firsts          int // Battlegrounds first places
+	LastPlayedAt    time.Time
 	// LastBGPlayedAt is when the member's last Battlegrounds match ended, nil
 	// when they never played one. HDT only ever rates Battlegrounds, so a
 	// rating is only stale against THIS instant, never against a constructed
@@ -73,6 +81,9 @@ func (s *Store) HearthstoneStatsByGame(ctx context.Context, gameID string) ([]He
 		       count(m.placement)                       AS ranked,
 		       avg(m.placement)                         AS avg_placement,
 		       count(*) FILTER (WHERE m.placement <= 4) AS top4,
+		       count(*) FILTER (WHERE m.mode <> 'battlegrounds') AS constructed,
+		       count(*) FILTER (WHERE m.mode <> 'battlegrounds' AND m.result = 'win') AS constructed_wins,
+		       count(*) FILTER (WHERE m.placement = 1)  AS firsts,
 		       max(m.played_at)                         AS last_played_at,
 		       max(m.played_at) FILTER (WHERE m.mode = 'battlegrounds') AS last_bg_played_at
 		FROM hearthstone_matches m
@@ -89,7 +100,8 @@ func (s *Store) HearthstoneStatsByGame(ctx context.Context, gameID string) ([]He
 	for rows.Next() {
 		var r HearthstoneMemberStats
 		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.Matches,
-			&r.Wins, &r.Ranked, &r.AvgPlacement, &r.Top4, &r.LastPlayedAt,
+			&r.Wins, &r.Ranked, &r.AvgPlacement, &r.Top4,
+			&r.Constructed, &r.ConstructedWins, &r.Firsts, &r.LastPlayedAt,
 			&r.LastBGPlayedAt); err != nil {
 			return nil, err
 		}

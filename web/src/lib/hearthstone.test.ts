@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { hsByRating, hsRatingSeries, hsRatingStale, hsRatingDelta } from './hearthstone';
+import { hsByRating, hsRatingSeries, hsRatingStale, hsRatingDelta, hsWinRate } from './hearthstone';
 import type { HsPlayer, HsRecentMatch } from './api';
 
 const player = (p: Partial<HsPlayer>): HsPlayer => ({
 	user_id: p.username ?? 'x', username: 'x', matches: 1, wins: 0, ranked: 1, top4: 0,
+	constructed: 0, constructed_wins: 0, firsts: 0,
 	last_played_at: '2026-09-21T12:00:00Z', ...p
 });
 
@@ -57,5 +58,16 @@ describe('hsRatingDelta', () => {
 		expect(hsRatingDelta({ played_at: '', mode: '', result: '', rating: 5571, rating_after: 5644 })).toBe(73);
 		expect(hsRatingDelta({ played_at: '', mode: '', result: '', rating: 5644, rating_after: 5603 })).toBe(-41);
 		expect(hsRatingDelta({ played_at: '', mode: '', result: '', rating_after: 5644 })).toBeNull();
+	});
+});
+
+describe('hsWinRate', () => {
+	it('ignores Battlegrounds, where only the last player standing wins', () => {
+		// Djam, 2026-09-28: a 2.3 average placement read as a tiny win rate.
+		// Twenty Battlegrounds games and no constructed one: no win rate at all.
+		expect(hsWinRate(player({ matches: 20, wins: 3, ranked: 20, top4: 14, firsts: 3 }))).toBeNull();
+	});
+	it('is computed over constructed matches only', () => {
+		expect(hsWinRate(player({ matches: 30, wins: 9, ranked: 20, constructed: 10, constructed_wins: 6 }))).toBe(60);
 	});
 });

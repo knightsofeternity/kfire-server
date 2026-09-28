@@ -227,3 +227,18 @@ h6,
 	background-color: transparent;
 	box-shadow: 0 0 14px -4px var(--color-brand);
 }
+
+/*
+ * Native date pickers draw their calendar icon in the browser's default
+ * (light) scheme: on the dark theme it was nearly invisible (tester report,
+ * 2026-09-28). Telling them which scheme they sit on makes the icon follow
+ * the text colour in both themes.
+ */
+input[type='date'],
+input[type='datetime-local'] {
+	color-scheme: dark;
+}
+html[data-theme='light'] input[type='date'],
+html[data-theme='light'] input[type='datetime-local'] {
+	color-scheme: light;
+}

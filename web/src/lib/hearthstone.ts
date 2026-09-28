@@ -104,11 +104,16 @@ export function hsResultInfo(
 }
 
 /**
- * Win rate across every reported match, as a whole percentage.
- * Zero matches yields 0 rather than a division by zero.
+ * Win rate over constructed matches only, as a whole percentage, or null when
+ * the member played none.
+ *
+ * Battlegrounds is left out on purpose: the game marks only the last player
+ * standing as the winner, so a second place counts as a loss and a member
+ * with a 2.3 average placement read a win rate far below what they expected.
+ * Battlegrounds is judged by top 4, average placement and first places.
  */
-export function hsWinRate(p: HsPlayer): number {
-	return p.matches > 0 ? Math.round((p.wins * 100) / p.matches) : 0;
+export function hsWinRate(p: HsPlayer): number | null {
+	return p.constructed > 0 ? Math.round((p.constructed_wins * 100) / p.constructed) : null;
 }
 
 /**

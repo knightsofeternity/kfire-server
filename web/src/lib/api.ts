@@ -170,6 +170,13 @@ export type HsPlayer = {
 	/** Matches carrying a placement, i.e. Battlegrounds ones. */
 	ranked: number;
 	top4: number;
+	/** Non-Battlegrounds matches, and the wins among them: the only place a
+	 *  win rate means something, since Battlegrounds marks only the last
+	 *  player standing as the winner. */
+	constructed: number;
+	constructed_wins: number;
+	/** Battlegrounds first places. */
+	firsts: number;
 	/** Absent when the member has no Battlegrounds match yet. */
 	avg_placement?: number;
 	/** Last known Battlegrounds rating, from Hearthstone Deck Tracker. Absent for members who never had one. */

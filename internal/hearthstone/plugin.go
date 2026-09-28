@@ -50,6 +50,8 @@ func (p *Plugin) GameDetail(ctx context.Context, _ string, g store.Game) (map[st
 			"user_id": s.UserID, "username": s.Username,
 			"matches": s.Matches, "wins": s.Wins,
 			"ranked": s.Ranked, "top4": s.Top4,
+			"constructed": s.Constructed, "constructed_wins": s.ConstructedWins,
+			"firsts":         s.Firsts,
 			"last_played_at": s.LastPlayedAt,
 		}
 		if s.AvatarURL != nil {
