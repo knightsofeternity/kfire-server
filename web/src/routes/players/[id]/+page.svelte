@@ -382,7 +382,7 @@
 								{#if s.game.icon_url}
 									<img src={s.game.icon_url} alt="" class="h-5 w-5 shrink-0 rounded" />
 								{/if}
-								<span class="flex-1 truncate text-sm">{s.game.name}</span>
+								<a href="/games/{s.game.slug}" class="flex-1 truncate text-sm hover:text-[var(--color-brand-bright)] hover:underline">{s.game.name}</a>
 								{#if !s.ended_at}
 									<span class="pd-cut-sm bg-[var(--color-online)]/15 px-2 py-0.5 font-display text-xs font-bold italic uppercase text-[var(--color-online)]">live</span>
 								{:else}
