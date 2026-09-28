@@ -90,7 +90,10 @@ export const en = {
 		loading: 'Loading...',
 		noMembers: 'No members yet.',
 		since: 'since {time}',
-		onlineStatus: 'Online'
+		onlineStatus: 'Online',
+		hideOffline: 'Hide offline',
+		nobodyOnline: 'Nobody is online right now.',
+		onSteam: 'See {game} on Steam'
 	},
 	players: {
 		heading: 'Players',

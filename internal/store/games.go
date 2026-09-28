@@ -18,6 +18,9 @@ type Game struct {
 	IconURL         *string
 	CoverURL        *string
 	Hidden          bool
+	// SteamAppID is set only where a query reads it (presence), nil elsewhere:
+	// it lets the page link a game in progress to its Steam store page.
+	SteamAppID *string
 }
 
 // GameSeed is a normalized entry from an external catalog (Discord).
