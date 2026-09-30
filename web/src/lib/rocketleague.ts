@@ -1,4 +1,4 @@
-import type { RlPlayer, RlMatch } from './api';
+import type { RlPlayer, RlMatch, RlMode } from './api';
 import type { LiveEntry } from './stores/live.svelte';
 
 /** The slug the server uses for Rocket League on presence and live events. */
@@ -80,11 +80,19 @@ export function rlTotalGoals(players: RlPlayer[]): number {
  * always null; even on the rare day it is present, team size is still the
  * useful fact and a raw playlist number would mean nothing to a member (it
  * is an internal Psyonix identifier). So the mode shown here always comes
- * from team size, and `playlist` is not read at all.
+ * from team size, and `playlist` is not read at all. `mode`, which the server
+ * derives from the arena, adds Hoops or Dropshot when the arena gives it away.
  */
-export function rlModeLabel(match: Pick<RlMatch, 'team_size'>): string {
-	return `${match.team_size}v${match.team_size}`;
+export function rlModeLabel(match: Pick<RlMatch, 'team_size' | 'mode'>): string {
+	const size = `${match.team_size}v${match.team_size}`;
+	return match.mode ? `${size} · ${RL_MODE_NAMES[match.mode]}` : size;
 }
+
+/**
+ * Hoops and Dropshot are the game's own names in every language. They are the
+ * only modes the arena reveals; ranked and casual cannot be told apart.
+ */
+const RL_MODE_NAMES: Record<RlMode, string> = { hoops: 'Hoops', dropshot: 'Dropshot' };
 
 /** The member's own score line, blue-vs-orange, with his side identified. */
 export function rlSideScore(m: RlMatch): { own: number; opponent: number } {

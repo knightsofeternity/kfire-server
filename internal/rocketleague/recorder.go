@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
@@ -103,6 +104,30 @@ type payload struct {
 	// build the scoreboard. Older clients send neither and are unaffected.
 	MatchKey *string       `json:"match_key"`
 	Others   []otherPlayer `json:"others"`
+	// Arena is the map's code, sent by clients from 0.8.0. It is never
+	// stored: only the mode it implies is (see modeFromArena).
+	Arena *string `json:"arena"`
+}
+
+// modeFromArena returns the mode an arena gives away, or nil. Hoops and
+// Dropshot have arenas of their own; every other mode plays on the standard
+// arenas, where nothing tells ranked from casual, Rumble or Heatseeker, and no
+// mode beats a wrong one.
+func modeFromArena(arena *string) *string {
+	if arena == nil {
+		return nil
+	}
+	a := strings.ToLower(*arena)
+	var mode string
+	switch {
+	case strings.HasPrefix(a, "hoops"):
+		mode = "hoops"
+	case strings.HasPrefix(a, "shattershot"):
+		mode = "dropshot"
+	default:
+		return nil
+	}
+	return &mode
 }
 
 // String renders the payload for the log. It exists only because Playlist
@@ -117,13 +142,17 @@ func (p payload) String() string {
 	if p.MatchKey != nil {
 		key = *p.MatchKey
 	}
+	arena := "<nil>"
+	if p.Arena != nil {
+		arena = *p.Arena
+	}
 	return fmt.Sprintf(
 		"{Playlist:%s TeamSize:%d PlayerTeam:%d TeamBlueScore:%d TeamOrangeScore:%d "+
 			"Result:%s Goals:%d Assists:%d Saves:%d Shots:%d Score:%d Demos:%d "+
-			"MVP:%t DurationSeconds:%d PlayedAt:%v MatchKey:%s Others:%+v}",
+			"MVP:%t DurationSeconds:%d PlayedAt:%v MatchKey:%s Others:%+v Arena:%q}",
 		playlist, p.TeamSize, p.PlayerTeam, p.TeamBlueScore, p.TeamOrangeScore,
 		p.Result, p.Goals, p.Assists, p.Saves, p.Shots, p.Score, p.Demos,
-		p.MVP, p.DurationSeconds, p.PlayedAt, key, p.Others)
+		p.MVP, p.DurationSeconds, p.PlayedAt, key, p.Others, arena)
 }
 
 // expectedResult returns the result the scores impose, from the member's
@@ -285,5 +314,6 @@ func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.R
 		MVP: p.MVP, DurationSeconds: p.DurationSeconds,
 		PlayedAt: p.PlayedAt,
 		MatchKey: p.MatchKey, Others: others,
+		Mode: modeFromArena(p.Arena),
 	})
 }

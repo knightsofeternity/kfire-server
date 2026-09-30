@@ -141,7 +141,7 @@ func TestAcceptedFields(t *testing.T) {
 		"team_blue_score", "team_orange_score", "result",
 		"goals", "assists", "saves", "shots", "score", "demos",
 		"mvp", "duration_seconds", "played_at",
-		"match_key", "others",
+		"match_key", "others", "arena",
 	}
 	got := payloadFields()
 	if len(got) != len(want) {
@@ -172,5 +172,35 @@ func TestRecordReturnsTheSentinelInBothCases(t *testing.T) {
 	}
 	if !strings.Contains(rejectedFields.Error(), "Playlist:73") {
 		t.Errorf("message should carry the offending playlist, got %q", rejectedFields)
+	}
+}
+
+// Hoops and Dropshot are the only modes the game gives away, through arenas of
+// their own. Everything else plays on the standard arenas, where nothing tells
+// ranked from casual, Rumble or Heatseeker: no mode rather than a wrong one.
+func TestModeFromArena(t *testing.T) {
+	cases := map[string]string{
+		"HoopsStadium_P": "hoops",
+		"HoopsStreet_P":  "hoops",
+		"hoopsstadium_p": "hoops",
+		"ShatterShot_P":  "dropshot",
+		"Stadium_P":      "",
+		"Park_Night_P":   "",
+		"":               "",
+	}
+	for arena, want := range cases {
+		got := modeFromArena(&arena)
+		if want == "" {
+			if got != nil {
+				t.Errorf("%q: mode %q, want none", arena, *got)
+			}
+			continue
+		}
+		if got == nil || *got != want {
+			t.Errorf("%q: mode %v, want %q", arena, got, want)
+		}
+	}
+	if modeFromArena(nil) != nil {
+		t.Error("no arena must give no mode")
 	}
 }

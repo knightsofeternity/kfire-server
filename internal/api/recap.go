@@ -323,6 +323,7 @@ func rocketLeagueEntryJSON(base string, m store.RecapRocketLeagueMatch) fiber.Ma
 	out := recapEntryJSON(base, m.RecapMatchOwner, m.RecapGame, m.PlayedAt)
 	out["result"] = m.Result
 	out["playlist"] = m.Playlist
+	out["mode"] = m.Mode
 	out["team_size"] = m.TeamSize
 	out["player_team"] = m.PlayerTeam
 	out["team_blue_score"] = m.TeamBlueScore

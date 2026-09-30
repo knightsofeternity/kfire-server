@@ -41,6 +41,7 @@ type RecapRocketLeagueMatch struct {
 	// without a scoreboard. The recap groups on it.
 	MatchKey        *string
 	Playlist        *int
+	Mode            *string
 	TeamSize        int
 	PlayerTeam      int
 	TeamBlueScore   int
@@ -97,7 +98,7 @@ func (s *Store) RocketLeagueMatchesBetween(ctx context.Context, from, to time.Ti
 		SELECT m.id, m.match_key,
 		       m.user_id, u.username, u.avatar_url,
 		       m.game_id, g.slug, g.name, g.icon_url,
-		       m.playlist, m.team_size, m.player_team,
+		       m.playlist, m.mode, m.team_size, m.player_team,
 		       m.team_blue_score, m.team_orange_score, m.result,
 		       m.goals, m.assists, m.saves, m.shots, m.score, m.demos,
 		       m.mvp, m.duration_seconds, m.played_at
@@ -118,7 +119,7 @@ func (s *Store) RocketLeagueMatchesBetween(ctx context.Context, from, to time.Ti
 		if err := rows.Scan(&m.ID, &m.MatchKey,
 			&m.UserID, &m.Username, &m.AvatarURL,
 			&m.GameID, &m.GameSlug, &m.GameName, &m.GameIcon,
-			&m.Playlist, &m.TeamSize, &m.PlayerTeam,
+			&m.Playlist, &m.Mode, &m.TeamSize, &m.PlayerTeam,
 			&m.TeamBlueScore, &m.TeamOrangeScore, &m.Result,
 			&m.Goals, &m.Assists, &m.Saves, &m.Shots, &m.Score, &m.Demos,
 			&m.MVP, &m.DurationSeconds, &m.PlayedAt); err != nil {

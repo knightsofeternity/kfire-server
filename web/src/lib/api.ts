@@ -291,12 +291,17 @@ export type RlPlayer = {
  * `rlModeLabel`). It is kept here only in case it is ever populated; it must
  * never be rendered to a member, since it is an internal Psyonix identifier.
  */
+/** The modes an arena gives away; every other mode looks the same. */
+export type RlMode = 'hoops' | 'dropshot';
+
 export type RlMatch = {
 	/** The match row, used to fetch its scoreboard. */
 	id: string;
 	/** False for a match recorded before the scoreboard, or by an older client. */
 	has_scoreboard: boolean;
 	playlist?: number | null;
+	/** Hoops or Dropshot, from the arena; null on a standard arena or an older client. */
+	mode?: RlMode | null;
 	team_size: number;
 	/** 0 (blue) or 1 (orange): which side the member played. */
 	player_team: number;
@@ -484,6 +489,8 @@ export type RecapRlEntry = RecapEntry & {
 	result: 'win' | 'loss' | 'draw';
 	/** Null, not absent; an internal Psyonix identifier, never rendered. */
 	playlist: number | null;
+	/** Hoops or Dropshot, from the arena; null on a standard arena or an older client. */
+	mode: RlMode | null;
 	team_size: number;
 	/** 0 (blue) or 1 (orange): which side the member played. */
 	player_team: number;

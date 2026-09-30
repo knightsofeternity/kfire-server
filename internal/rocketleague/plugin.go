@@ -72,7 +72,7 @@ func (p *Plugin) UserGameDetail(ctx context.Context, targetUserID string, g stor
 	out := make([]map[string]any, len(matches))
 	for i, m := range matches {
 		out[i] = map[string]any{
-			"playlist": m.Playlist, "team_size": m.TeamSize,
+			"playlist": m.Playlist, "mode": m.Mode, "team_size": m.TeamSize,
 			"player_team":     m.PlayerTeam,
 			"team_blue_score": m.TeamBlueScore, "team_orange_score": m.TeamOrangeScore,
 			"result": m.Result, "goals": m.Goals, "assists": m.Assists,
