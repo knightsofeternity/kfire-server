@@ -135,6 +135,9 @@ type PresenceRow struct {
 	PresenceStatus  string
 	Game            *Game
 	StartedAt       *time.Time
+	// Source is the open session's origin ("client", "psn_api"...), empty
+	// when not in game.
+	Source string
 }
 
 // ListPresence returns every user with their most recent open session.
@@ -143,7 +146,7 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 		SELECT DISTINCT ON (u.id)
 		       u.id, u.username, u.avatar_url, u.activity_visible, u.presence_status,
 		       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
-		       NULLIF(g.steam_app_id, ''), s.started_at
+		       NULLIF(g.steam_app_id, ''), s.started_at, s.source
 		FROM users u
 		LEFT JOIN game_sessions s ON s.user_id = u.id AND s.ended_at IS NULL
 		-- NOT g.hidden lives in the JOIN and not in the WHERE on purpose: it must
@@ -170,10 +173,11 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 			iconURL   *string
 			steamApp  *string
 			startedAt *time.Time
+			source    *string
 		)
 		if err := rows.Scan(&r.UserID, &r.Username, &r.AvatarURL, &r.ActivityVisible, &r.PresenceStatus,
 			&gameID, &gameName, &gameSlug, &exeNames, &platform, &iconURL,
-			&steamApp, &startedAt); err != nil {
+			&steamApp, &startedAt, &source); err != nil {
 			return nil, err
 		}
 		if gameID != nil {
@@ -181,6 +185,9 @@ func (s *Store) ListPresence(ctx context.Context) ([]PresenceRow, error) {
 				ExecutableNames: exeNames, Platform: *platform, IconURL: iconURL,
 				SteamAppID: steamApp}
 			r.StartedAt = startedAt
+			if source != nil {
+				r.Source = *source
+			}
 		}
 		out = append(out, r)
 	}

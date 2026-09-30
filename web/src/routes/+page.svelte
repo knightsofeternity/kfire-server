@@ -95,6 +95,11 @@
 									<img src={entry.game.icon_url} alt="" class="h-5 w-5 pd-cut-sm" />
 								{/if}
 								<span class="truncate text-sm font-semibold text-[var(--color-brand)]">{entry.game.name}</span>
+								{#if entry.platform === 'playstation'}
+									<span class="shrink-0 border border-[#0070D1]/50 px-1 text-[10px] font-bold text-[#3d9bff]" title="PlayStation">PS</span>
+								{:else if entry.platform === 'xbox'}
+									<span class="shrink-0 border border-[#107C10]/50 px-1 text-[10px] font-bold text-[#3fbf3f]" title="Xbox">XB</span>
+								{/if}
 							</div>
 							{#if entry.since}
 								<p class="mt-0.5 text-xs text-[var(--color-muted)]">{t('dashboard.since', { time: timeAgo(entry.since) })}</p>
