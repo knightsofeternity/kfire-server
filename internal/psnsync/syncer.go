@@ -80,8 +80,14 @@ func (s *Syncer) linkedMembers(ctx context.Context) (map[string]string, error) {
 // import due libraries.
 func (s *Syncer) Tick(ctx context.Context) {
 	tok, err := s.bot.Token(ctx)
-	if errors.Is(err, ErrNoBot) || errors.Is(err, ErrNeedsNPSSO) {
-		return // off, or waiting for an admin; already logged once by Token
+	if errors.Is(err, ErrNeedsNPSSO) {
+		// Blind until an admin pastes a new NPSSO: a console session left
+		// open would show members "in game" for as long as that takes.
+		s.closeSessions(ctx, nil)
+		return
+	}
+	if errors.Is(err, ErrNoBot) {
+		return
 	}
 	if err != nil {
 		slog.Warn("psnsync: token", "err", err)
@@ -111,11 +117,16 @@ func (s *Syncer) Tick(ctx context.Context) {
 		return
 	}
 	var ids []string
+	friend := make(map[string]bool, len(friends))
 	for _, f := range friends {
 		if _, ok := linked[f]; ok {
 			ids = append(ids, f)
+			friend[f] = true
 		}
 	}
+	// A member who removed the bot can no longer be seen: close their session
+	// instead of leaving them "in game".
+	s.closeSessions(ctx, func(accountID string) bool { return !friend[accountID] })
 	sort.Strings(ids)
 	for _, batch := range batches(ids, 100) {
 		ps, err := conn.Presences(ctx, tok, batch)
@@ -140,6 +151,29 @@ func (s *Syncer) Tick(ctx context.Context) {
 		}
 		if err := s.SyncLibrary(ctx, userID, acc); err != nil {
 			slog.Warn("psnsync: library", "user_id", userID, "err", err)
+		}
+	}
+}
+
+// closeSessions ends the open psn_api session of every linked member for whom
+// which returns true (all of them when which is nil), broadcasting the change.
+func (s *Syncer) closeSessions(ctx context.Context, which func(accountID string) bool) {
+	linked, err := s.linkedMembers(ctx)
+	if err != nil {
+		return
+	}
+	for acc, userID := range linked {
+		if which != nil && !which(acc) {
+			continue
+		}
+		open, err := s.st.OpenSessionBySource(ctx, userID, sessionSource)
+		if err != nil || open == nil {
+			continue
+		}
+		if changed, _ := s.st.EndSession(ctx, userID, open.Game.ID); changed && s.presence != nil {
+			if pu, ok := s.presence(ctx, userID); ok {
+				s.hub.BroadcastPresence(ctx, pu)
+			}
 		}
 	}
 }
