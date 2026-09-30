@@ -12,12 +12,15 @@ type OwnedGame struct {
 // (every owned game, including never-launched ones), games inferred owned from
 // their Battle.net profiles (WoW characters, Diablo III / StarCraft II), and any
 // game they have actually played (a local/console session — e.g. Hearthstone
-// detected by the client). Deduplicated by game, alphabetical. The source is the
-// strongest signal: battlenet > steam > played.
+// detected by the client), plus their PlayStation played games. Deduplicated by
+// game, alphabetical. The source is the strongest signal: battlenet > steam >
+// psn > played.
 func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH owned AS (
 			SELECT game_id, 'steam'::text AS source FROM external_playtime WHERE user_id = $1 AND provider = 'steam'
+			UNION
+			SELECT game_id, 'psn'         FROM external_playtime WHERE user_id = $1 AND provider = 'psn'
 			UNION
 			SELECT game_id, 'battlenet'   FROM bnet_wow_characters WHERE user_id = $1
 			UNION
@@ -28,6 +31,7 @@ func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, err
 		SELECT g.id, g.name, g.slug, g.icon_url, g.cover_url,
 		       CASE WHEN bool_or(o.source = 'battlenet') THEN 'battlenet'
 		            WHEN bool_or(o.source = 'steam')     THEN 'steam'
+		            WHEN bool_or(o.source = 'psn')       THEN 'psn'
 		            ELSE 'played' END AS source
 		FROM owned o JOIN games g ON g.id = o.game_id
 		GROUP BY g.id, g.name, g.slug, g.icon_url, g.cover_url

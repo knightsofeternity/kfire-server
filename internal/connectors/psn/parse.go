@@ -34,6 +34,10 @@ var (
 	// Platform tails Sony appends to a store name, never part of the game's.
 	platformTail = regexp.MustCompile(`(?i)\s*(?:[-:]\s*)?(?:PS4\s*(?:&|and|/)\s*PS5|PS5\s*(?:&|and|/)\s*PS4|PlayStation\s*4\s*Edition|PlayStation4\s*Edition|PS[45](?:\s*Version)?)\s*$`)
 	spaces       = regexp.MustCompile(`\s+`)
+	// Language tags of regional store releases: "(Français)", "(Deutsch)",
+	// "(English/Chinese/Korean/Japanese Ver.)". A year in brackets is part of
+	// the name ("Hitman (2016)") and is kept.
+	languageTail = regexp.MustCompile(`(?i)\s*\((?:[^()]*\bVer\.?|Fran[cç]ais|French|English|Deutsch|German|Espa[nñ]ol|Spanish|Italiano|Italian|Portugu[eê]s|Portuguese|Nederlands|Polski|Русский|日本語|中文|한국어)\)\s*$`)
 )
 
 // NormalizeTitle strips what makes the same game read differently on the
@@ -44,6 +48,7 @@ func NormalizeTitle(name string) string {
 	s = spaces.ReplaceAllString(strings.TrimSpace(s), " ")
 	for {
 		t := strings.TrimSpace(platformTail.ReplaceAllString(s, ""))
+		t = strings.TrimSpace(languageTail.ReplaceAllString(t, ""))
 		t = strings.TrimRight(t, " :-")
 		if t == s || t == "" {
 			break
