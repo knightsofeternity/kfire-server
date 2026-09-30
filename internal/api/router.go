@@ -27,6 +27,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/gameplugin"
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/mail"
+	"github.com/knightsofeternity/kfire-server/internal/psnsync"
 	"github.com/knightsofeternity/kfire-server/internal/pubgsync"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
 	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
@@ -48,6 +49,7 @@ type handlers struct {
 	riot      *riot.Connector
 	riotSync  *riotsync.Syncer
 	pubg      *pubg.Connector
+	psn       *psnsync.Syncer
 	cipher    *crypto.Cipher
 	plugins   *gameplugin.Registry
 	// forgot is nil when email is not configured: the feature is then off.
@@ -76,7 +78,7 @@ func rateLimiter(max int) fiber.Handler {
 // background loops the caller starts. The PUBG connector is handed back rather
 // than rebuilt there because the quota belongs to the key: a second instance
 // would carry a second limiter and quietly allow twice the agreed rate.
-func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer, cipher *crypto.Cipher) (*riotsync.Syncer, *pubg.Connector) {
+func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, steamConn *steam.Connector, syncer *steamsync.Syncer, cipher *crypto.Cipher, psnSync *psnsync.Syncer) (*riotsync.Syncer, *pubg.Connector) {
 	bnConn := battlenet.New(cfg.BattlenetClientID, cfg.BattlenetClientSecret)
 	if cfg.BattlenetOAuthBase != "" {
 		bnConn.OAuthBase = cfg.BattlenetOAuthBase
@@ -116,7 +118,18 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	if cfg.XblAPIBase != "" {
 		xblConn.APIBase = cfg.XblAPIBase
 	}
-	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, riot: riotConn, riotSync: riotSync, pubg: pubgConn, cipher: cipher, plugins: plugins}
+	h := &handlers{cfg: cfg, store: st, hub: hub, steam: steamConn, steamSync: syncer, battlenet: bnConn, bnetSync: bnetSync, xbox: xblConn, riot: riotConn, riotSync: riotSync, pubg: pubgConn, psn: psnSync, cipher: cipher, plugins: plugins}
+	if psnSync != nil {
+		// presenceUser applies the member's chosen status (invisible/offline),
+		// which a bare ws.PresenceUser would ignore.
+		psnSync.SetPresenceFunc(func(ctx context.Context, userID string) (ws.PresenceUser, bool) {
+			u, err := st.GetUserByID(ctx, userID)
+			if err != nil {
+				return ws.PresenceUser{}, false
+			}
+			return presenceUser(u), true
+		})
+	}
 	if cfg.BrevoAPIKey != "" && cfg.MailFrom != "" {
 		h.forgot = newForgotService(st, mail.NewBrevo(cfg.BrevoAPIKey, cfg.MailFrom, cfg.MailFromName), cfg.PublicURL, cfg.OrgName)
 	}
@@ -200,12 +213,19 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Patch("/connect/pubg/platform", rateLimiter(10), h.requireAuth, h.updatePubgPlatform)
 	v1.Delete("/connect/pubg", h.requireAuth, h.disconnectPubg)
 
+	v1.Get("/connect/psn", h.requireAuth, h.psnStatus)
+	v1.Post("/connect/psn", rateLimiter(10), h.requireAuth, h.connectPsn)
+	v1.Post("/connect/psn/sync", rateLimiter(2), h.requireAuth, h.syncPsn)
+	v1.Delete("/connect/psn", h.requireAuth, h.disconnectPsn)
+
 	admin := v1.Group("/admin", h.requireAuth, h.requireAdmin)
 	admin.Get("/games/catalog", h.gamesCatalogStatus)
 	admin.Post("/games/sync", h.syncGames)
 	admin.Patch("/games/:id", h.setGameHidden)
 	admin.Get("/plugins", h.listPlugins)
 	admin.Patch("/plugins/:id", h.setPlugin)
+	admin.Get("/psn", h.adminPsnStatus)
+	admin.Put("/psn", rateLimiter(5), h.adminSetPsnNPSSO)
 	admin.Get("/members", h.listMembers)
 	admin.Patch("/members/:id", h.patchMember)
 	admin.Post("/members/:id/reset", h.adminResetPassword)

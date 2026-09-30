@@ -60,6 +60,11 @@ type Config struct {
 	// PubgAPIKey is the PUBG Game Data Service key. Empty disables the
 	// connector entirely, and the account page then hides its card.
 	PubgAPIKey string
+	// PsnNPSSO seeds the PlayStation bot's NPSSO on first boot only. After
+	// that an admin pastes a new one in the SPA, sealed in the database.
+	PsnNPSSO string
+	// PsnPollInterval is how often the PlayStation poller runs.
+	PsnPollInterval time.Duration
 	// BrevoAPIKey and MailFrom enable email (forgotten password). Both empty
 	// disables it. MailFromName defaults to OrgName.
 	BrevoAPIKey  string
@@ -97,6 +102,7 @@ func Load() (*Config, error) {
 
 		RiotLolKey:  os.Getenv("KFIRE_RIOT_LOL_KEY"),
 		PubgAPIKey:  os.Getenv("KFIRE_PUBG_API_KEY"),
+		PsnNPSSO:    os.Getenv("KFIRE_PSN_NPSSO"),
 		RiotAPIBase: os.Getenv("KFIRE_RIOT_API_BASE"),
 
 		BrevoAPIKey:  os.Getenv("KFIRE_BREVO_API_KEY"),
@@ -121,6 +127,13 @@ func Load() (*Config, error) {
 	if v := os.Getenv("KFIRE_XBOX_POLL_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
 			cfg.XboxPollInterval = d
+		}
+	}
+
+	cfg.PsnPollInterval = time.Minute
+	if v := os.Getenv("KFIRE_PSN_POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
+			cfg.PsnPollInterval = d
 		}
 	}
 
