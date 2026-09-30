@@ -291,6 +291,25 @@ export type RlPlayer = {
  * `rlModeLabel`). It is kept here only in case it is ever populated; it must
  * never be rendered to a member, since it is an internal Psyonix identifier.
  */
+/** A member's PlayStation link, as the account card needs it. */
+export type PsnStatus = {
+	linked: boolean;
+	online_id?: string;
+	/** Whether the bot is already the member's friend on PSN. */
+	friend?: boolean;
+	bot_online_id: string;
+};
+
+/** The instance's PlayStation bot, for the admin page. Never the NPSSO itself. */
+export type PsnBotStatus = {
+	configured: boolean;
+	status?: 'ok' | 'needs_npsso';
+	online_id?: string | null;
+	last_error?: string | null;
+	npsso_set_at?: string | null;
+	last_ok_at?: string | null;
+};
+
 /** The modes an arena gives away; every other mode looks the same. */
 export type RlMode = 'hoops' | 'dropshot';
 
@@ -654,6 +673,8 @@ export type PresenceEntry = {
 	status: 'offline' | 'online' | 'in_game';
 	game?: Game | null;
 	since?: string;
+	/** Set when the game runs on a console the server watches, absent for the desktop client. */
+	platform?: 'playstation' | 'xbox';
 	/** The match in progress, when the server holds one. Present only on a
 	 *  snapshot, never on a `presence_update`: live changes travel on their own
 	 *  `live_match` events. */
@@ -963,6 +984,46 @@ export const api = {
 		return json(res);
 	},
 
+	/** The member's PlayStation link, or null when the instance has no bot. */
+	async getPsn(): Promise<PsnStatus | null> {
+		const res = await authFetch('/api/v1/connect/psn').catch((e) => {
+			if (e instanceof ApiError && e.code === 'connector_disabled') return null;
+			throw e;
+		});
+		return res ? json(res) : null;
+	},
+
+	async linkPsn(onlineId: string): Promise<{ online_id: string; bot_online_id: string }> {
+		const res = await authFetch('/api/v1/connect/psn', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ online_id: onlineId })
+		});
+		return json(res);
+	},
+
+	async unlinkPsn(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/psn', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	async syncPsn(): Promise<void> {
+		await authFetch('/api/v1/connect/psn/sync', { method: 'POST' });
+	},
+
+	async getPsnBot(): Promise<PsnBotStatus> {
+		return json(await authFetch('/api/v1/admin/psn'));
+	},
+
+	async setPsnNPSSO(npsso: string): Promise<PsnBotStatus> {
+		const res = await authFetch('/api/v1/admin/psn', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ npsso })
+		});
+		return json(res);
+	},
+
 	async unlinkPubg(): Promise<void> {
 		const res = await authFetch('/api/v1/connect/pubg', { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
@@ -1123,7 +1184,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
-	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean };
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean };
 	/** A member can get a reset link by email from the sign-in screen. */
 	password_reset_self_service?: boolean;
 }> {

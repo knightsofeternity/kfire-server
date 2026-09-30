@@ -12,7 +12,7 @@ import (
 // presenceEntry assembles a single presence entry. showGame is the caller's
 // privacy decision (true = the viewer may see the current game). gameStart is
 // the in-game session start (nil when not in game); online is the connect time.
-func (h *handlers) presenceEntry(userID, username string, avatar *string, game *store.Game, gameStart, online *time.Time, showGame bool, chosen string) fiber.Map {
+func (h *handlers) presenceEntry(userID, username string, avatar *string, game *store.Game, gameStart, online *time.Time, showGame bool, chosen, source string) fiber.Map {
 	hasOpen := game != nil
 	status := store.PresenceStatus(hasOpen, hasOpen && showGame, online != nil)
 	// The member's chosen status (invisible/offline) forces offline for everyone,
@@ -24,6 +24,9 @@ func (h *handlers) presenceEntry(userID, username string, avatar *string, game *
 	}
 	if status == "in_game" && game != nil {
 		entry["game"] = h.gameJSON(*game)
+		if p := ws.PlatformOf(source); p != "" {
+			entry["platform"] = p
+		}
 		if gameStart != nil {
 			entry["since"] = gameStart.UTC()
 		}
@@ -55,7 +58,7 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 	for _, r := range rows {
 		online := h.hub.OnlineSince(r.UserID)
 		showGame := r.ActivityVisible || r.UserID == claims.UserID || claims.Role == "admin"
-		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus))
+		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus, r.Source))
 	}
 
 	return c.JSON(fiber.Map{"entries": entries})
@@ -66,11 +69,13 @@ func (h *handlers) userPresence(c *fiber.Ctx, u store.User, showGame bool) fiber
 	online := h.hub.OnlineSince(u.ID)
 	var game *store.Game
 	var start *time.Time
+	source := ""
 	if s, err := h.store.LatestOpenSession(c.Context(), u.ID); err == nil && s != nil {
 		game = &s.Game
 		start = &s.StartedAt
+		source = s.Source
 	}
-	return h.presenceEntry(u.ID, u.Username, u.AvatarURL, game, start, online, showGame, u.PresenceStatus)
+	return h.presenceEntry(u.ID, u.Username, u.AvatarURL, game, start, online, showGame, u.PresenceStatus, source)
 }
 
 // presenceUser converts a store.User to the hub's broadcast input.

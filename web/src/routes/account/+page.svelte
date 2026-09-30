@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api, getConfig, type Connection } from '$lib/api';
+	import { api, getConfig, type Connection, type PsnStatus } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -49,6 +49,14 @@
 	let showRiot = $derived(connectors.riot || !!riot);
 	let showPubg = $derived(connectors.pubg || !!pubg);
 
+	// PlayStation: null until loaded, and stays null on an instance without a
+	// bot (the card is then hidden, like any unconfigured connector).
+	let psn = $state<PsnStatus | null>(null);
+	let psnIdInput = $state('');
+	let psnBusy = $state(false);
+	let psnError = $state('');
+	let psnNotice = $state('');
+
 	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
@@ -64,9 +72,88 @@
 	onMount(() => {
 		loadConnections();
 		getConfig()
-			.then((cfg) => (connectors = cfg.connectors))
+			.then((cfg) => {
+				connectors = cfg.connectors;
+				if (cfg.connectors.psn) loadPsn();
+			})
 			.catch(() => {});
+		// Until the bot is the member's friend, look again every 15 s so the
+		// card turns to "connected" on its own once the request is accepted.
+		const timer = setInterval(() => {
+			if (psn?.linked && !psn.friend) loadPsn();
+		}, 15000);
+		return () => clearInterval(timer);
 	});
+
+	async function loadPsn() {
+		try {
+			psn = await api.getPsn();
+		} catch {
+			/* non-fatal */
+		}
+	}
+
+	const psnErrorKeys: Record<string, string> = {
+		invalid_psn_id: 'account.psn.errors.invalidId',
+		psn_not_found: 'account.psn.errors.notFound',
+		psn_unavailable: 'account.psn.errors.unavailable',
+		already_linked: 'account.psn.errors.alreadyLinked',
+		connector_disabled: 'account.psn.errors.disabled',
+		psn_bot_down: 'account.psn.errors.botDown',
+		psn_not_friend: 'account.psn.errors.notFriend',
+		rate_limited: 'account.psn.errors.rateLimited'
+	};
+
+	function psnErrorMessage(e: unknown): string {
+		const code = (e as { code?: string })?.code;
+		const key = code ? psnErrorKeys[code] : undefined;
+		if (key) return t(key);
+		return e instanceof Error ? e.message : t('common.unknownResult');
+	}
+
+	async function linkPsn() {
+		if (!psnIdInput.trim()) return;
+		psnBusy = true;
+		psnError = '';
+		try {
+			await api.linkPsn(psnIdInput.trim());
+			psnIdInput = '';
+			await loadPsn();
+			await loadConnections();
+		} catch (e) {
+			psnError = psnErrorMessage(e);
+		} finally {
+			psnBusy = false;
+		}
+	}
+
+	async function unlinkPsn() {
+		psnBusy = true;
+		psnError = '';
+		try {
+			await api.unlinkPsn();
+			await loadPsn();
+			await loadConnections();
+		} catch (e) {
+			psnError = psnErrorMessage(e);
+		} finally {
+			psnBusy = false;
+		}
+	}
+
+	async function syncPsn() {
+		psnBusy = true;
+		psnError = '';
+		psnNotice = '';
+		try {
+			await api.syncPsn();
+			psnNotice = t('account.psn.synced');
+		} catch (e) {
+			psnError = psnErrorMessage(e);
+		} finally {
+			psnBusy = false;
+		}
+	}
 
 	async function loadConnections() {
 		if (!user) return;
@@ -790,6 +877,82 @@
 		{/if}
 
 		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.pubg.keepsHistory')}</p>
+		{/if}
+
+		{#if psn}
+		<!-- PlayStation -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[#0070D1]/15 text-xs font-bold text-[#3d9bff]">PS</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">{t('account.psn.title')}</p>
+					<p class="text-sm text-[var(--color-muted)]">
+						{psn.linked ? psn.online_id : t('account.notLinked')}
+					</p>
+				</div>
+			</div>
+			{#if psn.linked}
+				<div class="flex shrink-0 gap-2">
+					{#if psn.friend}
+						<button onclick={syncPsn} disabled={psnBusy} class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm disabled:opacity-60">
+							{t('account.psn.sync')}
+						</button>
+					{/if}
+					<button
+						onclick={unlinkPsn}
+						disabled={psnBusy}
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					>
+						{t('account.psn.unlink')}
+					</button>
+				</div>
+			{/if}
+		</div>
+
+		{#if !psn.linked}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.psn.blurb')}</p>
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					linkPsn();
+				}}
+				class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2"
+			>
+				<label class="flex-1 text-xs text-[var(--color-muted)]" for="psn-id-input">
+					{t('account.psn.idLabel')}
+					<input
+						id="psn-id-input"
+						type="text"
+						bind:value={psnIdInput}
+						placeholder={t('account.psn.idPlaceholder')}
+						disabled={psnBusy}
+						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
+					/>
+				</label>
+				<button
+					type="submit"
+					disabled={psnBusy || !psnIdInput.trim()}
+					class="btn-pd violet mt-1 shrink-0 self-start px-3 py-2 text-sm disabled:opacity-60 sm:mt-5"
+				>
+					{psnBusy ? '...' : t('account.psn.submit')}
+				</button>
+			</form>
+		{:else if !psn.friend}
+			<p class="mt-2 border-l-2 border-[#0070D1] pl-2 text-sm text-[var(--color-text)]">
+				{t('account.psn.addFriend', { bot: psn.bot_online_id })}
+			</p>
+		{:else}
+			<p class="mt-2 text-xs text-[var(--color-online)]">{t('account.psn.connected', { bot: psn.bot_online_id })}</p>
+		{/if}
+
+		{#if psnError}
+			<p class="mt-1 text-sm text-red-500">{psnError}</p>
+		{/if}
+		{#if psnNotice}
+			<p class="mt-1 text-sm text-[var(--color-muted)]">{psnNotice}</p>
+		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.psn.keepsHistory')}</p>
 		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">

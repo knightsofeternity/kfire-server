@@ -16,6 +16,7 @@ import (
 
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/psn"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
@@ -23,6 +24,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/livestate"
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
+	"github.com/knightsofeternity/kfire-server/internal/psnsync"
 	"github.com/knightsofeternity/kfire-server/internal/pubgsync"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
 	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
@@ -139,7 +141,18 @@ func main() {
 		go xs.Run(pollCtx, cfg.XboxPollInterval)
 	}
 
-	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher)
+	// PlayStation connector: one bot per instance, NPSSO pasted by an admin
+	// (KFIRE_PSN_NPSSO only seeds it on first boot). Dormant without one.
+	psnBot := psnsync.NewBot(st, psn.New(), cipher)
+	if cfg.PsnNPSSO != "" && !psnBot.Configured(context.Background()) {
+		if err := psnBot.SetNPSSO(context.Background(), cfg.PsnNPSSO); err != nil {
+			slog.Error("psn: seed NPSSO from KFIRE_PSN_NPSSO", "err", err)
+		}
+	}
+	psnSync := psnsync.New(st, psnBot, hub, nil) // presence func set by api.Register
+	go psnSync.Run(pollCtx, cfg.PsnPollInterval)
+
+	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher, psnSync)
 
 	// League live-game loop. It reads open League sessions first, so it costs
 	// nothing while nobody is playing.

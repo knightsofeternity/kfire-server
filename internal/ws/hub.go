@@ -301,6 +301,9 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 	if status == "in_game" && sess != nil {
 		entry["since"] = sess.StartedAt
 		entry["game"] = h.gameJSON(sess.Game)
+		if p := PlatformOf(sess.Source); p != "" {
+			entry["platform"] = p
+		}
 	} else if status == "online" && online != nil {
 		entry["since"] = online
 	}
@@ -862,4 +865,17 @@ func (h *Hub) PublishLive(ctx context.Context, userID string, s livestate.State)
 	if h.setLive(userID, s, sourceServer) {
 		h.Broadcast("live_match", h.liveJSON(userID))
 	}
+}
+
+// PlatformOf names the console a session comes from, for display, or "" for
+// the desktop client. A platform and not the raw source: the page needs to
+// know "PlayStation", not how the server learned it.
+func PlatformOf(source string) string {
+	switch source {
+	case "psn_api":
+		return "playstation"
+	case "xbox_api":
+		return "xbox"
+	}
+	return ""
 }

@@ -208,3 +208,38 @@ dropped by default rather than stored by accident.
 - OAuth secrets at rest: **AES-256-GCM** (master key in env). *(Steam needs no per-user secret.)*
 - HTTPS enforced (Caddy, or your reverse proxy). Rate limiting on `/auth`.
 - Privacy: per-member toggle hides the current game from other members.
+
+## The PlayStation bot
+
+Sony publishes no API. KFIRE uses the endpoints of the PlayStation app, as ONE
+bot account per instance (`internal/connectors/psn`, `internal/psnsync`). A
+member types their online ID on the account page and adds the bot as a friend;
+the poller accepts friend requests only from account ids linked to a KFIRE
+member, and ignores any other.
+
+**Why friendship.** With Sony's default privacy, played games, durations and
+trophies are refused to a non-friend (403), and presence often is too. Measured
+on three real members on 2026-09-30.
+
+**The token.** The bot's NPSSO is the only secret: pasted by an admin in
+Admin > PlayStation, proven against Sony before it is stored, sealed with
+`KFIRE_MASTER_KEY`, never returned. Access tokens last 1 hour and are renewed
+with a 10-day refresh token, then with the NPSSO. When Sony refuses the NPSSO
+(`login_required`, code 4165) the bot is marked `needs_npsso`, the error is
+logged once, the admin page turns red, and nothing hits Sony until a new NPSSO
+is pasted. Sony announces 60 days for an NPSSO; the first one was revoked within
+6 days (probably by a new sign-in on the bot account), so the admin page shows
+its age.
+
+**Every minute** (`KFIRE_PSN_POLL_INTERVAL`): accept linked members' requests,
+read friends' presence in batches of 100, open or close `psn_api` sessions.
+**Every 6 hours per member**: played games with their duration into
+`external_playtime` (provider `psn`, baseline + delta like Steam), then the
+earned trophies of the 10 most recently updated trophy lists.
+
+**Catalog.** A PlayStation game has one concept id across PS4, PS5 and regions,
+and many title ids. `games.psn_concept_id` ties a concept to a catalog game,
+adopting the PC game of the same normalized name (trademark signs, platform and
+language tails removed), so console hours add to the PC game. `psn_titles` maps
+every title id to its game, since presence only names a title id. Trophy lists
+never create a game: they join one by name or wait.
