@@ -175,6 +175,12 @@ plugin above:
   server-side, for the same reason `hero_card_id` is left untranslated for
   Hearthstone: the identifier is the fact, the label is presentation, and
   the label is localized.
+- `mode` (`migrations/0041_rocket_league_mode.sql`) is `hoops`, `dropshot` or
+  NULL. The feed names no playlist, but it names the arena, and those two
+  modes have arenas of their own. Clients from 0.8.0 send the arena code; the
+  recorder keeps only the mode it implies (`modeFromArena`), so the column
+  stays a closed set. On a standard arena nothing tells ranked from casual,
+  Rumble or Heatseeker, and the mode stays NULL rather than guessed.
 - Turning the plugin off hides the guild record and the per-member match
   list (`rl_players`, `rl_matches`), leaving generic presence intact, like
   every other plugin.

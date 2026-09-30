@@ -35,6 +35,8 @@ type RocketLeagueMatch struct {
 	// scoreboard, and for every match recorded before it.
 	MatchKey *string
 	Others   []RocketLeaguePlayer
+	// Mode is "hoops" or "dropshot" when the arena gave it away, nil otherwise.
+	Mode *string
 }
 
 // RocketLeaguePlayer is one player of a match other than the reporting
@@ -109,8 +111,8 @@ func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch
 			(user_id, game_id, playlist, team_size, player_team,
 			 team_blue_score, team_orange_score, result,
 			 goals, assists, saves, shots, score, demos,
-			 mvp, duration_seconds, played_at, match_key)
-		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $19
+			 mvp, duration_seconds, played_at, match_key, mode)
+		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $19, $20
 		WHERE NOT EXISTS (
 			SELECT 1 FROM rocket_league_matches
 			 WHERE user_id = $1
@@ -130,7 +132,7 @@ func (s *Store) InsertRocketLeagueMatch(ctx context.Context, m RocketLeagueMatch
 		m.UserID, m.GameID, m.Playlist, m.TeamSize, m.PlayerTeam,
 		m.TeamBlueScore, m.TeamOrangeScore, m.Result,
 		m.Goals, m.Assists, m.Saves, m.Shots, m.Score, m.Demos,
-		m.MVP, m.DurationSeconds, m.PlayedAt, duplicateWindow, m.MatchKey).Scan(&id)
+		m.MVP, m.DurationSeconds, m.PlayedAt, duplicateWindow, m.MatchKey, m.Mode).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Turned away by a guard: not an error, the match is already there.
 		return nil
@@ -199,7 +201,7 @@ func (s *Store) RocketLeagueRecentMatches(ctx context.Context, userID, gameID st
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, playlist, team_size, player_team, team_blue_score, team_orange_score,
 		       result, goals, assists, saves, shots, score, demos, mvp,
-		       duration_seconds, played_at, match_key
+		       duration_seconds, played_at, match_key, mode
 		FROM rocket_league_matches
 		WHERE user_id = $1 AND game_id = $2
 		ORDER BY played_at DESC
@@ -215,7 +217,7 @@ func (s *Store) RocketLeagueRecentMatches(ctx context.Context, userID, gameID st
 		if err := rows.Scan(&m.ID, &m.Playlist, &m.TeamSize, &m.PlayerTeam,
 			&m.TeamBlueScore, &m.TeamOrangeScore, &m.Result,
 			&m.Goals, &m.Assists, &m.Saves, &m.Shots, &m.Score, &m.Demos,
-			&m.MVP, &m.DurationSeconds, &m.PlayedAt, &m.MatchKey); err != nil {
+			&m.MVP, &m.DurationSeconds, &m.PlayedAt, &m.MatchKey, &m.Mode); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
