@@ -159,3 +159,42 @@ func (s *Store) MarkPsnLibrarySynced(ctx context.Context, userID string) error {
 		ON CONFLICT (user_id) DO UPDATE SET synced_at = now()`, userID)
 	return err
 }
+
+// PsnGameForTrophies finds the game a trophy list belongs to, WITHOUT creating
+// one: trophy lists are named differently from the store ("World of Tanks"
+// against "World of Tanks Modern Armor"), and a new game per trophy list would
+// fill the catalog with near-duplicates holding trophies and no hours. The
+// list is found by its mapping, else by the slug of its normalized name (and
+// the mapping is recorded); ok is false when neither exists.
+func (s *Store) PsnGameForTrophies(ctx context.Context, npCommunicationID, normalizedName string) (Game, bool, error) {
+	key := "trophy:" + npCommunicationID
+	var g Game
+	err := s.pool.QueryRow(ctx, `
+		SELECT g.id, g.name, g.slug, g.icon_url FROM psn_titles t JOIN games g ON g.id = t.game_id
+		WHERE t.np_title_id = $1`, key).Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
+	if err == nil {
+		return g, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return g, false, err
+	}
+	err = s.pool.QueryRow(ctx, `SELECT id, name, slug, icon_url FROM games WHERE slug = $1`,
+		psnSlug(normalizedName)).Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return g, false, nil
+	}
+	if err != nil {
+		return g, false, err
+	}
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO psn_titles (np_title_id, game_id) VALUES ($1, $2)
+		ON CONFLICT (np_title_id) DO NOTHING`, key, g.ID)
+	return g, true, err
+}
+
+// DeletePsnBotForTests empties psn_bot. Tests only: nothing in the product
+// removes the bot, an admin replaces its NPSSO.
+func (s *Store) DeletePsnBotForTests(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM psn_bot`)
+	return err
+}

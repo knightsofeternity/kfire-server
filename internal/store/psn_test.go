@@ -82,3 +82,33 @@ func TestPsnBotLifecycle(t *testing.T) {
 		t.Fatalf("after new NPSSO: %+v", b)
 	}
 }
+
+// Trophies never create a game: they join an existing one or wait.
+func TestPsnTrophiesNeverCreateAGame(t *testing.T) {
+	st, ctx := openRatingDB(t)
+	tag := fmt.Sprint(time.Now().UnixNano())
+	name := "Trophy Home " + tag
+	var id string
+	if err := st.pool.QueryRow(ctx, `INSERT INTO games (name, slug, executable_names, platform)
+		VALUES ($1, $2, '{}', 'playstation') RETURNING id`, name, psnSlug(name)).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.pool.Exec(ctx, `DELETE FROM games WHERE id = $1`, id) })
+
+	if _, ok, err := st.PsnGameForTrophies(ctx, "NPWR"+tag, "Nothing Like It "+tag); err != nil || ok {
+		t.Fatalf("unknown list: ok=%v err=%v, want nothing found and nothing created", ok, err)
+	}
+	var n int
+	st.pool.QueryRow(ctx, `SELECT count(*) FROM games WHERE slug = $1`, psnSlug("Nothing Like It "+tag)).Scan(&n)
+	if n != 0 {
+		t.Fatal("a trophy list created a game")
+	}
+	g, ok, err := st.PsnGameForTrophies(ctx, "NPWS"+tag, name)
+	if err != nil || !ok || g.ID != id {
+		t.Fatalf("known name: %v %v %v", g.ID, ok, err)
+	}
+	g, ok, _ = st.PsnGameForTrophies(ctx, "NPWS"+tag, "renamed")
+	if !ok || g.ID != id {
+		t.Fatal("the mapping was not kept")
+	}
+}
