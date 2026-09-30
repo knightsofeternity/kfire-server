@@ -471,6 +471,32 @@ export const fr: Catalog = {
 			unlink: 'Délier',
 			trust: "KFIRE ne vérifie pas que ce compte vous appartient, il vérifie seulement que le Riot ID existe et n'est pas déjà lié à un autre membre."
 		},
+		psn: {
+			title: 'PlayStation',
+			blurb:
+				'Liez votre compte PSN pour que KFIRE voie vos parties sur PS4 et PS5 : présence en direct, temps de jeu par jeu et trophées.',
+			idLabel: 'Pseudo PSN (Online ID)',
+			idPlaceholder: 'VotrePseudoPSN',
+			submit: 'Lier le compte',
+			unlink: 'Délier',
+			sync: 'Synchroniser',
+			synced: 'Synchronisation lancée.',
+			addFriend:
+				'Dernière étape : ajoutez {bot} en ami depuis votre console ou l’appli PlayStation. KFIRE accepte votre demande tout seul dans la minute.',
+			connected: 'Connecté : le bot {bot} est votre ami.',
+			keepsHistory:
+				'Délier arrête la collecte et retire l’amitié du bot ; le temps de jeu et les trophées déjà importés restent.',
+			errors: {
+				invalidId: 'Saisissez votre pseudo PSN, tel qu’il apparaît sur votre profil.',
+				notFound: 'PlayStation ne connaît pas ce pseudo. Vérifiez l’orthographe.',
+				unavailable: 'PlayStation n’a pas répondu. Réessayez dans un instant.',
+				alreadyLinked: 'Ce compte PSN est déjà lié à un autre membre.',
+				disabled: "Le connecteur PlayStation n'est pas configuré sur cette instance.",
+				botDown: 'Le bot PlayStation doit être reconnecté par un administrateur.',
+				notFriend: 'Ajoutez d’abord le bot en ami sur PlayStation.',
+				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:

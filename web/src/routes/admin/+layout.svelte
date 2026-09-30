@@ -7,7 +7,8 @@
 		{ href: '/admin', label: 'Administration' },
 		{ href: '/admin/api-keys', label: 'Clés API' },
 		{ href: '/admin/plugins', label: 'Plugins' },
-		{ href: '/admin/catalog', label: 'Catalogue' }
+		{ href: '/admin/catalog', label: 'Catalogue' },
+		{ href: '/admin/playstation', label: 'PlayStation' }
 	];
 
 	function isActive(href: string): boolean {

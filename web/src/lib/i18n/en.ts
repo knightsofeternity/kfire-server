@@ -468,6 +468,32 @@ export const en = {
 			unlink: 'Unlink',
 			trust: 'KFIRE does not verify that you own this account, it only checks that the Riot ID exists and is not already linked to another member.'
 		},
+		psn: {
+			title: 'PlayStation',
+			blurb:
+				'Link your PSN account so KFIRE sees your PS4 and PS5 games: live presence, time played per game and trophies.',
+			idLabel: 'PSN name (Online ID)',
+			idPlaceholder: 'YourPsnName',
+			submit: 'Link account',
+			unlink: 'Unlink',
+			sync: 'Sync now',
+			synced: 'Sync started.',
+			addFriend:
+				'Last step: add {bot} as a friend from your console or the PlayStation app. KFIRE accepts your request on its own within a minute.',
+			connected: 'Connected: the bot {bot} is your friend.',
+			keepsHistory:
+				'Unlinking stops the collection and ends the bot’s friendship; the time played and trophies already imported stay.',
+			errors: {
+				invalidId: 'Enter your PSN name, exactly as it appears on your profile.',
+				notFound: 'PlayStation does not know this name. Check the spelling.',
+				unavailable: 'PlayStation did not answer. Try again in a moment.',
+				alreadyLinked: 'This PSN account is already linked to another member.',
+				disabled: 'The PlayStation connector is not configured on this instance.',
+				botDown: 'The PlayStation bot must be reconnected by an admin.',
+				notFriend: 'Add the bot as a friend on PlayStation first.',
+				rateLimited: 'Too many attempts. Wait a minute and try again.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:
