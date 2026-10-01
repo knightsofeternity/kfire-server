@@ -280,3 +280,23 @@ the same normalized name (`internal/gametitle`, shared with PlayStation: "for
 Nintendo Switch", "Édition Essentielle"... are removed), so console hours add up
 with PC hours. A member's friend code is shown on their profile to other members,
 never through the public API.
+
+## World of Warcraft /played
+
+Blizzard publishes no playtime. The KFire addon (kfire-client `wow-addon/`,
+installed by the desktop client) records each character's /played in game; the
+client reads its SavedVariables when WoW closes and at start, and queues the
+list as a `match_result` whose `game_slug` is the edition
+(`world-of-warcraft`, `world-of-warcraft-classic`, `world-of-warcraft-forever`,
+`wow-ascension`): `{game_slug, characters: [{region, realm, realm_norm, name,
+played_seconds, level, class, recorded_at}]}`. No new message type: it rides the
+client's persistent queue and the `matchrecord` registry, which routes it to
+`internal/wowplayed` (one recorder per edition).
+
+The recorder drops invalid characters rather than the whole list, upserts
+`wow_played` without ever going back in time (`recorded_at` must be newer), and
+writes the edition's sum into `external_playtime` (provider `wow_addon`), so the
+client's sessions after the snapshot add up without double counting. The
+member's WoW page shows each character's /played on its Battle.net card (realm
+compared without case, quotes or spaces) and cards for characters only the addon
+knows (Forever, Ascension).

@@ -89,14 +89,15 @@ export function wowVersionKey(v: string | undefined): WowVersion {
 }
 
 /** The little a version group needs of a character to be built and ordered. */
-type Groupable = { version?: string; level?: number; item_level: number; name: string };
+type Groupable = { version?: string; level?: number; item_level: number; name: string; played_seconds?: number };
 
 /**
  * Splits characters into version groups, in WOW_VERSIONS order, dropping the
  * groups nobody has. The neutral bucket comes last, like any other group.
  *
- * Within a version, characters come out highest level first, then highest item
- * level, then by name so the order never wobbles between two renders.
+ * Within a version, characters come out most played first (when the KFire
+ * addon recorded it), then highest level, then highest item level, then by
+ * name so the order never wobbles between two renders.
  *
  * Generic so the guild roster and a single member's page group and order their
  * characters by the same rule, though they receive different shapes.
@@ -110,6 +111,8 @@ export function wowVersionGroups<T extends Groupable>(
 			.filter((c) => wowVersionKey(c.version) === version)
 			.sort(
 				(a, b) =>
+					// The most played first when the addon told us; otherwise as before.
+					(b.played_seconds ?? 0) - (a.played_seconds ?? 0) ||
 					(b.level ?? 0) - (a.level ?? 0) ||
 					b.item_level - a.item_level ||
 					a.name.localeCompare(b.name)

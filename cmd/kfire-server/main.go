@@ -32,6 +32,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/rocketleague"
 	"github.com/knightsofeternity/kfire-server/internal/steamsync"
 	"github.com/knightsofeternity/kfire-server/internal/store"
+	"github.com/knightsofeternity/kfire-server/internal/wowplayed"
 	"github.com/knightsofeternity/kfire-server/internal/ws"
 	"github.com/knightsofeternity/kfire-server/internal/xboxsync"
 	"github.com/knightsofeternity/kfire-server/web"
@@ -90,10 +91,12 @@ func main() {
 
 	// Match recorders are built here, before the hub, because the hub
 	// reads them and never mutates them.
-	recorders := matchrecord.NewRegistry(
+	recorders := matchrecord.NewRegistry(append([]matchrecord.Recorder{
 		hearthstone.NewRecorder(st),
 		rocketleague.NewRecorder(st),
-	)
+	},
+		// One per WoW edition: the addon's /played rides match_result.
+		wowplayed.Recorders(st)...)...)
 	live := livestate.NewRegistry(
 		rocketleague.NewLiveReporter(),
 		hearthstone.NewLiveReporter(),

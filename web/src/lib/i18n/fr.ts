@@ -249,6 +249,7 @@ export const fr: Catalog = {
 		wowLinkExpired:
 			"Le lien Battle.net a expiré : un jeton Blizzard dure 24 heures et ne peut pas être renouvelé, la liste ci-dessous ne bouge donc plus depuis.",
 		wowRelink: 'Relier le compte Battle.net',
+		wowPlayedHint: 'Temps de jeu relevé en jeu par l’addon KFire',
 		wowNoAchievements: 'Hauts faits indisponibles',
 		wowAchievementsGoneNote:
 			"Blizzard cesse d'exposer le profil des personnages laissés de côté : leurs hauts faits redeviennent lisibles dès qu'ils sont rejoués.",

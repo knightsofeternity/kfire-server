@@ -597,6 +597,10 @@ export type PlayerGameAchievement = {
 
 export type PlayerWowCharacter = {
 	name: string;
+	/** The character's /played, read in game by the KFire addon. */
+	played_seconds?: number;
+	/** Known only from the addon: no Battle.net profile behind it. */
+	addon_only?: boolean;
 	realm?: string;
 	realm_slug?: string;
 	class?: string;
