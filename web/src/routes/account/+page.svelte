@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api, getConfig, type Connection, type PsnStatus } from '$lib/api';
+	import { api, getConfig, type Connection, type PsnStatus, type NintendoStatus } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -57,6 +57,13 @@
 	let psnError = $state('');
 	let psnNotice = $state('');
 
+	// Nintendo Switch: null until loaded, and on an instance without a bot.
+	let nin = $state<NintendoStatus | null>(null);
+	let ninCodeInput = $state('');
+	let ninBusy = $state(false);
+	let ninError = $state('');
+	let ninNotice = $state('');
+
 	// Surface the result of the OAuth redirect (?steam=… / ?battlenet=… / ?xbox=…).
 	const steamResult = $derived(page.url.searchParams.get('steam'));
 	const battlenetResult = $derived(page.url.searchParams.get('battlenet'));
@@ -75,15 +82,88 @@
 			.then((cfg) => {
 				connectors = cfg.connectors;
 				if (cfg.connectors.psn) loadPsn();
+				if (cfg.connectors.nintendo) loadNintendo();
 			})
 			.catch(() => {});
 		// Until the bot is the member's friend, look again every 15 s so the
 		// card turns to "connected" on its own once the request is accepted.
 		const timer = setInterval(() => {
 			if (psn?.linked && !psn.friend) loadPsn();
+			if (nin?.linked && !nin.friend) loadNintendo();
 		}, 15000);
 		return () => clearInterval(timer);
 	});
+
+	async function loadNintendo() {
+		try {
+			nin = await api.getNintendo();
+		} catch {
+			/* non-fatal */
+		}
+	}
+
+	const ninErrorKeys: Record<string, string> = {
+		invalid_friend_code: 'account.nintendo.errors.invalidCode',
+		nintendo_not_found: 'account.nintendo.errors.notFound',
+		nintendo_unavailable: 'account.nintendo.errors.unavailable',
+		nintendo_busy: 'account.nintendo.errors.busy',
+		already_linked: 'account.nintendo.errors.alreadyLinked',
+		connector_disabled: 'account.nintendo.errors.disabled',
+		nintendo_bot_down: 'account.nintendo.errors.botDown',
+		nintendo_not_friend: 'account.nintendo.errors.notFriend',
+		rate_limited: 'account.nintendo.errors.rateLimited'
+	};
+
+	function ninErrorMessage(e: unknown): string {
+		const code = (e as { code?: string })?.code;
+		const key = code ? ninErrorKeys[code] : undefined;
+		if (key) return t(key);
+		return e instanceof Error ? e.message : t('common.unknownResult');
+	}
+
+	async function linkNintendo() {
+		if (!ninCodeInput.trim()) return;
+		ninBusy = true;
+		ninError = '';
+		try {
+			await api.linkNintendo(ninCodeInput.trim());
+			ninCodeInput = '';
+			await loadNintendo();
+			await loadConnections();
+		} catch (e) {
+			ninError = ninErrorMessage(e);
+		} finally {
+			ninBusy = false;
+		}
+	}
+
+	async function unlinkNintendo() {
+		ninBusy = true;
+		ninError = '';
+		try {
+			await api.unlinkNintendo();
+			await loadNintendo();
+			await loadConnections();
+		} catch (e) {
+			ninError = ninErrorMessage(e);
+		} finally {
+			ninBusy = false;
+		}
+	}
+
+	async function syncNintendo() {
+		ninBusy = true;
+		ninError = '';
+		ninNotice = '';
+		try {
+			await api.syncNintendo();
+			ninNotice = t('account.nintendo.synced');
+		} catch (e) {
+			ninError = ninErrorMessage(e);
+		} finally {
+			ninBusy = false;
+		}
+	}
 
 	async function loadPsn() {
 		try {
@@ -953,6 +1033,87 @@
 		{/if}
 
 		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.psn.keepsHistory')}</p>
+		{/if}
+
+		{#if nin}
+		<!-- Nintendo Switch -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[#E60012]/15 text-xs font-bold text-[#ff4d5a]">NS</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">{t('account.nintendo.title')}</p>
+					<p class="text-sm text-[var(--color-muted)]">
+						{nin.linked ? `${nin.nickname ?? ''}${nin.friend_code ? ' · SW-' + nin.friend_code : ''}` : t('account.notLinked')}
+					</p>
+				</div>
+			</div>
+			{#if nin.linked}
+				<div class="flex shrink-0 gap-2">
+					{#if nin.friend}
+						<button onclick={syncNintendo} disabled={ninBusy} class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm disabled:opacity-60">
+							{t('account.nintendo.sync')}
+						</button>
+					{/if}
+					<button
+						onclick={unlinkNintendo}
+						disabled={ninBusy}
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					>
+						{t('account.nintendo.unlink')}
+					</button>
+				</div>
+			{/if}
+		</div>
+
+		{#if !nin.linked}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.nintendo.blurb')}</p>
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					linkNintendo();
+				}}
+				class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2"
+			>
+				<label class="flex-1 text-xs text-[var(--color-muted)]" for="nin-code-input">
+					{t('account.nintendo.codeLabel')}
+					<input
+						id="nin-code-input"
+						type="text"
+						bind:value={ninCodeInput}
+						placeholder={t('account.nintendo.codePlaceholder')}
+						disabled={ninBusy}
+						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-mono text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
+					/>
+				</label>
+				<button
+					type="submit"
+					disabled={ninBusy || !ninCodeInput.trim()}
+					class="btn-pd violet mt-1 shrink-0 self-start px-3 py-2 text-sm disabled:opacity-60 sm:mt-5"
+				>
+					{ninBusy ? '...' : t('account.nintendo.submit')}
+				</button>
+			</form>
+		{:else if !nin.friend}
+			<p class="mt-2 border-l-2 border-[#E60012] pl-2 text-sm text-[var(--color-text)]">
+				{t('account.nintendo.addFriend', { bot: nin.bot.nickname, code: 'SW-' + nin.bot.friend_code })}
+			</p>
+			<p class="mt-1 text-xs text-[var(--color-muted)]">{t('account.nintendo.settings')}</p>
+		{:else}
+			<p class="mt-2 text-xs text-[var(--color-online)]">{t('account.nintendo.connected', { bot: nin.bot.nickname })}</p>
+		{/if}
+
+		{#if ninError}
+			<p class="mt-1 text-sm text-red-500">{ninError}</p>
+		{/if}
+		{#if ninNotice}
+			<p class="mt-1 text-sm text-[var(--color-muted)]">{ninNotice}</p>
+		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">
+			{t('account.nintendo.thirdParty')}
+			<a class="underline" href="https://github.com/samuelthomas2774/nxapi" target="_blank" rel="noreferrer noopener">nxapi</a>.
+			{t('account.nintendo.keepsHistory')}
+		</p>
 		{/if}
 
 		<p class="mt-3 text-xs text-[var(--color-muted)]">

@@ -206,6 +206,8 @@ export const fr: Catalog = {
 		loadingMore: 'Chargement...',
 		allOwnedGames: 'Voir tous les jeux',
 		playedBadge: 'Joué',
+		copyFriendCode: 'Copier le code ami',
+		copied: 'Copié !',
 		ownedFrom: 'via {source}'
 	},
 	game: {
@@ -470,6 +472,37 @@ export const fr: Catalog = {
 			submit: 'Lier le compte',
 			unlink: 'Délier',
 			trust: "KFIRE ne vérifie pas que ce compte vous appartient, il vérifie seulement que le Riot ID existe et n'est pas déjà lié à un autre membre."
+		},
+		nintendo: {
+			title: 'Nintendo Switch',
+			blurb:
+				'Liez votre Switch pour que KFIRE voie à quoi vous jouez en direct et récupère tout votre temps de jeu, jeu par jeu, historique compris.',
+			codeLabel: 'Votre code ami',
+			codePlaceholder: 'SW-1234-5678-9012',
+			submit: 'Lier la Switch',
+			unlink: 'Délier',
+			sync: 'Synchroniser',
+			synced: 'Synchronisation lancée.',
+			addFriend:
+				'Dernière étape : depuis votre Switch, ajoutez {bot} en ami (code {code}). KFIRE accepte votre demande tout seul dans la minute.',
+			settings:
+				'Sur la Switch, dans les paramètres de votre utilisateur, réglez « Afficher le statut en ligne » et « Afficher l’activité de jeu » sur Amis.',
+			connected: 'Connecté : le bot {bot} est votre ami.',
+			thirdParty:
+				'Nintendo n’a pas d’API publique : KFIRE passe par le service nxapi, qui voit transiter votre présence et votre historique de jeu.',
+			keepsHistory:
+				'Délier arrête la collecte et retire l’amitié du bot ; le temps de jeu déjà importé reste.',
+			errors: {
+				invalidCode: 'Saisissez votre code ami, au format SW-1234-5678-9012.',
+				notFound: 'Nintendo ne connaît pas ce code ami. Vérifiez-le sur votre Switch.',
+				unavailable: 'Nintendo n’a pas répondu. Réessayez dans un instant.',
+				busy: 'Nintendo demande de ralentir. Réessayez dans quelques minutes.',
+				alreadyLinked: 'Ce compte Nintendo est déjà lié à un autre membre.',
+				disabled: "Le connecteur Nintendo n'est pas configuré sur cette instance.",
+				botDown: 'Le bot Nintendo doit être reconnecté par un administrateur.',
+				notFriend: 'Ajoutez d’abord le bot en ami sur votre Switch.',
+				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
+			}
 		},
 		psn: {
 			title: 'PlayStation',
