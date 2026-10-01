@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
+	"github.com/knightsofeternity/kfire-server/internal/store"
 )
 
 func TestAcceptedKeepsValidCharactersOnly(t *testing.T) {
@@ -45,6 +46,32 @@ func TestOneRecorderPerEdition(t *testing.T) {
 	for _, s := range []string{"world-of-warcraft", "world-of-warcraft-classic", "world-of-warcraft-forever", "wow-ascension"} {
 		if !seen[s] {
 			t.Errorf("no recorder for %s", s)
+		}
+	}
+}
+
+func TestJudge(t *testing.T) {
+	at := time.Date(2026, 10, 1, 16, 54, 0, 0, time.UTC)
+	prev := &store.WowPlayedPrevious{PlayedSeconds: 1_039_860, RecordedAt: at}
+	rec := func(played int64, later time.Duration) store.WowPlayed {
+		return store.WowPlayed{PlayedSeconds: played, RecordedAt: at.Add(later)}
+	}
+	cases := []struct {
+		name string
+		prev *store.WowPlayedPrevious
+		c    store.WowPlayed
+		want verdict
+	}{
+		{"first record", nil, rec(5, 0), fresh},
+		{"played the whole hour", prev, rec(1_039_860+3600, time.Hour), fresh},
+		{"two digits appended (seen in prod)", prev, rec(103_996_806, time.Hour), impossible},
+		{"back down after a damaged file", &store.WowPlayedPrevious{PlayedSeconds: 103_986_000, RecordedAt: at}, rec(1_041_454, time.Hour), correction},
+		{"older than stored", prev, rec(1_039_000, -time.Minute), stale},
+		{"same time", prev, rec(1_039_900, 0), stale},
+	}
+	for _, c := range cases {
+		if got := judge(c.prev, c.c); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
 }
