@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { playingGames } from '$lib/playing';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { api, type Profile, type Session, type Achievement, type Game } from '$lib/api';
@@ -191,7 +192,7 @@
 			</div>
 			{#if profile.presence.status === 'in_game' && profile.presence.game}
 				<p class="mt-1 font-display text-sm font-bold italic text-[var(--color-brand-bright)]">
-					{t('profile.playing')} {profile.presence.game.name}
+					{t('profile.playing')} {playingGames(profile.presence).map((p) => p.game.name).join(' + ')}
 				</p>
 			{/if}
 		</div>

@@ -697,6 +697,11 @@ export type PresenceEntry = {
 	since?: string;
 	/** Set when the game runs on a console the server watches, absent for the desktop client. */
 	platform?: 'playstation' | 'xbox' | 'nintendo';
+	/**
+	 * Every game in progress, newest first: a member can play on PC and on a
+	 * console at once. `game`/`since`/`platform` above are the newest one.
+	 */
+	games?: { game: Game; since?: string; platform?: 'playstation' | 'xbox' | 'nintendo' }[];
 	/** The match in progress, when the server holds one. Present only on a
 	 *  snapshot, never on a `presence_update`: live changes travel on their own
 	 *  `live_match` events. */

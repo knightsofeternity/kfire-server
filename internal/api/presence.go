@@ -12,7 +12,7 @@ import (
 // presenceEntry assembles a single presence entry. showGame is the caller's
 // privacy decision (true = the viewer may see the current game). gameStart is
 // the in-game session start (nil when not in game); online is the connect time.
-func (h *handlers) presenceEntry(userID, username string, avatar *string, game *store.Game, gameStart, online *time.Time, showGame bool, chosen, source string) fiber.Map {
+func (h *handlers) presenceEntry(userID, username string, avatar *string, game *store.Game, gameStart, online *time.Time, showGame bool, chosen, source string, open []store.Session) fiber.Map {
 	hasOpen := game != nil
 	status := store.PresenceStatus(hasOpen, hasOpen && showGame, online != nil)
 	// The member's chosen status (invisible/offline) forces offline for everyone,
@@ -27,6 +27,9 @@ func (h *handlers) presenceEntry(userID, username string, avatar *string, game *
 		if p := ws.PlatformOf(source); p != "" {
 			entry["platform"] = p
 		}
+		// Every game in progress, newest first: a member can play on PC and on
+		// a console at once. "game" stays the newest one for older consumers.
+		entry["games"] = ws.GamesJSON(open, h.gameJSON)
 		if gameStart != nil {
 			entry["since"] = gameStart.UTC()
 		}
@@ -52,13 +55,17 @@ func (h *handlers) presence(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	open, err := h.store.OpenSessionsByUser(c.Context())
+	if err != nil {
+		return err
+	}
 
 	claims := mustClaims(c)
 	entries := make([]fiber.Map, 0, len(rows))
 	for _, r := range rows {
 		online := h.hub.OnlineSince(r.UserID)
 		showGame := r.ActivityVisible || r.UserID == claims.UserID || claims.Role == "admin"
-		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus, r.Source))
+		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus, r.Source, open[r.UserID]))
 	}
 
 	return c.JSON(fiber.Map{"entries": entries})
@@ -75,7 +82,8 @@ func (h *handlers) userPresence(c *fiber.Ctx, u store.User, showGame bool) fiber
 		start = &s.StartedAt
 		source = s.Source
 	}
-	return h.presenceEntry(u.ID, u.Username, u.AvatarURL, game, start, online, showGame, u.PresenceStatus, source)
+	open, _ := h.store.OpenSessionsForUser(c.Context(), u.ID)
+	return h.presenceEntry(u.ID, u.Username, u.AvatarURL, game, start, online, showGame, u.PresenceStatus, source, open)
 }
 
 // presenceUser converts a store.User to the hub's broadcast input.

@@ -376,3 +376,52 @@ func (s *Store) ListSessions(ctx context.Context, f SessionFilter) ([]Session, s
 	}
 	return sessions, next, nil
 }
+
+// openSessionsQuery lists open sessions on visible games, newest first. A
+// member can have several at once: a PC game through the desktop client and a
+// console game through a bot.
+const openSessionsQuery = `
+	SELECT s.id, s.user_id, s.source, s.started_at,
+	       g.id, g.name, g.slug, g.executable_names, g.platform, g.icon_url,
+	       NULLIF(g.steam_app_id, '')
+	FROM game_sessions s
+	JOIN games g ON g.id = s.game_id AND NOT g.hidden
+	WHERE s.ended_at IS NULL %s
+	ORDER BY s.user_id, s.started_at DESC`
+
+func (s *Store) scanOpenSessions(ctx context.Context, where string, args ...any) ([]Session, error) {
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(openSessionsQuery, where), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Session
+	for rows.Next() {
+		var sess Session
+		if err := rows.Scan(&sess.ID, &sess.UserID, &sess.Source, &sess.StartedAt,
+			&sess.Game.ID, &sess.Game.Name, &sess.Game.Slug, &sess.Game.ExecutableNames,
+			&sess.Game.Platform, &sess.Game.IconURL, &sess.Game.SteamAppID); err != nil {
+			return nil, err
+		}
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
+// OpenSessionsForUser returns a member's open sessions, newest first.
+func (s *Store) OpenSessionsForUser(ctx context.Context, userID string) ([]Session, error) {
+	return s.scanOpenSessions(ctx, "AND s.user_id = $1", userID)
+}
+
+// OpenSessionsByUser returns every member's open sessions, newest first.
+func (s *Store) OpenSessionsByUser(ctx context.Context) (map[string][]Session, error) {
+	all, err := s.scanOpenSessions(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]Session)
+	for _, sess := range all {
+		out[sess.UserID] = append(out[sess.UserID], sess)
+	}
+	return out, nil
+}

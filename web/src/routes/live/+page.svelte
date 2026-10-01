@@ -1,4 +1,6 @@
 <script lang="ts">
+	import PlatformBadge from '$lib/components/PlatformBadge.svelte';
+	import { playingGames } from '$lib/playing';
 	// Every match being played right now, one card each. The page only reads the
 	// shared live store: there is no snapshot to fetch and nothing to persist,
 	// so a page opened mid-match fills up with the next sample, half a second
@@ -133,10 +135,13 @@
 					<span class="flex-1 truncate text-sm font-semibold group-hover:text-[var(--color-brand-bright)]"
 						>{m.username}</span
 					>
-					{#if m.game.icon_url}
-						<img src={m.game.icon_url} alt="" class="pd-cut-sm h-5 w-5 shrink-0 object-cover" />
-					{/if}
-					<span class="truncate text-sm text-[var(--color-brand)]">{m.game.name}</span>
+					{#each playingGames(m) as p (p.game.id)}
+						{#if p.game.icon_url}
+							<img src={p.game.icon_url} alt="" class="pd-cut-sm h-5 w-5 shrink-0 object-cover" />
+						{/if}
+						<span class="truncate text-sm text-[var(--color-brand)]">{p.game.name}</span>
+						<PlatformBadge platform={p.platform} />
+					{/each}
 				</a>
 			</li>
 		{/each}
