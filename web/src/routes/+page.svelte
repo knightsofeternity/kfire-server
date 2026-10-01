@@ -1,4 +1,6 @@
 <script lang="ts">
+	import PlatformBadge from '$lib/components/PlatformBadge.svelte';
+	import { playingGames } from '$lib/playing';
 	import { presence } from '$lib/stores/presence.svelte';
 	import { timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
@@ -90,19 +92,15 @@
 							<StatusBadge status={entry.status} />
 						</div>
 						{#if entry.status === 'in_game' && entry.game}
-							<div class="mt-1 flex items-center gap-2">
-								{#if entry.game.icon_url}
-									<img src={entry.game.icon_url} alt="" class="h-5 w-5 pd-cut-sm" />
-								{/if}
-								<span class="truncate text-sm font-semibold text-[var(--color-brand)]">{entry.game.name}</span>
-								{#if entry.platform === 'playstation'}
-									<span class="shrink-0 border border-[#0070D1]/50 px-1 text-[10px] font-bold text-[#3d9bff]" title="PlayStation">PS</span>
-								{:else if entry.platform === 'nintendo'}
-									<span class="shrink-0 border border-[#E60012]/50 px-1 text-[10px] font-bold text-[#ff4d5a]" title="Nintendo Switch">NS</span>
-								{:else if entry.platform === 'xbox'}
-									<span class="shrink-0 border border-[#107C10]/50 px-1 text-[10px] font-bold text-[#3fbf3f]" title="Xbox">XB</span>
-								{/if}
-							</div>
+							{#each playingGames(entry) as p (p.game.id)}
+								<div class="mt-1 flex items-center gap-2">
+									{#if p.game.icon_url}
+										<img src={p.game.icon_url} alt="" class="h-5 w-5 pd-cut-sm" />
+									{/if}
+									<span class="truncate text-sm font-semibold text-[var(--color-brand)]">{p.game.name}</span>
+									<PlatformBadge platform={p.platform} />
+								</div>
+							{/each}
 							{#if entry.since}
 								<p class="mt-0.5 text-xs text-[var(--color-muted)]">{t('dashboard.since', { time: timeAgo(entry.since) })}</p>
 							{/if}

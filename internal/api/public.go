@@ -62,11 +62,15 @@ func (h *handlers) publicPresence(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	open, err := h.store.OpenSessionsByUser(c.Context())
+	if err != nil {
+		return err
+	}
 	entries := make([]fiber.Map, 0, len(rows))
 	for _, r := range rows {
 		online := h.hub.OnlineSince(r.UserID)
 		showGame := r.ActivityVisible // public viewer: only when the member opted in
-		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus, r.Source))
+		entries = append(entries, h.presenceEntry(r.UserID, r.Username, r.AvatarURL, r.Game, r.StartedAt, online, showGame, r.PresenceStatus, r.Source, open[r.UserID]))
 	}
 	return c.JSON(fiber.Map{"entries": entries})
 }

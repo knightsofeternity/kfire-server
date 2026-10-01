@@ -304,6 +304,9 @@ func (h *Hub) BroadcastPresence(ctx context.Context, u PresenceUser) {
 		if p := PlatformOf(sess.Source); p != "" {
 			entry["platform"] = p
 		}
+		if open, err := h.store.OpenSessionsForUser(ctx, u.ID); err == nil {
+			entry["games"] = GamesJSON(open, h.gameJSON)
+		}
 	} else if status == "online" && online != nil {
 		entry["since"] = online
 	}
@@ -880,4 +883,18 @@ func PlatformOf(source string) string {
 		return "nintendo"
 	}
 	return ""
+}
+
+// GamesJSON lists the games of open sessions, newest first, each with when it
+// started and the console it runs on (none for the desktop client).
+func GamesJSON[M ~map[string]any](open []store.Session, gameJSON func(store.Game) M) []map[string]any {
+	out := make([]map[string]any, 0, len(open))
+	for _, s := range open {
+		item := map[string]any{"game": gameJSON(s.Game), "since": s.StartedAt.UTC()}
+		if p := PlatformOf(s.Source); p != "" {
+			item["platform"] = p
+		}
+		out = append(out, item)
+	}
+	return out
 }
