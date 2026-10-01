@@ -71,4 +71,10 @@ func TestRealmKeyMeetsAcrossSources(t *testing.T) {
 	if wowClassName("DEATHKNIGHT") != "Death Knight" || wowClassName("PRIEST") != "Priest" {
 		t.Error("class tokens must read like Battle.net class names")
 	}
+	if wowClassName("SONOFARUGAL") != "Son of Arugal" || wowClassName("CHRONOMANCER") != "Chronomancer" {
+		t.Error("Ascension's own classes must read as names")
+	}
+	if wowClassName("LIGHTBRINGER") != "Lightbringer" || wowClassName("") != "" {
+		t.Error("an unknown class must read as a word, not a token")
+	}
 }
