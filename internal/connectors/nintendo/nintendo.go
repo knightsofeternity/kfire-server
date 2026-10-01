@@ -24,6 +24,10 @@ var (
 	ErrSessionRevoked = errors.New("nintendo: the bot's session token was revoked")
 	// ErrNotFound is an unknown friend code or a member who is not a friend.
 	ErrNotFound = errors.New("nintendo: not found")
+	// ErrRateLimited is Nintendo refusing a burst of calls, friend code
+	// lookups in particular (seen after a handful in a minute). Never retried
+	// automatically: the nxapi terms forbid it.
+	ErrRateLimited = errors.New("nintendo: rate limited")
 )
 
 // coralNotFound is Coral's "Resource not found", seen on 2026-10-01 for an
@@ -81,6 +85,9 @@ func (c *Client) call(ctx context.Context, session, url string, param, dst any) 
 		// or a member who is not, or no longer, the bot's friend.
 		if e.Data.Status == coralNotFound {
 			return ErrNotFound
+		}
+		if strings.Contains(strings.ToLower(e.ErrorMessage), "rate limit") {
+			return ErrRateLimited
 		}
 		return fmt.Errorf("nintendo: %s: HTTP %d: %s %s", url, resp.StatusCode, e.Error, e.ErrorMessage)
 	}
