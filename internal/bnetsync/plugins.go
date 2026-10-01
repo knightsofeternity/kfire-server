@@ -220,17 +220,36 @@ func (p *BnetProfilePlugin) UserGameDetail(ctx context.Context, userID string, g
 	return map[string]any{"bnet_profile": json.RawMessage(data)}, nil
 }
 
+// wowClassNames lists every class name the addon may report, Blizzard's and
+// Project Ascension's own (Conquest of Azeroth). The game's token is the name
+// in capitals without spaces ("SONOFARUGAL"), which is how they are matched.
+var wowClassNames = func() map[string]string {
+	names := []string{
+		"Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman",
+		"Mage", "Warlock", "Monk", "Druid", "Demon Hunter", "Evoker",
+		"Barbarian", "Bloodmage", "Chronomancer", "Cultist", "Felsworn", "Guardian",
+		"Knight of Xoroth", "Necromancer", "Primalist", "Prophet", "Pyromancer",
+		"Ranger", "Reaper", "Runemaster", "Son of Arugal", "Spiritmage",
+		"Starcaller", "Stormbringer", "Sun Cleric", "Templar", "Tinker",
+		"Venomancer", "Witch Doctor", "Witch Hunter",
+	}
+	m := make(map[string]string, len(names))
+	for _, n := range names {
+		m[strings.ToUpper(strings.ReplaceAll(n, " ", ""))] = n
+	}
+	return m
+}()
+
 // wowClassName turns the addon's class token ("DEATHKNIGHT") into the name
 // Battle.net cards use ("Death Knight"), which the page colours and iconises.
+// A class it does not know still reads as a word ("Lightbringer"), not a token.
 func wowClassName(token string) string {
-	names := map[string]string{
-		"WARRIOR": "Warrior", "PALADIN": "Paladin", "HUNTER": "Hunter", "ROGUE": "Rogue",
-		"PRIEST": "Priest", "DEATHKNIGHT": "Death Knight", "SHAMAN": "Shaman", "MAGE": "Mage",
-		"WARLOCK": "Warlock", "MONK": "Monk", "DRUID": "Druid", "DEMONHUNTER": "Demon Hunter",
-		"EVOKER": "Evoker",
-	}
-	if n, ok := names[strings.ToUpper(token)]; ok {
+	up := strings.ToUpper(token)
+	if n, ok := wowClassNames[up]; ok {
 		return n
 	}
-	return token
+	if up == "" {
+		return ""
+	}
+	return up[:1] + strings.ToLower(up[1:])
 }

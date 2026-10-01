@@ -28,9 +28,15 @@ export function wowClassColor(cls?: string): string {
 	return key ? WOW_CLASS_COLORS[key] : 'var(--color-muted)';
 }
 
-/** Returns the Wowhead class icon URL, or undefined if no class provided. */
+/**
+ * Returns the Wowhead class icon URL, or undefined if no class provided or the
+ * class is not one of Blizzard's (Project Ascension's own have no icon there).
+ */
 export function wowClassIcon(cls?: string): string | undefined {
 	if (!cls) return undefined;
+	if (!Object.keys(WOW_CLASS_COLORS).some((k) => k.toLowerCase() === cls.toLowerCase())) {
+		return undefined;
+	}
 	const slug = cls.toLowerCase().replace(/\s+/g, '');
 	return `https://wow.zamimg.com/images/wow/icons/large/classicon_${slug}.jpg`;
 }
