@@ -64,7 +64,7 @@ func TestNintendoBotAndFriendCode(t *testing.T) {
 	if b.SessionEnc != nil || b.LoginState == nil || *b.LoginState != "state-1" {
 		t.Fatalf("pending login: %+v", b)
 	}
-	if err := st.SetNintendoSession(ctx, []byte("sealed-s"), "KFIREKE", "nsa"); err != nil {
+	if err := st.SetNintendoSession(ctx, []byte("sealed-s"), "KFIREKE", "nsa", "0478-9405-4990"); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = st.GetNintendoBot(ctx)

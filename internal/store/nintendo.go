@@ -13,6 +13,7 @@ type NintendoBot struct {
 	SessionEnc       []byte
 	Nickname         *string
 	NsaID            *string
+	FriendCode       *string
 	Status           string
 	LastError        *string
 	SessionSetAt     *time.Time
@@ -26,9 +27,9 @@ type NintendoBot struct {
 func (s *Store) GetNintendoBot(ctx context.Context) (NintendoBot, error) {
 	var b NintendoBot
 	err := s.pool.QueryRow(ctx, `
-		SELECT session_enc, nickname, nsa_id, status, last_error, session_set_at, last_ok_at,
+		SELECT session_enc, nickname, nsa_id, friend_code, status, last_error, session_set_at, last_ok_at,
 		       login_state, login_verifier_enc, login_started_at
-		FROM nintendo_bot WHERE id = 1`).Scan(&b.SessionEnc, &b.Nickname, &b.NsaID, &b.Status,
+		FROM nintendo_bot WHERE id = 1`).Scan(&b.SessionEnc, &b.Nickname, &b.NsaID, &b.FriendCode, &b.Status,
 		&b.LastError, &b.SessionSetAt, &b.LastOKAt, &b.LoginState, &b.LoginVerifierEnc, &b.LoginStartedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return b, ErrNotFound
@@ -48,14 +49,14 @@ func (s *Store) StartNintendoLogin(ctx context.Context, state string, verifierEn
 
 // SetNintendoSession stores a proven session token and the bot's identity,
 // and forgets the pending login.
-func (s *Store) SetNintendoSession(ctx context.Context, sessionEnc []byte, nickname, nsaID string) error {
+func (s *Store) SetNintendoSession(ctx context.Context, sessionEnc []byte, nickname, nsaID, friendCode string) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO nintendo_bot (id, session_enc, nickname, nsa_id, status, session_set_at, last_ok_at)
-		VALUES (1, $1, $2, $3, 'ok', now(), now())
-		ON CONFLICT (id) DO UPDATE SET session_enc = $1, nickname = $2, nsa_id = $3, status = 'ok',
+		INSERT INTO nintendo_bot (id, session_enc, nickname, nsa_id, friend_code, status, session_set_at, last_ok_at)
+		VALUES (1, $1, $2, $3, $4, 'ok', now(), now())
+		ON CONFLICT (id) DO UPDATE SET session_enc = $1, nickname = $2, nsa_id = $3, friend_code = $4, status = 'ok',
 		    last_error = NULL, session_set_at = now(), last_ok_at = now(),
 		    login_state = NULL, login_verifier_enc = NULL, login_started_at = NULL`,
-		sessionEnc, nickname, nsaID)
+		sessionEnc, nickname, nsaID, friendCode)
 	return err
 }
 

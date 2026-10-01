@@ -32,6 +32,7 @@ CREATE TABLE nintendo_bot (
     session_enc        bytea,
     nickname           text,
     nsa_id             text,
+    friend_code        text,
     status             text        NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'needs_login')),
     last_error         text,
     session_set_at     timestamptz,

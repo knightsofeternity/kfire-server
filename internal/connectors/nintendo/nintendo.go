@@ -171,6 +171,28 @@ func (c *Client) DeleteFriend(ctx context.Context, session, nsaID string) error 
 	return c.call(ctx, session, "/v3/Friend/Delete", map[string]any{"nsaId": nsaID}, nil)
 }
 
+// Self is the bot's own Switch identity.
+type Self struct {
+	NsaID      string
+	Name       string
+	FriendCode string
+}
+
+// Me returns the bot's identity, friend code included.
+func (c *Client) Me(ctx context.Context, session string) (Self, error) {
+	var r struct {
+		NsaID string `json:"nsaId"`
+		Name  string `json:"name"`
+		Links struct {
+			FriendCode struct {
+				ID string `json:"id"`
+			} `json:"friendCode"`
+		} `json:"links"`
+	}
+	err := c.call(ctx, session, "/v4/User/ShowSelf", map[string]any{}, &r)
+	return Self{NsaID: r.NsaID, Name: r.Name, FriendCode: r.Links.FriendCode.ID}, err
+}
+
 // User is a Switch user found by friend code.
 type User struct {
 	NsaID    string `json:"nsaId"`
