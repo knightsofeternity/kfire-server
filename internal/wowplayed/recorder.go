@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -111,20 +112,78 @@ func accepted(raw json.RawMessage, now time.Time) ([]store.WowPlayed, error) {
 	return out, nil
 }
 
+// verdict is what to do with one character's new record.
+type verdict int
+
+const (
+	fresh      verdict = iota // first record, or a plausible rise
+	correction                // lower than stored: the stored figure was wrong
+	impossible                // rose faster than time passed: refused
+	stale                     // not newer than what is stored: ignored
+)
+
+// slack absorbs the seconds between the game's reply and the record's time.
+const slack = 10 * time.Minute
+
+// judge compares a record with the stored one. /played grows at most as fast
+// as the clock between two records; a file that says otherwise was damaged on
+// the member's machine (it happened: two digits appended, then moved to
+// another character) and must not inflate anyone's hours.
+func judge(prev *store.WowPlayedPrevious, c store.WowPlayed) verdict {
+	if prev == nil {
+		return fresh
+	}
+	if !c.RecordedAt.After(prev.RecordedAt) {
+		return stale
+	}
+	rise := time.Duration(c.PlayedSeconds-prev.PlayedSeconds) * time.Second
+	switch {
+	case rise > c.RecordedAt.Sub(prev.RecordedAt)+slack:
+		return impossible
+	case rise < 0:
+		return correction
+	}
+	return fresh
+}
+
 // Record stores the characters, then the edition's total as the member's
 // platform playtime: baseline plus later sessions, like Steam, so the hours
 // the client tracks after the snapshot add up without being counted twice.
+// When a character comes back lower, the old total was wrong and is replaced
+// rather than kept as a floor.
 func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
 	chars, err := accepted(raw, time.Now())
 	if err != nil {
 		return err
 	}
-	if err := r.st.UpsertWowPlayed(ctx, userID, gameID, chars); err != nil {
-		return err
+	corrected := false
+	for _, c := range chars {
+		prev, err := r.st.WowPlayedPrevious(ctx, userID, gameID, c)
+		if err != nil {
+			return err
+		}
+		switch judge(prev, c) {
+		case stale:
+			continue
+		case impossible:
+			slog.Warn("wowplayed: impossible rise refused", "user_id", userID, "slug", r.slug,
+				"name", c.Name, "realm", c.RealmNorm, "stored", prev.PlayedSeconds, "got", c.PlayedSeconds)
+			continue
+		case correction:
+			slog.Info("wowplayed: character corrected downwards", "user_id", userID, "slug", r.slug,
+				"name", c.Name, "realm", c.RealmNorm, "stored", prev.PlayedSeconds, "got", c.PlayedSeconds)
+			corrected = true
+		}
+		if err := r.st.UpsertWowPlayed(ctx, userID, gameID, c); err != nil {
+			return err
+		}
 	}
 	total, err := r.st.WowPlayedTotal(ctx, userID, gameID)
 	if err != nil {
 		return err
+	}
+	if corrected {
+		return r.st.SetExternalPlaytime(ctx, userID, provider, gameID, total)
 	}
 	return r.st.UpsertExternalPlaytime(ctx, userID, provider, gameID, total)
 }
