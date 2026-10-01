@@ -243,3 +243,40 @@ adopting the PC game of the same normalized name (trademark signs, platform and
 language tails removed), so console hours add to the PC game. `psn_titles` maps
 every title id to its game, since presence only names a title id. Trophy lists
 never create a game: they join one by name or wait.
+
+## The Nintendo bot
+
+Like PlayStation, one bot account per instance that members befriend
+(`internal/connectors/nintendo`, `internal/nintendosync`). A member types their
+Switch friend code; the poller accepts friend requests only from linked
+members, then reads every friend's presence in one call (`/v4/Friend/List`) and
+each member's play history (`/v4/User/PlayLog/Show`, minutes per game, since the
+first play). Nintendo has no achievements.
+
+**The sidecar.** The Nintendo Switch Online app's API needs an "f" token computed
+outside Nintendo, and encrypted requests. Both are provided by nxapi and its
+public f-generation API, which the `nxapi` service of the compose files runs
+(`deploy/nxapi`, pinned version). The Go server reaches it on the internal
+network only, through `POST /api/znc/call`. When a Nintendo app update breaks
+the pinned nxapi, bump the version in `deploy/nxapi/Dockerfile` and redeploy.
+
+**Credentials.** Each instance registers its own OAuth client on
+nxapi-auth.fancy.org.uk (scopes `ca:gf ca:er ca:dr`). nxapi-auth issues a shared
+secret, not a client secret: the sidecar's entrypoint signs an HS256 client
+assertion with it at every start (`KFIRE_NXAPI_CLIENT_ID`,
+`KFIRE_NXAPI_SHARED_SECRET`). The bot's Nintendo session token is the instance's
+other secret: an admin logs the bot in from Admin > Nintendo (PKCE flow of the
+app, the npf link is pasted back), it is proven through the sidecar before being
+stored sealed. `invalid_grant` marks the bot `needs_login` and the poller stops.
+
+**Terms.** The nxapi API terms require a free service, an identifying
+User-Agent, cached tokens, no automatic retry and a single automated request at
+a time: the poller runs every call sequentially and never retries. The member
+card says that presence and play history pass through nxapi.
+
+**Catalog.** A Switch game is known by its eShop title id (Switch 2 editions have
+their own). `nintendo_titles` maps it to a catalog game, adopting the PC game of
+the same normalized name (`internal/gametitle`, shared with PlayStation: "for
+Nintendo Switch", "Édition Essentielle"... are removed), so console hours add up
+with PC hours. A member's friend code is shown on their profile to other members,
+never through the public API.
