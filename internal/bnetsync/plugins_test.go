@@ -22,7 +22,7 @@ func TestWowPluginMetadata(t *testing.T) {
 	if p.Available() {
 		t.Fatalf("wow should be unavailable with empty bnet creds")
 	}
-	want := map[string]bool{"world-of-warcraft": true, "world-of-warcraft-classic": true}
+	want := map[string]bool{"world-of-warcraft": true, "world-of-warcraft-classic": true, "world-of-warcraft-forever": true, "wow-ascension": true}
 	for _, s := range p.Slugs() {
 		if !want[s] {
 			t.Fatalf("unexpected slug %q", s)
@@ -53,5 +53,22 @@ func TestBnetProfilePluginMetadata(t *testing.T) {
 	}
 	if !d3.Available() {
 		t.Fatalf("d3 should be available with creds")
+	}
+}
+
+// A Battle.net realm and the addon's realm must meet: slug, display name and
+// the addon's name differ in case, quotes and spaces.
+func TestRealmKeyMeetsAcrossSources(t *testing.T) {
+	addon := realmKey("Cho'gall", "Ouranos")
+	for _, bnet := range [][2]string{{"chogall", "Ouranos"}, {"Cho'gall", "ouranos"}, {"Cho’gall", "OURANOS"}} {
+		if got := realmKey(bnet[0], bnet[1]); got != addon {
+			t.Errorf("realmKey(%q, %q) = %q, want %q", bnet[0], bnet[1], got, addon)
+		}
+	}
+	if realmKey("Confrérie du Thorium", "X") != realmKey("ConfrérieduThorium", "x") {
+		t.Error("spaces must not matter")
+	}
+	if wowClassName("DEATHKNIGHT") != "Death Knight" || wowClassName("PRIEST") != "Priest" {
+		t.Error("class tokens must read like Battle.net class names")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/connectors/battlenet"
@@ -28,7 +29,9 @@ func (p *WowPlugin) Name() string      { return "World of Warcraft" }
 func (p *WowPlugin) Connector() string { return "battlenet" }
 func (p *WowPlugin) Available() bool   { return p.conn.Enabled() }
 func (p *WowPlugin) Slugs() []string {
-	return []string{"world-of-warcraft", "world-of-warcraft-classic"}
+	// Forever and Ascension have no Battle.net profile, but their /played
+	// comes from the KFire addon and shows on the same character cards.
+	return []string{"world-of-warcraft", "world-of-warcraft-classic", "world-of-warcraft-forever", "wow-ascension"}
 }
 
 func (p *WowPlugin) Refresh(ctx context.Context, userID, gameSlug string) {
@@ -70,12 +73,33 @@ func (p *WowPlugin) GameDetail(ctx context.Context, _ string, g store.Game) (map
 	return map[string]any{"wow_characters": cards, "wow_synced_at": synced}, nil
 }
 
-// UserGameDetail returns one member's wow_characters block.
+// realmKey compares a Battle.net realm (slug "chogall", name "Cho'gall")
+// with the addon's ("Cho'gall"): lowercase, without spaces, quotes or dashes.
+func realmKey(realm, name string) string {
+	r := strings.NewReplacer(" ", "", "'", "", "-", "", "’", "").Replace(strings.ToLower(realm))
+	return r + "/" + strings.ToLower(name)
+}
+
+// UserGameDetail returns one member's wow_characters block: the Battle.net
+// characters, each with its /played when the KFire addon recorded it, and the
+// characters only the addon knows (Forever, Ascension, or a character
+// Blizzard no longer indexes).
 func (p *WowPlugin) UserGameDetail(ctx context.Context, userID string, g store.Game) (map[string]any, error) {
 	chars, err := p.st.WowCharactersForUserGame(ctx, userID, g.ID)
-	// No characters: omit the block entirely (the per-user page only shows it when populated), unlike the aggregate GameDetail which always returns an empty list + sync timestamp.
-	if err != nil || len(chars) == 0 {
+	if err != nil {
 		return nil, err
+	}
+	played, err := p.st.WowPlayedForUserGame(ctx, userID, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	// No characters at all: omit the block entirely (the per-user page only shows it when populated), unlike the aggregate GameDetail which always returns an empty list + sync timestamp.
+	if len(chars) == 0 && len(played) == 0 {
+		return nil, nil
+	}
+	playedBy := make(map[string]store.WowPlayed, len(played))
+	for _, c := range played {
+		playedBy[realmKey(c.Realm, c.Name)] = c
 	}
 	cards := make([]map[string]any, len(chars))
 	for i, ch := range chars {
@@ -98,10 +122,41 @@ func (p *WowPlugin) UserGameDetail(ctx context.Context, userID string, g store.G
 		// False means its profile answers 404, which happens to characters left
 		// unplayed; the page says so instead of showing an empty list.
 		m["has_achievements"] = ch.HasAchievements
+		for _, key := range []string{realmKey(ch.RealmSlug, ch.Name), realmKey(ch.RealmName, ch.Name)} {
+			if c, ok := playedBy[key]; ok {
+				m["played_seconds"] = c.PlayedSeconds
+				delete(playedBy, key)
+				break
+			}
+		}
 		cards[i] = m
 	}
+	// Characters only the addon knows, in the order of their /played.
+	for _, c := range played {
+		if _, still := playedBy[realmKey(c.Realm, c.Name)]; !still {
+			continue
+		}
+		m := map[string]any{
+			"name": c.Name, "realm": c.Realm, "played_seconds": c.PlayedSeconds,
+			"item_level": 0, "has_achievements": false, "addon_only": true,
+		}
+		if c.Class != nil {
+			m["class"] = wowClassName(*c.Class)
+		}
+		if c.Level != nil {
+			m["level"] = *c.Level
+		}
+		if g.Slug == "world-of-warcraft" {
+			m["version"] = "retail"
+		}
+		cards = append(cards, m)
+	}
 
-	out := map[string]any{"wow_characters": cards, "wow_synced_at": chars[0].LastSyncedAt}
+	out := map[string]any{"wow_characters": cards}
+	if len(chars) == 0 {
+		return out, nil
+	}
+	out["wow_synced_at"] = chars[0].LastSyncedAt
 
 	// A Battle.net token lasts 24 hours and Blizzard issues no refresh token,
 	// so a member's characters freeze the day after they link. Saying nothing
@@ -163,4 +218,19 @@ func (p *BnetProfilePlugin) UserGameDetail(ctx context.Context, userID string, g
 		return nil, err
 	}
 	return map[string]any{"bnet_profile": json.RawMessage(data)}, nil
+}
+
+// wowClassName turns the addon's class token ("DEATHKNIGHT") into the name
+// Battle.net cards use ("Death Knight"), which the page colours and iconises.
+func wowClassName(token string) string {
+	names := map[string]string{
+		"WARRIOR": "Warrior", "PALADIN": "Paladin", "HUNTER": "Hunter", "ROGUE": "Rogue",
+		"PRIEST": "Priest", "DEATHKNIGHT": "Death Knight", "SHAMAN": "Shaman", "MAGE": "Mage",
+		"WARLOCK": "Warlock", "MONK": "Monk", "DRUID": "Druid", "DEMONHUNTER": "Demon Hunter",
+		"EVOKER": "Evoker",
+	}
+	if n, ok := names[strings.ToUpper(token)]; ok {
+		return n
+	}
+	return token
 }

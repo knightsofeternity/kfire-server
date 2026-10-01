@@ -336,12 +336,19 @@
 										{ch.name}{#if ch.realm}<span class="text-[var(--color-muted)]"> - {ch.realm}</span>{/if}
 									</p>
 									<p class="text-sm text-[var(--color-muted)]">
-										{#if ch.level}{t('game.level')} {ch.level} &middot; {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.race || ch.class} &middot; {/if}{t('game.ilvl')} {ch.item_level}{#if ch.mythic_rating} &middot; M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} &middot; {t('game.achievementPoints')} {ch.achievement_points}{/if}
+										{#if ch.level}{t('game.level')} {ch.level} &middot; {/if}{ch.race ?? ''}{ch.race && ch.class ? ' ' : ''}<span style="color: {wowClassColor(ch.class)}">{ch.class ?? ''}</span>{#if ch.item_level > 0}{#if ch.race || ch.class} &middot; {/if}{t('game.ilvl')} {ch.item_level}{/if}{#if ch.mythic_rating} &middot; M+ {Math.round(ch.mythic_rating)}{/if}{#if ch.achievement_points} &middot; {t('game.achievementPoints')} {ch.achievement_points}{/if}
 									</p>
+									{#if ch.played_seconds}
+										<p class="text-sm font-semibold text-[var(--color-brand-bright)]" title={t('game.wowPlayedHint')}>
+											/played {formatDuration(ch.played_seconds)}
+										</p>
+									{/if}
 								</div>
 								<!-- No list on file means Blizzard never gave one, which an empty
 								     panel would pass off as a character without achievements. -->
-								{#if !ch.has_achievements}
+								{#if ch.addon_only}
+									<!-- No Battle.net profile: nothing to list, and nothing to excuse. -->
+								{:else if !ch.has_achievements}
 									<span class="ml-auto shrink-0 px-2 py-1 text-xs text-[var(--color-muted)]/70">
 										{t('game.wowNoAchievements')}
 									</span>

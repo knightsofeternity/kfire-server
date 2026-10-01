@@ -248,6 +248,7 @@ export const en = {
 		wowLinkExpired:
 			'The Battle.net link has expired: a Blizzard token lasts 24 hours and cannot be renewed, so the list below has not moved since.',
 		wowRelink: 'Link the Battle.net account',
+		wowPlayedHint: 'Time played, read in game by the KFire addon',
 		wowNoAchievements: 'Achievements unavailable',
 		wowAchievementsGoneNote:
 			'Blizzard stops serving the profile of characters left aside: their achievements come back as soon as they are played again.',
