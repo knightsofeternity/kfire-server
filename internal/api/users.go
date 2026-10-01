@@ -144,6 +144,14 @@ func (h *handlers) userProfile(c *fiber.Ctx) error {
 	connections := make([]fiber.Map, len(linked))
 	for i, a := range linked {
 		connections[i] = connectionJSON(a)
+		// On a Switch, friends add each other by code. Shown to members on
+		// the profile only: connectionJSON is also the public API's shape,
+		// and a friend code there would let anyone send requests.
+		if a.Provider == "nintendo" {
+			if fc, err := h.store.NintendoFriendCode(c.Context(), id); err == nil && fc != "" {
+				connections[i]["friend_code"] = "SW-" + fc
+			}
+		}
 	}
 
 	achievements, err := h.store.RecentAchievements(c.Context(), id, 24)

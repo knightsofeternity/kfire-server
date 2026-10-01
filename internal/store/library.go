@@ -22,6 +22,8 @@ func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, err
 			UNION
 			SELECT game_id, 'psn'         FROM external_playtime WHERE user_id = $1 AND provider = 'psn'
 			UNION
+			SELECT game_id, 'nintendo'    FROM external_playtime WHERE user_id = $1 AND provider = 'nintendo'
+			UNION
 			SELECT game_id, 'battlenet'   FROM bnet_wow_characters WHERE user_id = $1
 			UNION
 			SELECT game_id, 'battlenet'   FROM bnet_game_profile   WHERE user_id = $1
@@ -32,6 +34,7 @@ func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, err
 		       CASE WHEN bool_or(o.source = 'battlenet') THEN 'battlenet'
 		            WHEN bool_or(o.source = 'steam')     THEN 'steam'
 		            WHEN bool_or(o.source = 'psn')       THEN 'psn'
+		            WHEN bool_or(o.source = 'nintendo')  THEN 'nintendo'
 		            ELSE 'played' END AS source
 		FROM owned o JOIN games g ON g.id = o.game_id
 		GROUP BY g.id, g.name, g.slug, g.icon_url, g.cover_url
