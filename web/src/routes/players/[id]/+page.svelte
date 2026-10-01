@@ -12,6 +12,17 @@
 	let nextCursor = $state<string | undefined>(undefined);
 	let loading = $state(true);
 	let error = $state('');
+	// A Switch friend code is copied to be typed into a Switch: show it worked.
+	let copiedCode = $state('');
+	async function copyFriendCode(code: string) {
+		try {
+			await navigator.clipboard.writeText(code);
+			copiedCode = code;
+			setTimeout(() => (copiedCode = ''), 1500);
+		} catch {
+			/* clipboard refused: the code stays readable on screen */
+		}
+	}
 	let loadingMore = $state(false);
 
 	let achievements = $state<Achievement[]>([]);
@@ -78,6 +89,11 @@
 			label: 'Battle.net',
 			color: '#148EFF',
 			path: 'M18.94 8.296C15.9 6.892 11.534 6 7.426 6.332c.206-1.36.714-2.308 1.548-2.508 1.148-.275 2.4.48 3.594 1.854.782.102 1.71.28 2.355.429C12.747 2.013 9.828-.282 7.607.565c-1.688.644-2.553 2.97-2.448 6.094-2.2.468-3.915 1.3-5.013 2.495-.056.065-.181.227-.137.305.034.058.146-.008.194-.04 1.274-.89 2.904-1.373 5.027-1.676.303 3.333 1.713 7.56 4.055 10.952-1.28.502-2.356.536-2.946-.087-.812-.856-.784-2.318-.19-4.04a26.764 26.764 0 0 1-.807-2.254c-2.459 3.934-2.986 7.61-1.143 9.11 1.402 1.14 3.847.725 6.502-.926 1.505 1.672 3.083 2.74 4.667 3.094.084.015.287.043.332-.034.034-.06-.08-.124-.131-.149-1.408-.657-2.64-1.828-3.964-3.515 2.735-1.929 5.691-5.263 7.457-8.988 1.076.86 1.64 1.773 1.398 2.595-.336 1.131-1.615 1.84-3.403 2.185a27.697 27.697 0 0 1-1.548 1.826c4.634.16 8.08-1.22 8.458-3.565.286-1.786-1.295-3.696-4.053-5.17.696-2.139.832-4.04.346-5.588-.029-.08-.106-.27-.196-.27-.068 0-.067.13-.063.187.135 1.547-.263 3.2-1.062 5.19zm-8.533 9.869c-1.96-3.145-3.09-6.849-3.082-10.594 3.702-.124 7.474.748 10.714 2.627-1.743 3.269-4.385 6.1-7.633 7.966h.001z'
+		},
+		nintendo: {
+			label: 'Nintendo Switch',
+			color: '#E60012',
+			path: 'M14.176 24h3.674c3.376 0 6.15-2.774 6.15-6.15V6.15C24 2.775 21.226 0 17.85 0H14.1c-.074 0-.15.074-.15.15v23.7c-.001.076.075.15.226.15zm4.574-13.199c1.351 0 2.399 1.125 2.399 2.398 0 1.352-1.125 2.4-2.399 2.4-1.35 0-2.4-1.049-2.4-2.4-.075-1.349 1.05-2.398 2.4-2.398zM11.4 0H6.15C2.775 0 0 2.775 0 6.15v11.7C0 21.226 2.775 24 6.15 24h5.25c.074 0 .15-.074.15-.149V.15c.001-.076-.075-.15-.15-.15zM9.676 22.051H6.15c-2.326 0-4.201-1.875-4.201-4.201V6.15c0-2.326 1.875-4.201 4.201-4.201H9.6l.076 20.102zM3.75 7.199c0 1.275.975 2.25 2.25 2.25s2.25-.975 2.25-2.25c0-1.273-.975-2.25-2.25-2.25s-2.25.977-2.25 2.25z'
 		},
 		psn: {
 			label: 'PlayStation',
@@ -221,6 +237,16 @@
 						{#if conn.display_name}
 							<span class="text-[var(--color-muted)]">- {conn.display_name}</span>
 						{/if}
+						{#if conn.friend_code}
+							<span class="font-mono text-[var(--color-text)]">· {conn.friend_code}</span>
+							<button
+								type="button"
+								class="text-xs text-[var(--color-muted)] underline hover:text-[var(--color-text)]"
+								onclick={() => copyFriendCode(conn.friend_code ?? '')}
+							>
+								{copiedCode === conn.friend_code ? t('profile.copied') : t('profile.copyFriendCode')}
+							</button>
+						{/if}
 					</div>
 				{/if}
 			{/each}
@@ -295,6 +321,8 @@
 									? { label: 'Battle.net', color: '#148EFF', bg: 'rgba(20,142,255,0.15)' }
 									: entry.source === 'psn'
 										? { label: 'PlayStation', color: '#3d9bff', bg: 'rgba(0,112,209,0.15)' }
+										: entry.source === 'nintendo'
+											? { label: 'Nintendo Switch', color: '#ff4d5a', bg: 'rgba(230,0,18,0.15)' }
 									: { label: t('profile.playedBadge'), color: 'var(--color-muted)', bg: 'var(--color-surface-2)' }}
 						<a
 							href="/players/{id}/games/{entry.game.slug}"

@@ -85,9 +85,11 @@ func (s *Store) UpsertPsnGame(ctx context.Context, conceptID string, titleIDs []
 		Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = s.pool.QueryRow(ctx, `
-			UPDATE games SET psn_concept_id = $1
+			UPDATE games SET psn_concept_id = $1,
+			    -- A catalog game without an icon takes the store's cover.
+			    icon_url = COALESCE(icon_url, NULLIF($3, ''))
 			WHERE id = (SELECT id FROM games WHERE slug = $2 AND psn_concept_id IS NULL LIMIT 1)
-			RETURNING id, name, slug, icon_url`, conceptID, psnSlug(normalizedName)).
+			RETURNING id, name, slug, icon_url`, conceptID, psnSlug(normalizedName), imageURL).
 			Scan(&g.ID, &g.Name, &g.Slug, &g.IconURL)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -100,6 +102,14 @@ func (s *Store) UpsertPsnGame(ctx context.Context, conceptID string, titleIDs []
 	}
 	if err != nil {
 		return g, err
+	}
+	// A game adopted earlier without an icon, or created from presence, gets
+	// one as soon as the library brings a cover.
+	if g.IconURL == nil && imageURL != "" {
+		if _, err := s.pool.Exec(ctx, `UPDATE games SET icon_url = $2 WHERE id = $1 AND icon_url IS NULL`, g.ID, imageURL); err != nil {
+			return g, err
+		}
+		g.IconURL = &imageURL
 	}
 	for _, t := range titleIDs {
 		if _, err := s.pool.Exec(ctx, `

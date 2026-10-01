@@ -1,6 +1,7 @@
 package psn
 
 import (
+	"github.com/knightsofeternity/kfire-server/internal/gametitle"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,31 +30,6 @@ func ParseDuration(s string) int64 {
 	return n(1)*86400 + n(2)*3600 + n(3)*60 + n(4)
 }
 
-var (
-	trademarks = strings.NewReplacer("®", "", "™", "", "©", "")
-	// Platform tails Sony appends to a store name, never part of the game's.
-	platformTail = regexp.MustCompile(`(?i)\s*(?:[-:]\s*)?(?:PS4\s*(?:&|and|/)\s*PS5|PS5\s*(?:&|and|/)\s*PS4|PlayStation\s*4\s*Edition|PlayStation4\s*Edition|PS[45](?:\s*Version)?)\s*$`)
-	spaces       = regexp.MustCompile(`\s+`)
-	// Language tags of regional store releases: "(Français)", "(Deutsch)",
-	// "(English/Chinese/Korean/Japanese Ver.)". A year in brackets is part of
-	// the name ("Hitman (2016)") and is kept.
-	languageTail = regexp.MustCompile(`(?i)\s*\((?:[^()]*\bVer\.?|Fran[cç]ais|French|English|Deutsch|German|Espa[nñ]ol|Spanish|Italiano|Italian|Portugu[eê]s|Portuguese|Nederlands|Polski|Русский|日本語|中文|한국어)\)\s*$`)
-)
-
-// NormalizeTitle strips what makes the same game read differently on the
-// PlayStation Store and elsewhere: trademark signs and platform tails. Its
-// result is only ever slugged to find a catalog game, never shown.
-func NormalizeTitle(name string) string {
-	s := trademarks.Replace(name)
-	s = spaces.ReplaceAllString(strings.TrimSpace(s), " ")
-	for {
-		t := strings.TrimSpace(platformTail.ReplaceAllString(s, ""))
-		t = strings.TrimSpace(languageTail.ReplaceAllString(t, ""))
-		t = strings.TrimRight(t, " :-")
-		if t == s || t == "" {
-			break
-		}
-		s = t
-	}
-	return s
-}
+// NormalizeTitle reduces a PlayStation Store name to the catalog's name. The
+// rules are shared with the other stores, see internal/gametitle.
+func NormalizeTitle(name string) string { return gametitle.Normalize(name) }

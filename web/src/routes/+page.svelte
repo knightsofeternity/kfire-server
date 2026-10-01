@@ -97,6 +97,8 @@
 								<span class="truncate text-sm font-semibold text-[var(--color-brand)]">{entry.game.name}</span>
 								{#if entry.platform === 'playstation'}
 									<span class="shrink-0 border border-[#0070D1]/50 px-1 text-[10px] font-bold text-[#3d9bff]" title="PlayStation">PS</span>
+								{:else if entry.platform === 'nintendo'}
+									<span class="shrink-0 border border-[#E60012]/50 px-1 text-[10px] font-bold text-[#ff4d5a]" title="Nintendo Switch">NS</span>
 								{:else if entry.platform === 'xbox'}
 									<span class="shrink-0 border border-[#107C10]/50 px-1 text-[10px] font-bold text-[#3fbf3f]" title="Xbox">XB</span>
 								{/if}

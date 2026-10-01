@@ -205,6 +205,8 @@ export const en = {
 		loadingMore: 'Loading...',
 		allOwnedGames: 'See all games',
 		playedBadge: 'Played',
+		copyFriendCode: 'Copy friend code',
+		copied: 'Copied!',
 		ownedFrom: 'via {source}'
 	},
 	game: {
@@ -467,6 +469,37 @@ export const en = {
 			submit: 'Link account',
 			unlink: 'Unlink',
 			trust: 'KFIRE does not verify that you own this account, it only checks that the Riot ID exists and is not already linked to another member.'
+		},
+		nintendo: {
+			title: 'Nintendo Switch',
+			blurb:
+				'Link your Switch so KFIRE sees what you play live and imports your whole playtime, game by game, history included.',
+			codeLabel: 'Your friend code',
+			codePlaceholder: 'SW-1234-5678-9012',
+			submit: 'Link Switch',
+			unlink: 'Unlink',
+			sync: 'Sync now',
+			synced: 'Sync started.',
+			addFriend:
+				'Last step: from your Switch, add {bot} as a friend (code {code}). KFIRE accepts your request on its own within a minute.',
+			settings:
+				'On the Switch, in your user settings, set “Display online status” and “Display play activity” to Friends.',
+			connected: 'Connected: the bot {bot} is your friend.',
+			thirdParty:
+				'Nintendo has no public API: KFIRE goes through the nxapi service, which sees your presence and play history pass through.',
+			keepsHistory:
+				'Unlinking stops the collection and ends the bot’s friendship; the playtime already imported stays.',
+			errors: {
+				invalidCode: 'Enter your friend code, as SW-1234-5678-9012.',
+				notFound: 'Nintendo does not know this friend code. Check it on your Switch.',
+				unavailable: 'Nintendo did not answer. Try again in a moment.',
+				busy: 'Nintendo asks to slow down. Try again in a few minutes.',
+				alreadyLinked: 'This Nintendo account is already linked to another member.',
+				disabled: 'The Nintendo connector is not configured on this instance.',
+				botDown: 'The Nintendo bot must be logged in again by an admin.',
+				notFriend: 'Add the bot as a friend on your Switch first.',
+				rateLimited: 'Too many attempts. Wait a minute and try again.'
+			}
 		},
 		psn: {
 			title: 'PlayStation',

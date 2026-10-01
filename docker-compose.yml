@@ -19,6 +19,9 @@ services:
       KFIRE_PUBG_API_KEY: ${KFIRE_PUBG_API_KEY:-}
       KFIRE_PSN_NPSSO: ${KFIRE_PSN_NPSSO:-}
       KFIRE_PSN_POLL_INTERVAL: ${KFIRE_PSN_POLL_INTERVAL:-1m}
+      KFIRE_NXAPI_URL: ${KFIRE_NXAPI_URL:-http://nxapi:8080}
+      KFIRE_NINTENDO_SESSION_TOKEN: ${KFIRE_NINTENDO_SESSION_TOKEN:-}
+      KFIRE_NINTENDO_POLL_INTERVAL: ${KFIRE_NINTENDO_POLL_INTERVAL:-1m}
       KFIRE_BREVO_API_KEY: ${KFIRE_BREVO_API_KEY:-}
       KFIRE_MAIL_FROM: ${KFIRE_MAIL_FROM:-}
       KFIRE_MAIL_FROM_NAME: ${KFIRE_MAIL_FROM_NAME:-}
@@ -61,6 +64,20 @@ services:
       retries: 10
     networks: [internal]
 
+  # Nintendo connector sidecar (deploy/nxapi). Reachable by the server only:
+  # no published port. Idle until KFIRE_NXAPI_CLIENT_ID and
+  # KFIRE_NXAPI_SHARED_SECRET are set (client registered on nxapi-auth).
+  nxapi:
+    build: ./deploy/nxapi
+    restart: unless-stopped
+    environment:
+      KFIRE_NXAPI_CLIENT_ID: ${KFIRE_NXAPI_CLIENT_ID:-}
+      KFIRE_NXAPI_SHARED_SECRET: ${KFIRE_NXAPI_SHARED_SECRET:-}
+      NXAPI_USER_AGENT: kfire/1.0 (+https://kfire.io)
+    volumes:
+      - nxapi-data:/data
+    networks: [internal]
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -80,6 +97,7 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  nxapi-data:
   caddy-data:
   caddy-config:
 

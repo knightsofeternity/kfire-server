@@ -291,6 +291,28 @@ export type RlPlayer = {
  * `rlModeLabel`). It is kept here only in case it is ever populated; it must
  * never be rendered to a member, since it is an internal Psyonix identifier.
  */
+/** A member's Nintendo Switch link, as the account card needs it. */
+export type NintendoStatus = {
+	linked: boolean;
+	nickname?: string;
+	friend_code?: string;
+	/** Whether the bot is already the member's friend on the Switch. */
+	friend?: boolean;
+	bot: { nickname: string; friend_code: string };
+};
+
+/** The instance's Nintendo bot, for the admin page. Never a token. */
+export type NintendoBotStatus = {
+	enabled: boolean;
+	configured: boolean;
+	status?: 'ok' | 'needs_login';
+	nickname?: string;
+	friend_code?: string;
+	last_error?: string;
+	session_set_at?: string;
+	last_ok_at?: string;
+};
+
 /** A member's PlayStation link, as the account card needs it. */
 export type PsnStatus = {
 	linked: boolean;
@@ -674,7 +696,7 @@ export type PresenceEntry = {
 	game?: Game | null;
 	since?: string;
 	/** Set when the game runs on a console the server watches, absent for the desktop client. */
-	platform?: 'playstation' | 'xbox';
+	platform?: 'playstation' | 'xbox' | 'nintendo';
 	/** The match in progress, when the server holds one. Present only on a
 	 *  snapshot, never on a `presence_update`: live changes travel on their own
 	 *  `live_match` events. */
@@ -706,6 +728,8 @@ export type Connection = {
 	profile_url?: string;
 	linked_at: string;
 	scopes?: string[];
+	/** A Switch friend code ("SW-…"), shown to members on the profile only. */
+	friend_code?: string;
 };
 
 export type Achievement = {
@@ -1024,6 +1048,50 @@ export const api = {
 		return json(res);
 	},
 
+	/** The member's Nintendo link, or null when the instance has no bot. */
+	async getNintendo(): Promise<NintendoStatus | null> {
+		const res = await authFetch('/api/v1/connect/nintendo').catch((e) => {
+			if (e instanceof ApiError && e.code === 'connector_disabled') return null;
+			throw e;
+		});
+		return res ? json(res) : null;
+	},
+
+	async linkNintendo(friendCode: string): Promise<{ nickname: string; friend_code: string }> {
+		const res = await authFetch('/api/v1/connect/nintendo', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ friend_code: friendCode })
+		});
+		return json(res);
+	},
+
+	async unlinkNintendo(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/nintendo', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	async syncNintendo(): Promise<void> {
+		await authFetch('/api/v1/connect/nintendo/sync', { method: 'POST' });
+	},
+
+	async getNintendoBot(): Promise<NintendoBotStatus> {
+		return json(await authFetch('/api/v1/admin/nintendo'));
+	},
+
+	async startNintendoLogin(): Promise<{ url: string }> {
+		return json(await authFetch('/api/v1/admin/nintendo/login', { method: 'POST' }));
+	},
+
+	async finishNintendoLogin(link: string): Promise<NintendoBotStatus> {
+		const res = await authFetch('/api/v1/admin/nintendo', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ link })
+		});
+		return json(res);
+	},
+
 	async unlinkPubg(): Promise<void> {
 		const res = await authFetch('/api/v1/connect/pubg', { method: 'DELETE' });
 		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
@@ -1184,7 +1252,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
-	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean };
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean; nintendo?: boolean };
 	/** A member can get a reset link by email from the sign-in screen. */
 	password_reset_self_service?: boolean;
 }> {

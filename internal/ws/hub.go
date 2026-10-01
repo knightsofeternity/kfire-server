@@ -876,6 +876,8 @@ func PlatformOf(source string) string {
 		return "playstation"
 	case "xbox_api":
 		return "xbox"
+	case "nintendo_api":
+		return "nintendo"
 	}
 	return ""
 }

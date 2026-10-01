@@ -16,6 +16,7 @@ import (
 
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/nintendo"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/psn"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/xbox"
@@ -24,6 +25,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/livestate"
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
+	"github.com/knightsofeternity/kfire-server/internal/nintendosync"
 	"github.com/knightsofeternity/kfire-server/internal/psnsync"
 	"github.com/knightsofeternity/kfire-server/internal/pubgsync"
 	"github.com/knightsofeternity/kfire-server/internal/riotsync"
@@ -152,7 +154,20 @@ func main() {
 	psnSync := psnsync.New(st, psnBot, hub, nil) // presence func set by api.Register
 	go psnSync.Run(pollCtx, cfg.PsnPollInterval)
 
-	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher, psnSync)
+	// Nintendo connector: one bot per instance, read through the nxapi
+	// sidecar (KFIRE_NXAPI_URL). Dormant without a sidecar or a logged-in bot.
+	nintendoBot := nintendosync.NewBot(st, nintendo.New(cfg.NxapiURL), nintendo.NewAccounts(), cipher)
+	if cfg.NintendoSessionToken != "" && nintendoBot.Enabled() && !nintendoBot.Configured(context.Background()) {
+		if err := nintendoBot.SetSession(context.Background(), cfg.NintendoSessionToken); err != nil {
+			slog.Error("nintendo: seed session from KFIRE_NINTENDO_SESSION_TOKEN", "err", err)
+		}
+	}
+	nintendoSync := nintendosync.New(st, nintendoBot, hub)
+	if nintendoBot.Enabled() {
+		go nintendoSync.Run(pollCtx, cfg.NintendoPollInterval)
+	}
+
+	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher, psnSync, nintendoSync)
 
 	// League live-game loop. It reads open League sessions first, so it costs
 	// nothing while nobody is playing.

@@ -65,6 +65,14 @@ type Config struct {
 	PsnNPSSO string
 	// PsnPollInterval is how often the PlayStation poller runs.
 	PsnPollInterval time.Duration
+	// NxapiURL is the nxapi sidecar the Nintendo connector talks through.
+	// Empty turns the connector off.
+	NxapiURL string
+	// NintendoSessionToken seeds the Nintendo bot's session on first boot
+	// only. After that an admin logs the bot in from the SPA.
+	NintendoSessionToken string
+	// NintendoPollInterval is how often the Nintendo poller runs.
+	NintendoPollInterval time.Duration
 	// BrevoAPIKey and MailFrom enable email (forgotten password). Both empty
 	// disables it. MailFromName defaults to OrgName.
 	BrevoAPIKey  string
@@ -100,10 +108,13 @@ func Load() (*Config, error) {
 		XblAppKey:             os.Getenv("KFIRE_XBL_APP_KEY"),
 		XblAPIBase:            os.Getenv("KFIRE_XBL_API_BASE"),
 
-		RiotLolKey:  os.Getenv("KFIRE_RIOT_LOL_KEY"),
-		PubgAPIKey:  os.Getenv("KFIRE_PUBG_API_KEY"),
-		PsnNPSSO:    os.Getenv("KFIRE_PSN_NPSSO"),
-		RiotAPIBase: os.Getenv("KFIRE_RIOT_API_BASE"),
+		RiotLolKey: os.Getenv("KFIRE_RIOT_LOL_KEY"),
+		PubgAPIKey: os.Getenv("KFIRE_PUBG_API_KEY"),
+		PsnNPSSO:   os.Getenv("KFIRE_PSN_NPSSO"),
+		NxapiURL:   os.Getenv("KFIRE_NXAPI_URL"),
+
+		NintendoSessionToken: os.Getenv("KFIRE_NINTENDO_SESSION_TOKEN"),
+		RiotAPIBase:          os.Getenv("KFIRE_RIOT_API_BASE"),
 
 		BrevoAPIKey:  os.Getenv("KFIRE_BREVO_API_KEY"),
 		MailFrom:     os.Getenv("KFIRE_MAIL_FROM"),
@@ -127,6 +138,13 @@ func Load() (*Config, error) {
 	if v := os.Getenv("KFIRE_XBOX_POLL_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
 			cfg.XboxPollInterval = d
+		}
+	}
+
+	cfg.NintendoPollInterval = time.Minute
+	if v := os.Getenv("KFIRE_NINTENDO_POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 30*time.Second {
+			cfg.NintendoPollInterval = d
 		}
 	}
 
