@@ -43,6 +43,7 @@ func (h *handlers) publicConfig(c *fiber.Ctx) error {
 			"pubg":      h.pubg != nil && h.pubg.Enabled(),
 			"psn":       h.psn != nil && h.psn.Bot().Configured(c.Context()),
 			"nintendo":  h.nintendo != nil && h.nintendo.Bot().Configured(c.Context()),
+			"epic":      h.epicEnabled(),
 		},
 		"game_plugins": h.plugins.Active(),
 		// Whether a member can get a reset link by email from the sign-in screen.
