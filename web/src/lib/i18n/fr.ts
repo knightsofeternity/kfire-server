@@ -531,6 +531,30 @@ export const fr: Catalog = {
 				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
 			}
 		},
+		epic: {
+			title: 'Epic Games',
+			blurb:
+				'Liez votre compte Epic pour que KFIRE importe votre bibliothèque Epic et le temps de jeu qu’Epic compte (Fortnite notamment). Rien sur vos amis.',
+			open: 'Se connecter à Epic',
+			steps:
+				'Après la connexion, Epic affiche un petit texte qui contient « authorizationCode ». Copiez-le en entier et collez-le ici dans les minutes qui suivent.',
+			codeLabel: 'Texte affiché par Epic',
+			submit: 'Lier le compte',
+			unlink: 'Délier',
+			sync: 'Synchroniser',
+			synced: 'Synchronisation terminée.',
+			lastSync: 'Dernière synchronisation : {date}',
+			relink: 'Epic a refusé la connexion enregistrée : reconnectez-vous pour reprendre la synchronisation.',
+			keepsHistory: 'Délier arrête la synchronisation ; le temps de jeu déjà importé reste.',
+			errors: {
+				codeInvalid: 'Ce code a expiré ou a déjà servi. Rechargez la page Epic et recollez le nouveau texte.',
+				alreadyLinked: 'Ce compte Epic est déjà lié à un autre membre.',
+				unavailable: 'Epic n’a pas répondu. Réessayez dans un instant.',
+				needsRelink: 'Reconnectez-vous à Epic pour reprendre la synchronisation.',
+				disabled: "Le connecteur Epic n'est pas configuré sur cette instance.",
+				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:

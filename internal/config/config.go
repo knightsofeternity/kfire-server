@@ -73,6 +73,11 @@ type Config struct {
 	NintendoSessionToken string
 	// NintendoPollInterval is how often the Nintendo poller runs.
 	NintendoPollInterval time.Duration
+	// EpicClientID and EpicClientSecret are the Epic launcher's client
+	// credentials (published by Legendary, see docs/EPIC_SETUP.md). Both empty
+	// turns the Epic connector off: no account card, no call to Epic.
+	EpicClientID     string
+	EpicClientSecret string
 	// BrevoAPIKey and MailFrom enable email (forgotten password). Both empty
 	// disables it. MailFromName defaults to OrgName.
 	BrevoAPIKey  string
@@ -110,8 +115,11 @@ func Load() (*Config, error) {
 
 		RiotLolKey: os.Getenv("KFIRE_RIOT_LOL_KEY"),
 		PubgAPIKey: os.Getenv("KFIRE_PUBG_API_KEY"),
-		PsnNPSSO:   os.Getenv("KFIRE_PSN_NPSSO"),
-		NxapiURL:   os.Getenv("KFIRE_NXAPI_URL"),
+
+		EpicClientID:     os.Getenv("KFIRE_EPIC_CLIENT_ID"),
+		EpicClientSecret: os.Getenv("KFIRE_EPIC_CLIENT_SECRET"),
+		PsnNPSSO:         os.Getenv("KFIRE_PSN_NPSSO"),
+		NxapiURL:         os.Getenv("KFIRE_NXAPI_URL"),
 
 		NintendoSessionToken: os.Getenv("KFIRE_NINTENDO_SESSION_TOKEN"),
 		RiotAPIBase:          os.Getenv("KFIRE_RIOT_API_BASE"),

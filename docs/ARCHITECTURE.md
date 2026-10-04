@@ -281,6 +281,21 @@ Nintendo Switch", "Édition Essentielle"... are removed), so console hours add u
 with PC hours. A member's friend code is shown on their profile to other members,
 never through the public API.
 
+## Epic Games
+
+No bot: a member links their own Epic account (`internal/connectors/epic`,
+`internal/epicsync`). They sign in on Epic's page, which ends on a JSON holding
+a one-time `authorizationCode`, and paste it on their account page; the server
+exchanges it with the Epic launcher's client credentials and keeps the refresh
+token sealed in `linked_accounts` (it lasts a year and rotates on every refresh).
+Every 6 hours: the library (titles from Epic's catalog, cached in `epic_titles`,
+add-on content filed as `hidden` left out), joined to PC games by normalized
+name, and the playtime Epic counts (`external_playtime` provider `epic`, same
+baseline rule as Steam). Epic counts playtime for some games only, and exposes
+no presence: the desktop client covers Epic games running on the PC. The
+launcher credentials are configured per instance, never shipped: see
+[EPIC_SETUP.md](EPIC_SETUP.md).
+
 ## World of Warcraft /played
 
 Blizzard publishes no playtime. The KFire addon (kfire-client `wow-addon/`,

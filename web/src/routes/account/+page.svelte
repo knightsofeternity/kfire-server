@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api, getConfig, type Connection, type PsnStatus, type NintendoStatus } from '$lib/api';
+	import { api, getConfig, type Connection, type PsnStatus, type NintendoStatus, type EpicStatus } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -56,6 +56,11 @@
 	let psnBusy = $state(false);
 	let psnError = $state('');
 	let psnNotice = $state('');
+	let epicSt = $state<EpicStatus | null>(null);
+	let epicCode = $state('');
+	let epicBusy = $state(false);
+	let epicError = $state('');
+	let epicNotice = $state('');
 
 	// Nintendo Switch: null until loaded, and on an instance without a bot.
 	let nin = $state<NintendoStatus | null>(null);
@@ -82,6 +87,7 @@
 			.then((cfg) => {
 				connectors = cfg.connectors;
 				if (cfg.connectors.psn) loadPsn();
+				if (cfg.connectors.epic) loadEpic();
 				if (cfg.connectors.nintendo) loadNintendo();
 			})
 			.catch(() => {});
@@ -232,6 +238,76 @@
 			psnError = psnErrorMessage(e);
 		} finally {
 			psnBusy = false;
+		}
+	}
+
+	async function loadEpic() {
+		try {
+			epicSt = await api.getEpic();
+		} catch {
+			/* non-fatal */
+		}
+	}
+
+	const epicErrorKeys: Record<string, string> = {
+		epic_code_invalid: 'account.epic.errors.codeInvalid',
+		already_linked: 'account.epic.errors.alreadyLinked',
+		epic_unavailable: 'account.epic.errors.unavailable',
+		epic_needs_relink: 'account.epic.errors.needsRelink',
+		connector_disabled: 'account.epic.errors.disabled',
+		rate_limited: 'account.epic.errors.rateLimited'
+	};
+
+	function epicErrorMessage(e: unknown): string {
+		const code = (e as { code?: string })?.code;
+		const key = code ? epicErrorKeys[code] : undefined;
+		if (key) return t(key);
+		return e instanceof Error ? e.message : t('common.unknownResult');
+	}
+
+	async function linkEpic() {
+		if (!epicCode.trim()) return;
+		epicBusy = true;
+		epicError = '';
+		try {
+			await api.linkEpic(epicCode.trim());
+			epicCode = '';
+			await loadEpic();
+			await loadConnections();
+		} catch (e) {
+			epicError = epicErrorMessage(e);
+		} finally {
+			epicBusy = false;
+		}
+	}
+
+	async function unlinkEpic() {
+		epicBusy = true;
+		epicError = '';
+		try {
+			await api.unlinkEpic();
+			await loadEpic();
+			await loadConnections();
+		} catch (e) {
+			epicError = epicErrorMessage(e);
+		} finally {
+			epicBusy = false;
+		}
+	}
+
+	async function syncEpic() {
+		epicBusy = true;
+		epicError = '';
+		epicNotice = '';
+		try {
+			await api.syncEpic();
+			epicNotice = t('account.epic.synced');
+			await loadEpic();
+		} catch (e) {
+			epicError = epicErrorMessage(e);
+			await loadEpic();
+		} finally {
+			epicBusy = false;
 		}
 	}
 
@@ -1033,6 +1109,85 @@
 		{/if}
 
 		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.psn.keepsHistory')}</p>
+		{/if}
+
+		{#if epicSt}
+		<!-- Epic Games -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-white/10 text-xs font-bold text-[var(--color-text)]">EG</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">{t('account.epic.title')}</p>
+					<p class="text-sm text-[var(--color-muted)]">
+						{epicSt.linked ? epicSt.display_name : t('account.notLinked')}
+					</p>
+				</div>
+			</div>
+			{#if epicSt.linked}
+				<div class="flex shrink-0 gap-2">
+					{#if epicSt.status !== 'needs_relink'}
+						<button onclick={syncEpic} disabled={epicBusy} class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm disabled:opacity-60">
+							{t('account.epic.sync')}
+						</button>
+					{/if}
+					<button
+						onclick={unlinkEpic}
+						disabled={epicBusy}
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					>
+						{t('account.epic.unlink')}
+					</button>
+				</div>
+			{/if}
+		</div>
+
+		{#if !epicSt.linked || epicSt.status === 'needs_relink'}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">
+				{epicSt.linked ? t('account.epic.relink') : t('account.epic.blurb')}
+			</p>
+			<a href={epicSt.login_url} target="_blank" rel="noopener noreferrer" class="btn-pd violet mt-2 inline-block px-3 py-2 text-sm">
+				{t('account.epic.open')}
+			</a>
+			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.epic.steps')}</p>
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					linkEpic();
+				}}
+				class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2"
+			>
+				<label class="flex-1 text-xs text-[var(--color-muted)]" for="epic-code-input">
+					{t('account.epic.codeLabel')}
+					<textarea
+						id="epic-code-input"
+						rows="2"
+						bind:value={epicCode}
+						disabled={epicBusy}
+						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
+					></textarea>
+				</label>
+				<button
+					type="submit"
+					disabled={epicBusy || !epicCode.trim()}
+					class="btn-pd violet mt-1 shrink-0 self-start px-3 py-2 text-sm disabled:opacity-60 sm:mt-5"
+				>
+					{epicBusy ? '...' : t('account.epic.submit')}
+				</button>
+			</form>
+		{:else if epicSt.last_synced_at}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">
+				{t('account.epic.lastSync', { date: new Date(epicSt.last_synced_at).toLocaleString() })}
+			</p>
+		{/if}
+
+		{#if epicError}
+			<p class="mt-1 text-sm text-red-500">{epicError}</p>
+		{/if}
+		{#if epicNotice}
+			<p class="mt-1 text-sm text-[var(--color-muted)]">{epicNotice}</p>
+		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.epic.keepsHistory')}</p>
 		{/if}
 
 		{#if nin}
