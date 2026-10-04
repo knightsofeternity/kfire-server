@@ -50,9 +50,10 @@ type CatalogEntry struct {
 	Image      string // DieselGameBoxTall, else Thumbnail, else the first image
 }
 
-// CatalogItem describes one item, in French.
+// CatalogItem describes one item, in English: the catalog games KFIRE joins
+// them to carry English names ("Édition Jeu de l'année" would never match).
 func (c *Connector) CatalogItem(ctx context.Context, token, namespace, catalogItemID string) (CatalogEntry, error) {
-	u := fmt.Sprintf("%s/namespace/%s/bulk/items?id=%s&country=FR&locale=fr",
+	u := fmt.Sprintf("%s/namespace/%s/bulk/items?id=%s&country=US&locale=en-US",
 		c.CatalogBase, url.PathEscape(namespace), url.QueryEscape(catalogItemID))
 	var body map[string]struct {
 		Title      string `json:"title"`
