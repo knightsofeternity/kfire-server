@@ -528,6 +528,30 @@ export const en = {
 				rateLimited: 'Too many attempts. Wait a minute and try again.'
 			}
 		},
+		epic: {
+			title: 'Epic Games',
+			blurb:
+				'Link your Epic account so KFIRE imports your Epic library and the playtime Epic counts (Fortnite in particular). Nothing about your friends.',
+			open: 'Sign in to Epic',
+			steps:
+				'After signing in, Epic shows a short text containing “authorizationCode”. Copy all of it and paste it here within a few minutes.',
+			codeLabel: 'Text shown by Epic',
+			submit: 'Link account',
+			unlink: 'Unlink',
+			sync: 'Sync',
+			synced: 'Sync done.',
+			lastSync: 'Last sync: {date}',
+			relink: 'Epic refused the saved sign-in: sign in again to resume syncing.',
+			keepsHistory: 'Unlinking stops syncing; playtime already imported stays.',
+			errors: {
+				codeInvalid: 'This code expired or was already used. Reload the Epic page and paste the new text.',
+				alreadyLinked: 'This Epic account is already linked to another member.',
+				unavailable: 'Epic did not answer. Try again in a moment.',
+				needsRelink: 'Sign in to Epic again to resume syncing.',
+				disabled: 'The Epic connector is not configured on this instance.',
+				rateLimited: 'Too many attempts. Wait a minute and try again.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:

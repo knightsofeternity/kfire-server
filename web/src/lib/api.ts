@@ -322,6 +322,15 @@ export type PsnStatus = {
 	bot_online_id: string;
 };
 
+/** A member's Epic Games link, as the account card needs it. */
+export type EpicStatus = {
+	linked: boolean;
+	login_url: string;
+	display_name?: string;
+	status?: 'ok' | 'needs_relink';
+	last_synced_at?: string | null;
+};
+
 /** The instance's PlayStation bot, for the admin page. Never the NPSSO itself. */
 export type PsnBotStatus = {
 	configured: boolean;
@@ -1044,6 +1053,33 @@ export const api = {
 		await authFetch('/api/v1/connect/psn/sync', { method: 'POST' });
 	},
 
+	/** The member's Epic link, or null when the instance has no Epic connector. */
+	async getEpic(): Promise<EpicStatus | null> {
+		const res = await authFetch('/api/v1/connect/epic').catch((e) => {
+			if (e instanceof ApiError && e.code === 'connector_disabled') return null;
+			throw e;
+		});
+		return res ? json(res) : null;
+	},
+
+	async linkEpic(code: string): Promise<{ display_name: string }> {
+		const res = await authFetch('/api/v1/connect/epic', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ code })
+		});
+		return json(res);
+	},
+
+	async unlinkEpic(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/epic', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	async syncEpic(): Promise<void> {
+		await authFetch('/api/v1/connect/epic/sync', { method: 'POST' });
+	},
+
 	async getPsnBot(): Promise<PsnBotStatus> {
 		return json(await authFetch('/api/v1/admin/psn'));
 	},
@@ -1261,7 +1297,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
-	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean; nintendo?: boolean };
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean; nintendo?: boolean; epic?: boolean };
 	/** A member can get a reset link by email from the sign-in screen. */
 	password_reset_self_service?: boolean;
 }> {
