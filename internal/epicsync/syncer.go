@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/connectors/epic"
@@ -43,6 +45,41 @@ func (s *Syncer) Conn() *epic.Connector { return s.conn }
 // IsGame keeps games and drops add-on content, which Epic files as "hidden".
 func IsGame(categories []string) bool {
 	return slices.Contains(categories, "games") && !slices.Contains(categories, "hidden")
+}
+
+var (
+	// testBuild spots the test clients a library also lists ("Chivalry 2 -
+	// Public Testing", "KillingFloor2Beta"): they are not games of their own.
+	testBuild = regexp.MustCompile(`(?i)(public\s*test(ing)?|play\s*test|\bPTS\b|\btest\s*server\b|\bbeta\b|beta$)`)
+	// editionTail is a store edition appended to a game's name.
+	editionTail = regexp.MustCompile(`(?i)\s*[-:\x{2013}\x{2014}]?\s*(?:Game\s+of\s+the\s+Year|GOTY|Complete|Definitive|Deluxe|Ultimate|Gold|Standard|Premium|Anniversary)\s+Edition\s*$`)
+)
+
+// IsTestBuild reports a test or beta client of a game.
+func IsTestBuild(title, appName string) bool {
+	return testBuild.MatchString(title) || testBuild.MatchString(appName)
+}
+
+// withoutEdition drops a store edition from a normalized name.
+func withoutEdition(name string) string {
+	return strings.TrimSpace(editionTail.ReplaceAllString(name, ""))
+}
+
+// gameName is the name an Epic title joins the catalog under: the full name
+// when a catalog game carries it ("RollerCoaster Tycoon 3: Complete Edition"
+// exists as such), else the name without its edition ("Dragon Age:
+// Inquisition – Game of the Year Edition" joins "Dragon Age: Inquisition").
+func (s *Syncer) gameName(ctx context.Context, title string) (string, error) {
+	full := gametitle.Normalize(title)
+	short := withoutEdition(full)
+	if short == "" || short == full {
+		return full, nil
+	}
+	ok, err := s.st.GameNamed(ctx, full)
+	if err != nil || ok {
+		return full, err
+	}
+	return short, nil
 }
 
 // secondsByGame gives every owned game its Epic playtime (0 when Epic counts
@@ -133,9 +170,13 @@ func (s *Syncer) SyncUser(ctx context.Context, userID string) error {
 				continue
 			}
 			t = store.EpicTitle{Namespace: it.Namespace, CatalogItemID: it.CatalogItemID, AppName: it.AppName,
-				Title: cat.Title, IsGame: IsGame(cat.Categories), ImageURL: cat.Image}
+				Title: cat.Title, IsGame: IsGame(cat.Categories) && !IsTestBuild(cat.Title, it.AppName), ImageURL: cat.Image}
 			if t.IsGame {
-				g, err := s.st.UpsertEpicGame(ctx, gametitle.Normalize(cat.Title), cat.Image)
+				name, err := s.gameName(ctx, cat.Title)
+				if err != nil {
+					return err
+				}
+				g, err := s.st.UpsertEpicGame(ctx, name, cat.Image)
 				if err != nil {
 					return err
 				}

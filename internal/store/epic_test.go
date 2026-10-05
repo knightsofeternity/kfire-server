@@ -55,6 +55,12 @@ func TestEpicLinkTokenTitlesAndLibrary(t *testing.T) {
 	if again.ID != g.ID {
 		t.Fatal("the same name must resolve to the same game")
 	}
+	if ok, err := st.GameNamed(ctx, "Jotunnslayer Hordes of Hel "+tag); err != nil || !ok {
+		t.Fatalf("GameNamed existing = %v, %v", ok, err)
+	}
+	if ok, _ := st.GameNamed(ctx, "No Such Game "+tag); ok {
+		t.Fatal("GameNamed must be false for an unknown name")
+	}
 	title := EpicTitle{Namespace: "ns" + tag, CatalogItemID: "cid", AppName: "app" + tag,
 		Title: "Jotunnslayer", IsGame: true, ImageURL: "https://img/x.jpg", GameID: &g.ID}
 	if err := st.SaveEpicTitle(ctx, title); err != nil {

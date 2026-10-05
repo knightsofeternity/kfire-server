@@ -169,3 +169,10 @@ func (s *Store) UpsertEpicGame(ctx context.Context, normalizedName, imageURL str
 	}
 	return g, err
 }
+
+// GameNamed reports whether a catalog game has this (normalized) name's slug.
+func (s *Store) GameNamed(ctx context.Context, normalizedName string) (bool, error) {
+	var ok bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM games WHERE slug = $1)`, steamSlug(normalizedName)).Scan(&ok)
+	return ok, err
+}
