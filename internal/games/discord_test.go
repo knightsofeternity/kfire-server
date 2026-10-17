@@ -2,6 +2,7 @@ package games
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -281,6 +282,21 @@ func TestNormalizeAddsCuratedExesForGamesUpstreamLeavesEmpty(t *testing.T) {
 		if got, want := byID[id], []string{c.exe}; !reflect.DeepEqual(got, want) {
 			t.Errorf("%s executables = %v, want %v", c.name, got, want)
 		}
+	}
+}
+
+func TestNormalizeAddsCuratedExesForWardogs(t *testing.T) {
+	// Discord carries WARDOGS with an empty executables array. The launcher and
+	// the Unreal client it spawns must both identify it.
+	seeds := normalize([]detectableApp{{ID: "wd", Name: "WARDOGS"}})
+	if len(seeds) != 1 {
+		t.Fatalf("expected WARDOGS seeded via curated exes, got %d seeds", len(seeds))
+	}
+	got := append([]string(nil), seeds[0].ExecutableNames...)
+	sort.Strings(got)
+	want := []string{"wardogsclient-win64-shipping.exe", "wardogslauncher-shipping.exe"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("executables = %v, want %v", got, want)
 	}
 }
 

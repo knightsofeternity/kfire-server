@@ -161,6 +161,12 @@ var extraExecutables = map[string][]string{
 	"warhammer-40-000-battlesector":   {"warhammer 40k battlesector.exe"}, // steam 1295500; its Steam launch option is the generic Launcher.exe
 	"heroes-of-might-magic-olden-era": {"heroesoldenera.exe"},             // steam 3105440
 	"subnautica-2":                    {"subnautica2.exe"},                // steam 1962700
+	// WARDOGS (steam 1867240), reported in October 2026: hours counted through
+	// Steam, never live. Its public Steam launch option starts the launcher,
+	// which spawns the Unreal client; both names are specific to the game. The
+	// other launch option, start_protected_game.exe, is the shared EAC
+	// bootstrapper and must never be used to identify it.
+	"wardogs": {"wardogslauncher-shipping.exe", "wardogsclient-win64-shipping.exe"},
 }
 
 // wrongExecutables drops process names Discord lists under the WRONG game,
