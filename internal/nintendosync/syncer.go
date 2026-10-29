@@ -13,6 +13,14 @@ import (
 )
 
 const (
+	// A failing pass pauses the poller: firstPause after one failure, doubled
+	// at each new failure up to maxPause, and at least rateLimitedPause when
+	// Nintendo says it refuses us. Without it the poller called Nintendo
+	// every minute for two days in October 2026, which kept the bot blocked.
+	firstPause       = 2 * time.Minute
+	maxPause         = 2 * time.Hour
+	rateLimitedPause = 30 * time.Minute
+
 	libraryEvery  = 6 * time.Hour
 	sessionSource = "nintendo_api"
 	provider      = "nintendo"
@@ -29,10 +37,36 @@ type Syncer struct {
 	bot      *Bot
 	hub      *ws.Hub
 	presence PresenceFunc
+
+	now         func() time.Time
+	pause       time.Duration // current pause, zero after a good pass
+	pausedUntil time.Time
 }
 
 func New(st *store.Store, bot *Bot, hub *ws.Hub) *Syncer {
-	return &Syncer{st: st, bot: bot, hub: hub}
+	return &Syncer{st: st, bot: bot, hub: hub, now: time.Now}
+}
+
+// nextPause is the pause after a failed pass that followed a pause of prev.
+func nextPause(prev time.Duration, rateLimited bool) time.Duration {
+	next := firstPause
+	if prev > 0 {
+		next = prev * 2
+	}
+	if rateLimited && next < rateLimitedPause {
+		next = rateLimitedPause
+	}
+	if next > maxPause {
+		next = maxPause
+	}
+	return next
+}
+
+// backOff pauses the poller after a failed pass.
+func (s *Syncer) backOff(err error) {
+	s.pause = nextPause(s.pause, errors.Is(err, nintendo.ErrRateLimited))
+	s.pausedUntil = s.now().Add(s.pause)
+	slog.Warn("nintendosync: paused", "for", s.pause.String())
 }
 
 func (s *Syncer) Bot() *Bot                      { return s.bot }
@@ -70,15 +104,19 @@ func (s *Syncer) failed(ctx context.Context, what string, err error) bool {
 	}
 	if errors.Is(err, nintendo.ErrSessionRevoked) {
 		s.bot.Revoked(ctx)
-	} else {
-		slog.Warn("nintendosync: "+what, "err", err)
+		return true
 	}
+	slog.Warn("nintendosync: "+what, "err", err)
+	s.backOff(err)
 	return true
 }
 
 // Tick runs one pass: accept linked members' requests, reconcile presence,
 // import due play logs.
 func (s *Syncer) Tick(ctx context.Context) {
+	if s.now().Before(s.pausedUntil) {
+		return
+	}
 	session, err := s.bot.Session(ctx)
 	if errors.Is(err, ErrNeedsLogin) {
 		s.closeSessions(ctx, nil) // blind until an admin logs the bot in
@@ -109,6 +147,7 @@ func (s *Syncer) Tick(ctx context.Context) {
 		return
 	}
 	_ = s.st.MarkNintendoOK(ctx)
+	s.pause = 0
 	isFriend := map[string]bool{}
 	for _, f := range friends {
 		userID, ok := linked[f.NsaID]

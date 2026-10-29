@@ -25,8 +25,10 @@ var (
 	// ErrNotFound is an unknown friend code or a member who is not a friend.
 	ErrNotFound = errors.New("nintendo: not found")
 	// ErrRateLimited is Nintendo refusing a burst of calls, friend code
-	// lookups in particular (seen after a handful in a minute). Never retried
-	// automatically: the nxapi terms forbid it.
+	// lookups in particular (seen after a handful in a minute), or refusing
+	// the bot's authentication itself ("Too many attempts to authenticate",
+	// seen from 2026-10-27 once nxapi had lost its cached token). Never
+	// retried automatically: the nxapi terms forbid it.
 	ErrRateLimited = errors.New("nintendo: rate limited")
 )
 
@@ -86,7 +88,7 @@ func (c *Client) call(ctx context.Context, session, url string, param, dst any) 
 		if e.Data.Status == coralNotFound {
 			return ErrNotFound
 		}
-		if strings.Contains(strings.ToLower(e.ErrorMessage), "rate limit") {
+		if msg := strings.ToLower(e.ErrorMessage); strings.Contains(msg, "rate limit") || strings.Contains(msg, "too many attempts") {
 			return ErrRateLimited
 		}
 		return fmt.Errorf("nintendo: %s: HTTP %d: %s %s", url, resp.StatusCode, e.Error, e.ErrorMessage)

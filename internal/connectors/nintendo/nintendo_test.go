@@ -64,6 +64,12 @@ func TestNotFoundAndRevoked(t *testing.T) {
 	if _, err := c.Friends(context.Background(), "SESSION"); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("rate limit: %v", err)
 	}
+	authLimited := fakeSidecar(t, map[string]string{
+		"/v4/FriendRequest/Received/List": `HTTP500:{"error":"unknown_error","error_message":"Too many attempts to authenticate (coral)"}`,
+	})
+	if _, err := authLimited.ReceivedRequests(context.Background(), "SESSION"); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("authentication refused: %v", err)
+	}
 	if _, err := c.LookupFriendCode(context.Background(), "SESSION", "0000-0000-0001"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown code: %v", err)
 	}
