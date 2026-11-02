@@ -555,6 +555,30 @@ export const fr: Catalog = {
 				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
 			}
 		},
+		gog: {
+			title: 'GOG',
+			blurb:
+				'Liez votre compte GOG pour que KFIRE importe vos jeux GOG et le temps de jeu compté par GOG Galaxy. Les jeux que Galaxy importe d’autres boutiques sont laissés de côté : KFIRE les récupère par leurs propres connecteurs. Rien sur vos amis.',
+			open: 'Se connecter à GOG',
+			steps:
+				'Après la connexion, GOG affiche une page presque blanche. Copiez son adresse complète (elle commence par https://embed.gog.com/on_login_success et contient « code= ») et collez-la ici dans les minutes qui suivent.',
+			codeLabel: 'Adresse de la page affichée par GOG',
+			submit: 'Lier le compte',
+			unlink: 'Délier',
+			sync: 'Synchroniser',
+			synced: 'Synchronisation terminée.',
+			lastSync: 'Dernière synchronisation : {date}',
+			relink: 'GOG a refusé la connexion enregistrée : reconnectez-vous pour reprendre la synchronisation.',
+			keepsHistory: 'Délier arrête la synchronisation ; le temps de jeu déjà importé reste. Seul le temps compté par GOG Galaxy est connu.',
+			errors: {
+				codeInvalid: 'Ce code a expiré ou a déjà servi. Reconnectez-vous à GOG et collez la nouvelle adresse.',
+				alreadyLinked: 'Ce compte GOG est déjà lié à un autre membre.',
+				unavailable: 'GOG n’a pas répondu. Réessayez dans un instant.',
+				needsRelink: 'Reconnectez-vous à GOG pour reprendre la synchronisation.',
+				disabled: "Le connecteur GOG n'est pas configuré sur cette instance.",
+				rateLimited: 'Trop de tentatives. Attendez une minute et réessayez.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:

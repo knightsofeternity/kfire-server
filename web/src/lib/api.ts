@@ -331,6 +331,15 @@ export type EpicStatus = {
 	last_synced_at?: string | null;
 };
 
+/** A member's GOG link, as the account card needs it. */
+export type GogStatus = {
+	linked: boolean;
+	login_url: string;
+	display_name?: string;
+	status?: 'ok' | 'needs_relink';
+	last_synced_at?: string | null;
+};
+
 /** The instance's PlayStation bot, for the admin page. Never the NPSSO itself. */
 export type PsnBotStatus = {
 	configured: boolean;
@@ -1080,6 +1089,33 @@ export const api = {
 		await authFetch('/api/v1/connect/epic/sync', { method: 'POST' });
 	},
 
+	/** The member's GOG link, or null when the instance has no GOG connector. */
+	async getGog(): Promise<GogStatus | null> {
+		const res = await authFetch('/api/v1/connect/gog').catch((e) => {
+			if (e instanceof ApiError && e.code === 'connector_disabled') return null;
+			throw e;
+		});
+		return res ? json(res) : null;
+	},
+
+	async linkGog(code: string): Promise<{ display_name: string }> {
+		const res = await authFetch('/api/v1/connect/gog', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ code })
+		});
+		return json(res);
+	},
+
+	async unlinkGog(): Promise<void> {
+		const res = await authFetch('/api/v1/connect/gog', { method: 'DELETE' });
+		if (!res.ok && res.status !== 404) throw new Error('failed to unlink');
+	},
+
+	async syncGog(): Promise<void> {
+		await authFetch('/api/v1/connect/gog/sync', { method: 'POST' });
+	},
+
 	async getPsnBot(): Promise<PsnBotStatus> {
 		return json(await authFetch('/api/v1/admin/psn'));
 	},
@@ -1297,7 +1333,7 @@ export async function getConfig(): Promise<{
 	needs_setup: boolean;
 	accent: string;
 	has_logo: boolean;
-	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean; nintendo?: boolean; epic?: boolean };
+	connectors: { steam: boolean; battlenet: boolean; xbox: boolean; riot: boolean; pubg: boolean; psn?: boolean; nintendo?: boolean; epic?: boolean; gog?: boolean };
 	/** A member can get a reset link by email from the sign-in screen. */
 	password_reset_self_service?: boolean;
 }> {

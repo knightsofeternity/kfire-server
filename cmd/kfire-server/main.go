@@ -17,6 +17,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/api"
 	"github.com/knightsofeternity/kfire-server/internal/config"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/epic"
+	"github.com/knightsofeternity/kfire-server/internal/connectors/gog"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/nintendo"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/psn"
 	"github.com/knightsofeternity/kfire-server/internal/connectors/steam"
@@ -24,6 +25,7 @@ import (
 	"github.com/knightsofeternity/kfire-server/internal/crypto"
 	"github.com/knightsofeternity/kfire-server/internal/epicsync"
 	"github.com/knightsofeternity/kfire-server/internal/games"
+	"github.com/knightsofeternity/kfire-server/internal/gogsync"
 	"github.com/knightsofeternity/kfire-server/internal/hearthstone"
 	"github.com/knightsofeternity/kfire-server/internal/livestate"
 	"github.com/knightsofeternity/kfire-server/internal/matchrecord"
@@ -179,7 +181,14 @@ func main() {
 		go epicSync.Run(pollCtx, 6*time.Hour)
 	}
 
-	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher, psnSync, nintendoSync, epicSync)
+	// GOG connector: members link their own account, like Epic. Dormant without
+	// the Galaxy credentials (KFIRE_GOG_CLIENT_ID / KFIRE_GOG_CLIENT_SECRET).
+	gogSync := gogsync.New(st, gog.New(cfg.GogClientID, cfg.GogClientSecret), cipher)
+	if gogSync.Conn().Enabled() {
+		go gogSync.Run(pollCtx, 6*time.Hour)
+	}
+
+	riotSync, pubgConn := api.Register(app, cfg, st, hub, steamConn, syncer, cipher, psnSync, nintendoSync, epicSync, gogSync)
 
 	// League live-game loop. It reads open League sessions first, so it costs
 	// nothing while nobody is playing.

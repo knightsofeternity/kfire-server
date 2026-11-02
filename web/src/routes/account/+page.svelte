@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
-	import { api, getConfig, type Connection, type PsnStatus, type NintendoStatus, type EpicStatus } from '$lib/api';
+	import { api, getConfig, type Connection, type PsnStatus, type NintendoStatus, type EpicStatus, type GogStatus } from '$lib/api';
 	import { formatDate } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -61,6 +61,11 @@
 	let epicBusy = $state(false);
 	let epicError = $state('');
 	let epicNotice = $state('');
+	let gogSt = $state<GogStatus | null>(null);
+	let gogCode = $state('');
+	let gogBusy = $state(false);
+	let gogError = $state('');
+	let gogNotice = $state('');
 
 	// Nintendo Switch: null until loaded, and on an instance without a bot.
 	let nin = $state<NintendoStatus | null>(null);
@@ -88,6 +93,7 @@
 				connectors = cfg.connectors;
 				if (cfg.connectors.psn) loadPsn();
 				if (cfg.connectors.epic) loadEpic();
+				if (cfg.connectors.gog) loadGog();
 				if (cfg.connectors.nintendo) loadNintendo();
 			})
 			.catch(() => {});
@@ -308,6 +314,76 @@
 			await loadEpic();
 		} finally {
 			epicBusy = false;
+		}
+	}
+
+	async function loadGog() {
+		try {
+			gogSt = await api.getGog();
+		} catch {
+			/* non-fatal */
+		}
+	}
+
+	const gogErrorKeys: Record<string, string> = {
+		gog_code_invalid: 'account.gog.errors.codeInvalid',
+		already_linked: 'account.gog.errors.alreadyLinked',
+		gog_unavailable: 'account.gog.errors.unavailable',
+		gog_needs_relink: 'account.gog.errors.needsRelink',
+		connector_disabled: 'account.gog.errors.disabled',
+		rate_limited: 'account.gog.errors.rateLimited'
+	};
+
+	function gogErrorMessage(e: unknown): string {
+		const code = (e as { code?: string })?.code;
+		const key = code ? gogErrorKeys[code] : undefined;
+		if (key) return t(key);
+		return e instanceof Error ? e.message : t('common.unknownResult');
+	}
+
+	async function linkGog() {
+		if (!gogCode.trim()) return;
+		gogBusy = true;
+		gogError = '';
+		try {
+			await api.linkGog(gogCode.trim());
+			gogCode = '';
+			await loadGog();
+			await loadConnections();
+		} catch (e) {
+			gogError = gogErrorMessage(e);
+		} finally {
+			gogBusy = false;
+		}
+	}
+
+	async function unlinkGog() {
+		gogBusy = true;
+		gogError = '';
+		try {
+			await api.unlinkGog();
+			await loadGog();
+			await loadConnections();
+		} catch (e) {
+			gogError = gogErrorMessage(e);
+		} finally {
+			gogBusy = false;
+		}
+	}
+
+	async function syncGog() {
+		gogBusy = true;
+		gogError = '';
+		gogNotice = '';
+		try {
+			await api.syncGog();
+			gogNotice = t('account.gog.synced');
+			await loadGog();
+		} catch (e) {
+			gogError = gogErrorMessage(e);
+			await loadGog();
+		} finally {
+			gogBusy = false;
 		}
 	}
 
@@ -1188,6 +1264,85 @@
 		{/if}
 
 		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.epic.keepsHistory')}</p>
+		{/if}
+
+		{#if gogSt}
+		<!-- GOG -->
+		<div class="mt-3 flex items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-bg)] p-3 pd-cut-sm">
+			<div class="flex items-center gap-3">
+				<span class="grid h-9 w-9 place-items-center pd-cut-sm bg-[#86328A]/30 text-xs font-bold text-[var(--color-text)]">GOG</span>
+				<div>
+					<p class="font-display font-semibold text-[var(--color-text)]">{t('account.gog.title')}</p>
+					<p class="text-sm text-[var(--color-muted)]">
+						{gogSt.linked ? gogSt.display_name : t('account.notLinked')}
+					</p>
+				</div>
+			</div>
+			{#if gogSt.linked}
+				<div class="flex shrink-0 gap-2">
+					{#if gogSt.status !== 'needs_relink'}
+						<button onclick={syncGog} disabled={gogBusy} class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm disabled:opacity-60">
+							{t('account.gog.sync')}
+						</button>
+					{/if}
+					<button
+						onclick={unlinkGog}
+						disabled={gogBusy}
+						class="btn-pd btn-pd-ghost px-3 py-1.5 text-sm hover:border-red-500/50 hover:text-red-400 disabled:opacity-60"
+					>
+						{t('account.gog.unlink')}
+					</button>
+				</div>
+			{/if}
+		</div>
+
+		{#if !gogSt.linked || gogSt.status === 'needs_relink'}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">
+				{gogSt.linked ? t('account.gog.relink') : t('account.gog.blurb')}
+			</p>
+			<a href={gogSt.login_url} target="_blank" rel="noopener noreferrer" class="btn-pd violet mt-2 inline-block px-3 py-2 text-sm">
+				{t('account.gog.open')}
+			</a>
+			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.gog.steps')}</p>
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					linkGog();
+				}}
+				class="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2"
+			>
+				<label class="flex-1 text-xs text-[var(--color-muted)]" for="gog-code-input">
+					{t('account.gog.codeLabel')}
+					<textarea
+						id="gog-code-input"
+						rows="2"
+						bind:value={gogCode}
+						disabled={gogBusy}
+						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
+					></textarea>
+				</label>
+				<button
+					type="submit"
+					disabled={gogBusy || !gogCode.trim()}
+					class="btn-pd violet mt-1 shrink-0 self-start px-3 py-2 text-sm disabled:opacity-60 sm:mt-5"
+				>
+					{gogBusy ? '...' : t('account.gog.submit')}
+				</button>
+			</form>
+		{:else if gogSt.last_synced_at}
+			<p class="mt-2 text-xs text-[var(--color-muted)]">
+				{t('account.gog.lastSync', { date: new Date(gogSt.last_synced_at).toLocaleString() })}
+			</p>
+		{/if}
+
+		{#if gogError}
+			<p class="mt-1 text-sm text-red-500">{gogError}</p>
+		{/if}
+		{#if gogNotice}
+			<p class="mt-1 text-sm text-[var(--color-muted)]">{gogNotice}</p>
+		{/if}
+
+		<p class="mt-2 text-xs text-[var(--color-muted)]/80">{t('account.gog.keepsHistory')}</p>
 		{/if}
 
 		{#if nin}

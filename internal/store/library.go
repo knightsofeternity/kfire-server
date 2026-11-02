@@ -5,16 +5,16 @@ import "context"
 // OwnedGame is a game a member is known to have, with where we learned it.
 type OwnedGame struct {
 	Game   Game
-	Source string // "steam" | "battlenet" | "played"
+	Source string // "battlenet" | "steam" | "psn" | "nintendo" | "epic" | "gog" | "played"
 }
 
 // OwnedGames returns the union of a member's games: their full Steam library
 // (every owned game, including never-launched ones), games inferred owned from
 // their Battle.net profiles (WoW characters, Diablo III / StarCraft II), and any
 // game they have actually played (a local/console session — e.g. Hearthstone
-// detected by the client), plus their PlayStation, Nintendo and Epic games.
+// detected by the client), plus their PlayStation, Nintendo, Epic and GOG games.
 // Deduplicated by game, alphabetical. The source is the strongest signal:
-// battlenet > steam > psn > nintendo > epic > played.
+// battlenet > steam > psn > nintendo > epic > gog > played.
 func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH owned AS (
@@ -25,6 +25,8 @@ func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, err
 			SELECT game_id, 'nintendo'    FROM external_playtime WHERE user_id = $1 AND provider = 'nintendo'
 			UNION
 			SELECT game_id, 'epic'        FROM external_playtime WHERE user_id = $1 AND provider = 'epic'
+			UNION
+			SELECT game_id, 'gog'         FROM external_playtime WHERE user_id = $1 AND provider = 'gog'
 			UNION
 			SELECT game_id, 'battlenet'   FROM bnet_wow_characters WHERE user_id = $1
 			UNION
@@ -38,6 +40,7 @@ func (s *Store) OwnedGames(ctx context.Context, userID string) ([]OwnedGame, err
 		            WHEN bool_or(o.source = 'psn')       THEN 'psn'
 		            WHEN bool_or(o.source = 'nintendo')  THEN 'nintendo'
 		            WHEN bool_or(o.source = 'epic')      THEN 'epic'
+		            WHEN bool_or(o.source = 'gog')       THEN 'gog'
 		            ELSE 'played' END AS source
 		FROM owned o JOIN games g ON g.id = o.game_id
 		GROUP BY g.id, g.name, g.slug, g.icon_url, g.cover_url

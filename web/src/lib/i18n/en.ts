@@ -552,6 +552,30 @@ export const en = {
 				rateLimited: 'Too many attempts. Wait a minute and try again.'
 			}
 		},
+		gog: {
+			title: 'GOG',
+			blurb:
+				'Link your GOG account so KFIRE imports your GOG games and the playtime GOG Galaxy counted. Games Galaxy imports from other stores are left out: KFIRE gets them from their own connectors. Nothing about your friends.',
+			open: 'Sign in to GOG',
+			steps:
+				'After signing in, GOG shows an almost blank page. Copy its full address (it starts with https://embed.gog.com/on_login_success and contains “code=”) and paste it here within a few minutes.',
+			codeLabel: 'Address of the page GOG shows',
+			submit: 'Link account',
+			unlink: 'Unlink',
+			sync: 'Sync',
+			synced: 'Sync done.',
+			lastSync: 'Last sync: {date}',
+			relink: 'GOG refused the saved sign-in: sign in again to resume syncing.',
+			keepsHistory: 'Unlinking stops syncing; playtime already imported stays. Only playtime counted by GOG Galaxy is known.',
+			errors: {
+				codeInvalid: 'This code expired or was already used. Sign in to GOG again and paste the new address.',
+				alreadyLinked: 'This GOG account is already linked to another member.',
+				unavailable: 'GOG did not answer. Try again in a moment.',
+				needsRelink: 'Sign in to GOG again to resume syncing.',
+				disabled: 'The GOG connector is not configured on this instance.',
+				rateLimited: 'Too many attempts. Wait a minute and try again.'
+			}
+		},
 		pubg: {
 			title: 'PUBG',
 			blurb:

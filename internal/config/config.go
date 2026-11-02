@@ -78,6 +78,11 @@ type Config struct {
 	// turns the Epic connector off: no account card, no call to Epic.
 	EpicClientID     string
 	EpicClientSecret string
+	// GogClientID and GogClientSecret are the GOG Galaxy client's credentials
+	// (published by Heroic, see docs/GOG_SETUP.md). Both empty turns the GOG
+	// connector off: no account card, no call to GOG.
+	GogClientID     string
+	GogClientSecret string
 	// BrevoAPIKey and MailFrom enable email (forgotten password). Both empty
 	// disables it. MailFromName defaults to OrgName.
 	BrevoAPIKey  string
@@ -118,6 +123,8 @@ func Load() (*Config, error) {
 
 		EpicClientID:     os.Getenv("KFIRE_EPIC_CLIENT_ID"),
 		EpicClientSecret: os.Getenv("KFIRE_EPIC_CLIENT_SECRET"),
+		GogClientID:      os.Getenv("KFIRE_GOG_CLIENT_ID"),
+		GogClientSecret:  os.Getenv("KFIRE_GOG_CLIENT_SECRET"),
 		PsnNPSSO:         os.Getenv("KFIRE_PSN_NPSSO"),
 		NxapiURL:         os.Getenv("KFIRE_NXAPI_URL"),
 

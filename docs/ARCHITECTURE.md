@@ -296,6 +296,23 @@ no presence: the desktop client covers Epic games running on the PC. The
 launcher credentials are configured per instance, never shipped: see
 [EPIC_SETUP.md](EPIC_SETUP.md).
 
+## GOG
+
+Same model as Epic: a member links their own GOG account
+(`internal/connectors/gog`, `internal/gogsync`). They sign in on GOG's page,
+which ends on `embed.gog.com/on_login_success?...&code=`, and paste that address
+on their account page; the server exchanges the code with the GOG Galaxy
+client's credentials and keeps the refresh token sealed in `linked_accounts`,
+the Galaxy user id in `gog_accounts`. Every 6 hours: the Galaxy library
+(`galaxy-library.gog.com`), of which only `platform_id = "gog"` entries count
+(Galaxy also lists games imported from Steam, Epic and others), titles from the
+public catalog `api.gog.com/products` (cached in `gog_titles`; DLC and packs
+left out), joined to PC games by normalized name, then for each game the
+minutes Galaxy counted (`gameplay.gog.com/games/{id}/users/{uid}/sessions`,
+`time_sum`) as `external_playtime` provider `gog`. No presence: the desktop
+client covers GOG games running on the PC. The Galaxy credentials are
+configured per instance, never shipped: see [GOG_SETUP.md](GOG_SETUP.md).
+
 ## World of Warcraft /played
 
 Blizzard publishes no playtime. The KFire addon (kfire-client `wow-addon/`,
