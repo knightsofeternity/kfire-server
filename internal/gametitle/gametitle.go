@@ -21,6 +21,8 @@ var (
 	// Language tags of regional releases: "(Français)", "(Deutsch)",
 	// "(English/Chinese/Korean/Japanese Ver.)". A year in brackets is part of
 	// the name ("Hitman (2016)") and is kept.
+	// editionTail is a store edition appended to a game's name.
+	editionTail  = regexp.MustCompile(`(?i)\s*[-:\x{2013}\x{2014}]?\s*(?:Game\s+of\s+the\s+Year|GOTY|Complete|Definitive|Deluxe|Ultimate|Gold|Standard|Premium|Anniversary)\s+Edition\s*$`)
 	languageTail = regexp.MustCompile(`(?i)\s*\((?:[^()]*\bVer\.?|Fran[cç]ais|French|English|Deutsch|German|Espa[nñ]ol|Spanish|Italiano|Italian|Portugu[eê]s|Portuguese|Nederlands|Polski|Русский|日本語|中文|한국어)\)\s*$`)
 )
 
@@ -40,4 +42,11 @@ func Normalize(name string) string {
 		s = t
 	}
 	return s
+}
+
+// WithoutEdition drops a store edition from a normalized name. It is not part
+// of Normalize: some catalog games carry their edition in their name, so a
+// store title tries its full name first (see epicsync and gogsync).
+func WithoutEdition(name string) string {
+	return strings.TrimSpace(editionTail.ReplaceAllString(name, ""))
 }

@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/knightsofeternity/kfire-server/internal/connectors/epic"
@@ -51,18 +50,11 @@ var (
 	// testBuild spots the test clients a library also lists ("Chivalry 2 -
 	// Public Testing", "KillingFloor2Beta"): they are not games of their own.
 	testBuild = regexp.MustCompile(`(?i)(public\s*test(ing)?|play\s*test|\bPTS\b|\btest\s*server\b|\bbeta\b|beta$)`)
-	// editionTail is a store edition appended to a game's name.
-	editionTail = regexp.MustCompile(`(?i)\s*[-:\x{2013}\x{2014}]?\s*(?:Game\s+of\s+the\s+Year|GOTY|Complete|Definitive|Deluxe|Ultimate|Gold|Standard|Premium|Anniversary)\s+Edition\s*$`)
 )
 
 // IsTestBuild reports a test or beta client of a game.
 func IsTestBuild(title, appName string) bool {
 	return testBuild.MatchString(title) || testBuild.MatchString(appName)
-}
-
-// withoutEdition drops a store edition from a normalized name.
-func withoutEdition(name string) string {
-	return strings.TrimSpace(editionTail.ReplaceAllString(name, ""))
 }
 
 // gameName is the name an Epic title joins the catalog under: the full name
@@ -71,7 +63,7 @@ func withoutEdition(name string) string {
 // Inquisition – Game of the Year Edition" joins "Dragon Age: Inquisition").
 func (s *Syncer) gameName(ctx context.Context, title string) (string, error) {
 	full := gametitle.Normalize(title)
-	short := withoutEdition(full)
+	short := gametitle.WithoutEdition(full)
 	if short == "" || short == full {
 		return full, nil
 	}

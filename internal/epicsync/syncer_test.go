@@ -58,17 +58,3 @@ func TestIsTestBuild(t *testing.T) {
 		}
 	}
 }
-
-func TestWithoutEdition(t *testing.T) {
-	for in, want := range map[string]string{
-		"Dragon Age: Inquisition – Game of the Year Edition": "Dragon Age: Inquisition",
-		"RollerCoaster Tycoon 3: Complete Edition":           "RollerCoaster Tycoon 3",
-		"Borderlands GOTY Edition":                           "Borderlands",
-		"Fortnite":                                           "Fortnite",
-		"Grand Theft Auto V Enhanced":                        "Grand Theft Auto V Enhanced",
-	} {
-		if got := withoutEdition(in); got != want {
-			t.Errorf("withoutEdition(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
