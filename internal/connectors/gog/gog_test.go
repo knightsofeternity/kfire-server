@@ -1,6 +1,8 @@
 package gog
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
@@ -15,7 +17,7 @@ func fake(t *testing.T, h http.HandlerFunc) *Connector {
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	c := New("cid", "secret")
-	c.AuthBase, c.EmbedBase, c.LibraryBase, c.GameplayBase, c.ProductsBase = srv.URL, srv.URL, srv.URL, srv.URL, srv.URL
+	c.AuthBase, c.EmbedBase, c.LibraryBase, c.GameplayBase, c.ProductsBase, c.ContentBase = srv.URL, srv.URL, srv.URL, srv.URL, srv.URL, srv.URL
 	return c
 }
 
@@ -144,5 +146,65 @@ func TestExpiredAccessToken(t *testing.T) {
 	c := fake(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusUnauthorized) })
 	if _, err := c.OwnedGOGProducts(context.Background(), "old", "541"); !errors.Is(err, ErrInvalidGrant) {
 		t.Fatalf("401: %v", err)
+	}
+}
+
+func TestGameClientAndAchievements(t *testing.T) {
+	var manifest bytes.Buffer
+	zw := zlib.NewWriter(&manifest)
+	fmt.Fprint(zw, `{"baseProductId":"1207658924","clientId":"gc1","clientSecret":"gs1"}`)
+	zw.Close()
+	var base string
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/products/1207658924/os/windows/builds":
+			// Only a macOS build carries Galaxy here.
+			fmt.Fprint(w, `{"total_count":0,"items":[]}`)
+		case "/products/1207658924/os/osx/builds":
+			fmt.Fprintf(w, `{"items":[{"generation":2,"link":"%s/meta/m1"}]}`, base)
+		case "/meta/m1":
+			w.Write(manifest.Bytes())
+		case "/products/42/os/windows/builds", "/products/42/os/osx/builds":
+			w.WriteHeader(http.StatusNotFound)
+		case "/token":
+			q := r.URL.Query()
+			if q.Get("client_id") != "gc1" || q.Get("client_secret") != "gs1" || q.Get("without_new_session") != "1" {
+				t.Errorf("game token = %s", r.URL)
+			}
+			fmt.Fprint(w, `{"access_token":"GA","refresh_token":"R2","user_id":"541"}`)
+		case "/clients/gc1/users/541/achievements":
+			if r.Header.Get("Authorization") != "Bearer GA" {
+				t.Errorf("auth = %q", r.Header.Get("Authorization"))
+			}
+			if r.URL.Query().Get("page_token") == "" {
+				fmt.Fprint(w, `{"total_count":3,"page_token":"P2","items":[
+					{"achievement_id":"a1","name":"One","image_url_unlocked":"//images.gog.com/a1.png","date_unlocked":"2025-03-04T10:20:30+0000"},
+					{"achievement_id":"a2","name":"Two","date_unlocked":null}]}`)
+				return
+			}
+			fmt.Fprint(w, `{"total_count":3,"page_token":"P3","items":[
+				{"achievement_id":"a3","name":"Three","date_unlocked":"2025-05-06T00:00:00+00:00"}]}`)
+		default:
+			t.Errorf("unexpected %s", r.URL)
+			w.WriteHeader(http.StatusTeapot)
+		}
+	})
+	base = c.ContentBase
+	ctx := context.Background()
+	id, secret, ok, err := c.GameClient(ctx, "1207658924")
+	if err != nil || !ok || id != "gc1" || secret != "gs1" {
+		t.Fatalf("game client = %q %q %v %v", id, secret, ok, err)
+	}
+	if _, _, ok, err := c.GameClient(ctx, "42"); err != nil || ok {
+		t.Fatalf("no build: %v %v", ok, err)
+	}
+	access, err := c.GameToken(ctx, "gc1", "gs1", "R1")
+	if err != nil || access != "GA" {
+		t.Fatalf("game token = %q, %v", access, err)
+	}
+	achs, err := c.Achievements(ctx, access, "gc1", "541")
+	if err != nil || len(achs) != 2 || achs[0].ID != "a1" || achs[0].Icon != "https://images.gog.com/a1.png" || achs[1].ID != "a3" ||
+		achs[1].UnlockedAt.Month() != 5 {
+		t.Fatalf("achievements = %+v, %v", achs, err)
 	}
 }

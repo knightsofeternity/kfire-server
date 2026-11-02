@@ -39,6 +39,7 @@ type Connector struct {
 	LibraryBase  string // https://galaxy-library.gog.com
 	GameplayBase string // https://gameplay.gog.com
 	ProductsBase string // https://api.gog.com
+	ContentBase  string // https://content-system.gog.com
 }
 
 func New(clientID, clientSecret string) *Connector {
@@ -51,6 +52,7 @@ func New(clientID, clientSecret string) *Connector {
 		LibraryBase:  "https://galaxy-library.gog.com",
 		GameplayBase: "https://gameplay.gog.com",
 		ProductsBase: "https://api.gog.com",
+		ContentBase:  "https://content-system.gog.com",
 	}
 }
 
@@ -71,26 +73,39 @@ var errNotFound = errors.New("gog: not found")
 // get sends a GET, authenticated when token is set, and decodes the JSON
 // answer into dst.
 func (c *Connector) get(ctx context.Context, rawURL, token string, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	raw, err := c.getRaw(ctx, rawURL, token)
 	if err != nil {
 		return err
+	}
+	return json.Unmarshal(raw, dst)
+}
+
+// maxBody bounds an answer; a big library page or build manifest stays well
+// under it.
+const maxBody = 16 << 20
+
+// getRaw sends a GET, authenticated when token is set, and returns the body.
+func (c *Connector) getRaw(ctx context.Context, rawURL, token string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return ErrInvalidGrant
+		return nil, ErrInvalidGrant
 	case resp.StatusCode == http.StatusNotFound:
-		return errNotFound
+		return nil, errNotFound
 	case resp.StatusCode >= 300:
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 300))
-		return fmt.Errorf("gog: GET %s: HTTP %d: %s", rawURL, resp.StatusCode, body)
+		return nil, fmt.Errorf("gog: GET %s: HTTP %d: %s", rawURL, resp.StatusCode, body)
 	}
-	return json.NewDecoder(resp.Body).Decode(dst)
+	return io.ReadAll(io.LimitReader(resp.Body, maxBody))
 }

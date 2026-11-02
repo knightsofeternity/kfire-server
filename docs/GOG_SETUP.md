@@ -1,9 +1,10 @@
 # GOG connector
 
 Members link their own GOG account; KFIRE then imports, every 6 hours, their
-GOG games and the playtime GOG Galaxy counted for each of them. Galaxy counts
-only what was played through Galaxy (or a launcher that reports to it, such as
-Heroic): the rest of a GOG game's hours come from the desktop client's
+GOG games, the playtime GOG Galaxy counted for each of them and the
+achievements they unlocked. Galaxy counts only what was played through Galaxy
+(or a launcher that reports to it, such as Heroic), and only games built with
+Galaxy have achievements: the rest of a GOG game's hours come from the desktop client's
 sessions, like any PC game. Games Galaxy imported from other stores (Steam,
 Epic, Xbox...) are left out: KFIRE gets them from their own connectors. There is
 no live presence and nothing about a member's friends.

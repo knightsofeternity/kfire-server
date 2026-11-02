@@ -1,5 +1,6 @@
-// Package gogsync links members' GOG accounts and imports their GOG library
-// and the playtime GOG Galaxy counted, every 6 hours and on demand. No
+// Package gogsync links members' GOG accounts and imports their GOG library,
+// the playtime GOG Galaxy counted and the achievements unlocked through
+// Galaxy, every 6 hours and on demand. No
 // presence: GOG games run on the PC, where the desktop client already detects
 // them.
 package gogsync
@@ -26,6 +27,10 @@ var (
 )
 
 const provider = "gog"
+
+// clientRecheck is how long a game found without a Galaxy client waits before
+// its build manifest is read again (a later build may add Galaxy).
+const clientRecheck = 7 * 24 * time.Hour
 
 type Syncer struct {
 	st     *store.Store
@@ -117,6 +122,7 @@ func (s *Syncer) SyncUser(ctx context.Context, userID string) error {
 		return err
 	}
 	if tok.Refresh != "" && tok.Refresh != refresh {
+		refresh = tok.Refresh
 		newEnc, err := s.cipher.SealString(tok.Refresh)
 		if err != nil {
 			return err
@@ -150,8 +156,63 @@ func (s *Syncer) SyncUser(ctx context.Context, userID string) error {
 		if err := s.st.UpsertExternalPlaytime(ctx, userID, provider, *t.GameID, minutes*60); err != nil {
 			return err
 		}
+		// Galaxy only records achievements of a game it ran: no session, no
+		// achievements, and two calls saved.
+		if minutes > 0 {
+			if err := s.syncAchievements(ctx, userID, refresh, acc.GalaxyUserID, id, *t.GameID); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				// One game's achievements failing does not stop the others.
+				slog.Warn("gogsync: achievements", "user_id", userID, "product_id", id, "err", err)
+			}
+		}
 	}
 	return s.st.MarkGogSynced(ctx, userID)
+}
+
+// syncAchievements imports the achievements the member unlocked in one game,
+// through the game's own Galaxy client.
+func (s *Syncer) syncAchievements(ctx context.Context, userID, refresh, galaxyUserID, productID, gameID string) error {
+	gc, err := s.gameClient(ctx, productID)
+	if err != nil || gc.ID == "" {
+		return err
+	}
+	access, err := s.conn.GameToken(ctx, gc.ID, gc.Secret, refresh)
+	if err != nil {
+		return err
+	}
+	achs, err := s.conn.Achievements(ctx, access, gc.ID, galaxyUserID)
+	if err != nil {
+		return err
+	}
+	rows := make([]store.AchievementRow, 0, len(achs))
+	for _, a := range achs {
+		rows = append(rows, store.AchievementRow{
+			GameID: gameID, APIName: a.ID, DisplayName: a.Name, IconURL: a.Icon, UnlockedAt: a.UnlockedAt,
+		})
+	}
+	return s.st.UpsertAchievements(ctx, userID, provider, rows)
+}
+
+// gameClient returns a game's Galaxy client, from the cache, else from its
+// build manifest.
+func (s *Syncer) gameClient(ctx context.Context, productID string) (store.GogGameClient, error) {
+	gc, err := s.st.GogGameClientFor(ctx, productID)
+	if err != nil {
+		return gc, err
+	}
+	if gc.ID != "" || (gc.CheckedAt != nil && time.Since(*gc.CheckedAt) < clientRecheck) {
+		return gc, nil
+	}
+	id, secret, _, err := s.conn.GameClient(ctx, productID)
+	if err != nil {
+		return gc, err
+	}
+	if err := s.st.SaveGogGameClient(ctx, productID, id, secret); err != nil {
+		return gc, err
+	}
+	return store.GogGameClient{ID: id, Secret: secret}, nil
 }
 
 // resolveTitles describes the products not cached yet, in one catalog pass.

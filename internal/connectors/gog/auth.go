@@ -21,19 +21,32 @@ type Tokens struct {
 
 // Exchange turns the member's one-time code into tokens.
 func (c *Connector) Exchange(ctx context.Context, code string) (Tokens, error) {
-	return c.token(ctx, url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {Redirect}})
+	return c.token(ctx, c.ClientID, c.clientSecret,
+		url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {Redirect}})
 }
 
 // Refresh renews the tokens.
 func (c *Connector) Refresh(ctx context.Context, refresh string) (Tokens, error) {
-	return c.token(ctx, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}})
+	return c.token(ctx, c.ClientID, c.clientSecret,
+		url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}})
+}
+
+// GameToken trades the member's Galaxy refresh token for an access token of
+// one game's own Galaxy client, which its achievements need (Comet does the
+// same when a game starts). without_new_session leaves the member's Galaxy
+// session, and so its refresh token, as it was; the refresh token this answer
+// carries is not kept.
+func (c *Connector) GameToken(ctx context.Context, gameClientID, gameClientSecret, refresh string) (string, error) {
+	tok, err := c.token(ctx, gameClientID, gameClientSecret,
+		url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}, "without_new_session": {"1"}})
+	return tok.Access, err
 }
 
 // token calls GOG's token endpoint, which takes everything in the query
 // string of a GET (as Galaxy does).
-func (c *Connector) token(ctx context.Context, q url.Values) (Tokens, error) {
-	q.Set("client_id", c.ClientID)
-	q.Set("client_secret", c.clientSecret)
+func (c *Connector) token(ctx context.Context, clientID, clientSecret string, q url.Values) (Tokens, error) {
+	q.Set("client_id", clientID)
+	q.Set("client_secret", clientSecret)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.AuthBase+"/token?"+q.Encode(), nil)
 	if err != nil {
 		return Tokens{}, err

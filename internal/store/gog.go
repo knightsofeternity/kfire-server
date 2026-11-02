@@ -148,3 +148,35 @@ func (s *Store) SaveGogTitle(ctx context.Context, t GogTitle) error {
 func (s *Store) UpsertGogGame(ctx context.Context, normalizedName, imageURL string) (Game, error) {
 	return s.UpsertEpicGame(ctx, normalizedName, imageURL)
 }
+
+// GogGameClient is a game's cached Galaxy client: ID empty when the game has
+// none, CheckedAt nil when it was never looked up.
+type GogGameClient struct {
+	ID, Secret string
+	CheckedAt  *time.Time
+}
+
+// GogGameClientFor returns a product's cached Galaxy client.
+func (s *Store) GogGameClientFor(ctx context.Context, productID string) (GogGameClient, error) {
+	var c GogGameClient
+	var id, secret *string
+	err := s.pool.QueryRow(ctx, `
+		SELECT galaxy_client_id, galaxy_client_secret, client_checked_at FROM gog_titles WHERE product_id = $1`, productID).
+		Scan(&id, &secret, &c.CheckedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return c, ErrNotFound
+	}
+	if id != nil && secret != nil {
+		c.ID, c.Secret = *id, *secret
+	}
+	return c, err
+}
+
+// SaveGogGameClient caches a product's Galaxy client, empty for none.
+func (s *Store) SaveGogGameClient(ctx context.Context, productID, id, secret string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE gog_titles SET galaxy_client_id = NULLIF($2, ''), galaxy_client_secret = NULLIF($3, ''),
+		    client_checked_at = now(), updated_at = now()
+		WHERE product_id = $1`, productID, id, secret)
+	return err
+}

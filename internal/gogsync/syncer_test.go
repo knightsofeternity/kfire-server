@@ -1,6 +1,8 @@
 package gogsync
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -29,7 +31,8 @@ func TestIsGame(t *testing.T) {
 
 // TestLinkAndSync runs the whole flow against a fake GOG and a real database:
 // only GOG games count (not Steam entries Galaxy imported, not DLC), Galaxy's
-// minutes become seconds, a refused refresh token asks the member to relink.
+// minutes become seconds, unlocked achievements come through the game's own
+// Galaxy client, a refused refresh token asks the member to relink.
 func TestLinkAndSync(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -52,9 +55,22 @@ func TestLinkAndSync(t *testing.T) {
 	tag := fmt.Sprint(time.Now().UnixNano())
 	galaxyID, game, dlc := "g"+tag, "1"+tag[len(tag)-9:], "2"+tag[len(tag)-9:]
 	refreshOK := true
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var manifest bytes.Buffer
+	zw := zlib.NewWriter(&manifest)
+	fmt.Fprint(zw, `{"clientId":"gc1","clientSecret":"gs1"}`)
+	zw.Close()
+	metaCalls := 0
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/token":
+			if q := r.URL.Query(); q.Get("client_id") == "gc1" {
+				if q.Get("client_secret") != "gs1" || q.Get("refresh_token") != "R" || q.Get("without_new_session") != "1" {
+					t.Errorf("game token call = %s", r.URL)
+				}
+				fmt.Fprintf(w, `{"access_token":"GA","refresh_token":"other","user_id":%q}`, galaxyID)
+				return
+			}
 			if r.URL.Query().Get("grant_type") == "refresh_token" && !refreshOK {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprint(w, `{"error":"invalid_grant"}`)
@@ -70,6 +86,18 @@ func TestLinkAndSync(t *testing.T) {
 				{"id":%s,"title":"Gogtest Quest Soundtrack","game_type":"dlc"}]`, game, tag, dlc)
 		case "/games/" + game + "/users/" + galaxyID + "/sessions":
 			fmt.Fprint(w, `{"time_sum":90}`)
+		case "/products/" + game + "/os/windows/builds":
+			fmt.Fprintf(w, `{"items":[{"generation":2,"link":"%s/meta/m1"}]}`, srv.URL)
+		case "/meta/m1":
+			metaCalls++
+			w.Write(manifest.Bytes())
+		case "/clients/gc1/users/" + galaxyID + "/achievements":
+			if r.Header.Get("Authorization") != "Bearer GA" {
+				t.Errorf("achievements auth = %q", r.Header.Get("Authorization"))
+			}
+			fmt.Fprint(w, `{"total_count":2,"page_token":"x","items":[
+				{"achievement_id":"a1","name":"First Blood","image_url_unlocked":"//img/a1.png","date_unlocked":"2025-03-04T10:20:30+0000"},
+				{"achievement_id":"a2","name":"Locked","image_url_unlocked":"//img/a2.png","date_unlocked":null}]}`)
 		default:
 			t.Errorf("unexpected call %s", r.URL)
 			w.WriteHeader(http.StatusNotFound)
@@ -77,7 +105,7 @@ func TestLinkAndSync(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	conn := gog.New("cid", "secret")
-	conn.AuthBase, conn.EmbedBase, conn.LibraryBase, conn.GameplayBase, conn.ProductsBase = srv.URL, srv.URL, srv.URL, srv.URL, srv.URL
+	conn.AuthBase, conn.EmbedBase, conn.LibraryBase, conn.GameplayBase, conn.ProductsBase, conn.ContentBase = srv.URL, srv.URL, srv.URL, srv.URL, srv.URL, srv.URL
 	key := make([]byte, 32)
 	rand.Read(key)
 	cipher, err := crypto.New(base64.StdEncoding.EncodeToString(key))
@@ -115,6 +143,18 @@ func TestLinkAndSync(t *testing.T) {
 	var secs int64
 	if err := db.QueryRow(ctx, `SELECT total_seconds FROM external_playtime WHERE user_id = $1 AND provider = 'gog'`, userID).Scan(&secs); err != nil || secs != 90*60 {
 		t.Fatalf("seconds = %d, %v", secs, err)
+	}
+	achs, err := st.ListUserAchievements(ctx, userID, lib[0].Game.ID, 10, 0)
+	if err != nil || len(achs) != 1 || achs[0].APIName != "a1" || *achs[0].IconURL != "https://img/a1.png" ||
+		!achs[0].UnlockedAt.Equal(time.Date(2025, 3, 4, 10, 20, 30, 0, time.UTC)) {
+		t.Fatalf("achievements = %+v, %v", achs, err)
+	}
+	// A second sync reads the cached client, not the manifest again.
+	if err := s.SyncUser(ctx, userID); err != nil {
+		t.Fatalf("second sync: %v", err)
+	}
+	if metaCalls != 1 {
+		t.Fatalf("manifest read %d times", metaCalls)
 	}
 
 	refreshOK = false

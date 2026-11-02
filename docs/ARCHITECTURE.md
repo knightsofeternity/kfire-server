@@ -309,7 +309,13 @@ the Galaxy user id in `gog_accounts`. Every 6 hours: the Galaxy library
 public catalog `api.gog.com/products` (cached in `gog_titles`; DLC and packs
 left out), joined to PC games by normalized name, then for each game the
 minutes Galaxy counted (`gameplay.gog.com/games/{id}/users/{uid}/sessions`,
-`time_sum`) as `external_playtime` provider `gog`. No presence: the desktop
+`time_sum`) as `external_playtime` provider `gog`. For a game with Galaxy
+minutes, its achievements: each game has its own Galaxy client, read from its
+public build manifest (`content-system.gog.com/products/{id}/os/{os}/builds`,
+zlib JSON `clientId`/`clientSecret`, cached in `gog_titles`); the member's
+refresh token buys a token of that client (`without_new_session=1`, as Comet
+does), which reads `gameplay.gog.com/clients/{client}/users/{uid}/achievements`
+into `achievements` provider `gog`. No presence: the desktop
 client covers GOG games running on the PC. The Galaxy credentials are
 configured per instance, never shipped: see [GOG_SETUP.md](GOG_SETUP.md).
 

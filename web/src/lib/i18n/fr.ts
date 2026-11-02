@@ -558,7 +558,7 @@ export const fr: Catalog = {
 		gog: {
 			title: 'GOG',
 			blurb:
-				'Liez votre compte GOG pour que KFIRE importe vos jeux GOG et le temps de jeu compté par GOG Galaxy. Les jeux que Galaxy importe d’autres boutiques sont laissés de côté : KFIRE les récupère par leurs propres connecteurs. Rien sur vos amis.',
+				'Liez votre compte GOG pour que KFIRE importe vos jeux GOG, le temps de jeu compté par GOG Galaxy et vos succès. Les jeux que Galaxy importe d’autres boutiques sont laissés de côté : KFIRE les récupère par leurs propres connecteurs. Rien sur vos amis.',
 			open: 'Se connecter à GOG',
 			step1: 'Connectez-vous à GOG avec le bouton ci-dessus. Un nouvel onglet s’ouvre.',
 			step2:

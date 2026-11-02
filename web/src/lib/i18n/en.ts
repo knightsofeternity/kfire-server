@@ -555,7 +555,7 @@ export const en = {
 		gog: {
 			title: 'GOG',
 			blurb:
-				'Link your GOG account so KFIRE imports your GOG games and the playtime GOG Galaxy counted. Games Galaxy imports from other stores are left out: KFIRE gets them from their own connectors. Nothing about your friends.',
+				'Link your GOG account so KFIRE imports your GOG games, the playtime GOG Galaxy counted and your achievements. Games Galaxy imports from other stores are left out: KFIRE gets them from their own connectors. Nothing about your friends.',
 			open: 'Sign in to GOG',
 			step1: 'Sign in to GOG with the button above. A new tab opens.',
 			step2:
