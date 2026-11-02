@@ -66,6 +66,7 @@
 	let gogBusy = $state(false);
 	let gogError = $state('');
 	let gogNotice = $state('');
+	let gogOpened = $state(false);
 
 	// Nintendo Switch: null until loaded, and on an instance without a bot.
 	let nin = $state<NintendoStatus | null>(null);
@@ -1300,10 +1301,25 @@
 			<p class="mt-2 text-xs text-[var(--color-muted)]">
 				{gogSt.linked ? t('account.gog.relink') : t('account.gog.blurb')}
 			</p>
-			<a href={gogSt.login_url} target="_blank" rel="noopener noreferrer" class="btn-pd violet mt-2 inline-block px-3 py-2 text-sm">
+			<a
+				href={gogSt.login_url}
+				target="_blank"
+				rel="noopener noreferrer"
+				onclick={() => (gogOpened = true)}
+				class="btn-pd violet mt-2 inline-block px-3 py-2 text-sm"
+			>
 				{t('account.gog.open')}
 			</a>
-			<p class="mt-2 text-xs text-[var(--color-muted)]">{t('account.gog.steps')}</p>
+			<ol class="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--color-muted)]">
+				<li>{t('account.gog.step1')}</li>
+				<li>{t('account.gog.step2')}</li>
+				<li>{t('account.gog.step3')}</li>
+			</ol>
+			{#if gogOpened}
+				<p class="mt-2 border-l-2 border-[#b56fb9] bg-[#86328A]/15 px-3 py-2 text-sm text-[var(--color-text)]">
+					{t('account.gog.opened')}
+				</p>
+			{/if}
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -1318,6 +1334,7 @@
 						rows="2"
 						bind:value={gogCode}
 						disabled={gogBusy}
+						placeholder={t('account.gog.codePlaceholder')}
 						class="mt-1 w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-brand)] disabled:opacity-60"
 					></textarea>
 				</label>

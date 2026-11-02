@@ -557,9 +557,13 @@ export const en = {
 			blurb:
 				'Link your GOG account so KFIRE imports your GOG games and the playtime GOG Galaxy counted. Games Galaxy imports from other stores are left out: KFIRE gets them from their own connectors. Nothing about your friends.',
 			open: 'Sign in to GOG',
-			steps:
-				'After signing in, GOG shows an almost blank page. Copy its full address (it starts with https://embed.gog.com/on_login_success and contains “code=”) and paste it here within a few minutes.',
-			codeLabel: 'Address of the page GOG shows',
+			step1: 'Sign in to GOG with the button above. A new tab opens.',
+			step2:
+				'GOG ends on a blank page: that is normal, signing in worked. Copy that tab’s address from the address bar (it contains “code=”).',
+			step3: 'Come back here, paste the address below and click “Link account”. The code expires after a few minutes.',
+			opened: 'Blank page in the other tab? Good sign! Copy its full address, come back here and paste it below.',
+			codeLabel: 'Address of the blank page',
+			codePlaceholder: 'https://embed.gog.com/on_login_success?origin=client&code=…',
 			submit: 'Link account',
 			unlink: 'Unlink',
 			sync: 'Sync',

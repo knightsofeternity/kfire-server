@@ -560,9 +560,14 @@ export const fr: Catalog = {
 			blurb:
 				'Liez votre compte GOG pour que KFIRE importe vos jeux GOG et le temps de jeu compté par GOG Galaxy. Les jeux que Galaxy importe d’autres boutiques sont laissés de côté : KFIRE les récupère par leurs propres connecteurs. Rien sur vos amis.',
 			open: 'Se connecter à GOG',
-			steps:
-				'Après la connexion, GOG affiche une page presque blanche. Copiez son adresse complète (elle commence par https://embed.gog.com/on_login_success et contient « code= ») et collez-la ici dans les minutes qui suivent.',
-			codeLabel: 'Adresse de la page affichée par GOG',
+			step1: 'Connectez-vous à GOG avec le bouton ci-dessus. Un nouvel onglet s’ouvre.',
+			step2:
+				'GOG finit sur une page blanche : c’est normal, la connexion a réussi. Copiez l’adresse de cet onglet dans la barre d’adresse (elle contient « code= »).',
+			step3: 'Revenez ici, collez l’adresse ci-dessous et cliquez sur « Lier le compte ». Le code expire après quelques minutes.',
+			opened:
+				'Page blanche dans l’autre onglet ? C’est bon signe ! Copiez son adresse complète, revenez ici et collez-la ci-dessous.',
+			codeLabel: 'Adresse de la page blanche',
+			codePlaceholder: 'https://embed.gog.com/on_login_success?origin=client&code=…',
 			submit: 'Lier le compte',
 			unlink: 'Délier',
 			sync: 'Synchroniser',
