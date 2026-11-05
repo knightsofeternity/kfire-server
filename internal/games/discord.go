@@ -111,7 +111,7 @@ var neverDetect = map[string]struct{}{
 	// any Easy Anti-Cheat game flashed "VRChat" via start_protected_game.exe).
 	// The frequency filter misses them because only a handful of games list them.
 	"start_protected_game.exe": {}, // Easy Anti-Cheat launcher
-	"easyanticheat.exe": {}, "easyanticheat_setup.exe": {}, "easyanticheat_eos_setup.exe": {},
+	"easyanticheat.exe":        {}, "easyanticheat_setup.exe": {}, "easyanticheat_eos_setup.exe": {},
 	"beservice.exe": {}, "bedaisy.exe": {}, "battleye.exe": {}, "be_setup.exe": {}, // BattlEye
 }
 
@@ -167,6 +167,15 @@ var extraExecutables = map[string][]string{
 	// other launch option, start_protected_game.exe, is the shared EAC
 	// bootstrapper and must never be used to identify it.
 	"wardogs": {"wardogslauncher-shipping.exe", "wardogsclient-win64-shipping.exe"},
+	// World of Warcraft editions all run a binary named Wow.exe; only the
+	// edition folder tells them apart. Retail is therefore matched on
+	// "_retail_/wow.exe" (its bare wow.exe is dropped in wrongExecutables), or
+	// a WoW Forever process would also match retail and every session would
+	// count twice (once per game). Forever is "_forever_/Wow.exe" (product
+	// "wowf", seen on a member's install in November 2026); Discord still
+	// lists it as WowB.exe, the beta client's name.
+	"world-of-warcraft":         {"_retail_/wow.exe"},
+	"world-of-warcraft-forever": {"_forever_/wow.exe"},
 }
 
 // wrongExecutables drops process names Discord lists under the WRONG game,
@@ -180,6 +189,11 @@ var wrongExecutables = map[string][]string{
 	// WoW Ascension client (curated entry, migration 0028). Keeping both made
 	// every session count twice. The card game keeps ascensiongame.exe.
 	"ascension-deckbuilding-game": {"ascension.exe"},
+	// Wow.exe is shared by every WoW edition (retail, Forever, PTR, private
+	// servers); retail keeps a qualified pattern instead (extraExecutables).
+	"world-of-warcraft": {"wow.exe"},
+	// WowB.exe is Blizzard's beta client, not Forever's (which runs Wow.exe).
+	"world-of-warcraft-forever": {"wowb.exe"},
 }
 
 // maxGamesPerExecutable bounds how many distinct games may share an executable
