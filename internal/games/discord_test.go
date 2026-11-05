@@ -55,7 +55,9 @@ func TestNormalize(t *testing.T) {
 	if s.DiscordAppID != "123" || s.Slug != "world-of-warcraft" {
 		t.Errorf("unexpected seed identity: %+v", s)
 	}
-	wantExes := []string{"wow.exe", "world of warcraft.app"}
+	// Retail's bare wow.exe is replaced by its edition-qualified pattern (every
+	// WoW edition runs Wow.exe); the PTR entry goes with it.
+	wantExes := []string{"world of warcraft.app", "_retail_/wow.exe"}
 	if !reflect.DeepEqual(s.ExecutableNames, wantExes) {
 		t.Errorf("executables = %v, want %v", s.ExecutableNames, wantExes)
 	}
@@ -324,5 +326,35 @@ func TestNormalizeSkipsTestVariantsAndInstallers(t *testing.T) {
 	}
 	if _, ok := byID["steel"]; ok {
 		t.Error("Steel Circus should be excluded: sc.exe is a system tool / too short")
+	}
+}
+
+// Every WoW edition runs Wow.exe; only the edition folder tells them apart. A
+// Forever process must match Forever alone, never retail too (that counted each
+// session twice, and attributed Forever play to retail).
+func TestNormalizeWorldOfWarcraftEditions(t *testing.T) {
+	apps := []detectableApp{
+		{ID: "1", Name: "World of Warcraft", Executables: exeList("_retail_/Wow.exe", `_ptr_\wow.exe`, "world of warcraft.app", "wow-64.exe")},
+		{ID: "2", Name: "World of Warcraft: Forever", Executables: exeList("WowB.exe")},
+		{ID: "3", Name: "World of Warcraft Classic", Executables: exeList("WowClassic.exe")},
+	}
+	got := map[string][]string{}
+	for _, s := range normalize(apps) {
+		got[s.Slug] = s.ExecutableNames
+	}
+	want := map[string][]string{
+		"world-of-warcraft":         {"world of warcraft.app", "wow-64.exe", "_retail_/wow.exe"},
+		"world-of-warcraft-forever": {"_forever_/wow.exe"},
+		"world-of-warcraft-classic": {"wowclassic.exe"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("executables = %v, want %v", got, want)
+	}
+	for slug, exes := range got {
+		for _, e := range exes {
+			if e == "wow.exe" || e == "wowb.exe" {
+				t.Errorf("%s still matches the bare %q", slug, e)
+			}
+		}
 	}
 }
