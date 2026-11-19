@@ -13,7 +13,7 @@ COPY web/ ./
 RUN pnpm build
 
 # ---- backend: build the static Go binary (embeds the SPA) ----
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
 ARG TARGETOS=linux
 ARG TARGETARCH
 WORKDIR /src
