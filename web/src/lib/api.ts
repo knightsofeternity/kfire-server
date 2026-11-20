@@ -69,6 +69,69 @@ export type WowCharacter = {
 	version?: string;
 };
 
+/** A WoW Forever guild reported by the KFireGuilde addon. */
+export type WowGuild = {
+	id: string;
+	name: string;
+	realm: string;
+	snapshot_at?: string;
+	roster_count: number;
+	/** Characters with an addon profile. */
+	addon_count: number;
+};
+
+/** A roster line, merged with the addon profile and the KFIRE member when known. */
+export type WowGuildRosterEntry = {
+	/** "Name-Realm". */
+	name: string;
+	level?: number;
+	/** In-game class token: MAGE, DEATHKNIGHT... */
+	class?: string;
+	rank?: string;
+	rank_index?: number;
+	last_seen_at?: string;
+	pseudo?: string;
+	main?: string;
+	role?: 'T' | 'H' | 'D';
+	addon_version?: string;
+	profile_updated_at?: string;
+	user_id?: string;
+	username?: string;
+};
+
+export type WowGuildCrafter = {
+	name: string;
+	level?: number;
+	max?: number;
+	updated_at: string;
+	user_id?: string;
+	username?: string;
+};
+
+export type WowGuildProfession = {
+	profession: string;
+	crafters: WowGuildCrafter[];
+	/** Item id, or "s" + spell id; the name is absent when nobody reported it. */
+	recipes: { id: string; name?: string; crafters: string[] }[];
+};
+
+/** One hour of the typical week. Weekday 0 is Monday. */
+export type WowGuildSlot = { weekday: number; hour: number; average: number };
+
+export type WowGuildPage = {
+	guild: WowGuild;
+	roster: WowGuildRosterEntry[];
+	professions: WowGuildProfession[];
+	presence: {
+		weeks: number;
+		/** Days with data in the window. */
+		days: number;
+		/** 7 weekdays (Monday first) x 24 hours; null where nobody watched. */
+		week: (number | null)[][];
+		best: WowGuildSlot[];
+	};
+};
+
 export type LolRank = {
 	queue: string;
 	tier: string;
@@ -895,6 +958,15 @@ export const api = {
 				`/api/v1/users/${encodeURIComponent(id)}/wow/${encodeURIComponent(realm)}/${encodeURIComponent(name)}/achievements`
 			)
 		);
+	},
+
+	async wowGuilds(): Promise<WowGuild[]> {
+		const data = await json<{ guilds: WowGuild[] }>(await authFetch('/api/v1/wow/guilds'));
+		return data.guilds;
+	},
+
+	async wowGuild(id: string): Promise<WowGuildPage> {
+		return json(await authFetch(`/api/v1/wow/guilds/${encodeURIComponent(id)}`));
 	},
 
 	async getGame(slug: string): Promise<GameDetail> {

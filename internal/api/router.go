@@ -182,6 +182,9 @@ func Register(app *fiber.App, cfg *config.Config, st *store.Store, hub *ws.Hub, 
 	v1.Get("/users/:id/games", h.requireAuth, h.userGames)
 	v1.Get("/users/:id/games/:slug", h.requireAuth, h.userGameDetail)
 	v1.Get("/users/:id/wow/:realm/:name/achievements", h.requireAuth, h.wowCharacterAchievements)
+	// WoW Forever guilds reported by the KFireGuilde addon (lot 5).
+	v1.Get("/wow/guilds", h.requireAuth, h.wowGuilds)
+	v1.Get("/wow/guilds/:id", h.requireAuth, h.wowGuild)
 	v1.Get("/games", h.requireAuth, h.listGames)
 	v1.Get("/games/played", h.requireAuth, h.listPlayedGames)
 	v1.Get("/games/:slug", h.requireAuth, h.gameDetail)

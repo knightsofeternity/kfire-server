@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { api, type GameDetail } from '$lib/api';
+	import { api, type GameDetail, type WowGuild } from '$lib/api';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { formatDuration, timeAgo } from '$lib/format';
 	import Avatar from '$lib/components/Avatar.svelte';
@@ -112,10 +112,18 @@
 		wowExpanded = next;
 	}
 
+	// WoW Forever: the guilds the KFireGuilde addon reported. A failure here
+	// only hides the section, the game page stands on its own.
+	let wowGuilds = $state<WowGuild[]>([]);
+	async function loadWowGuilds() {
+		wowGuilds = slug === 'world-of-warcraft-forever' ? await api.wowGuilds().catch(() => []) : [];
+	}
+
 	onMount(load);
 	async function load() {
 		loading = true;
 		error = '';
+		loadWowGuilds();
 		try {
 			detail = await api.getGame(slug);
 		} catch (e) {
@@ -203,6 +211,25 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if wowGuilds.length}
+		<section class="mb-8">
+			<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-gold)]">
+				<span class="inline-block h-4 w-1 bg-[var(--color-gold)]"></span>
+				{t('wowGuild.gameSection')}
+			</h2>
+			<ul class="flex flex-col gap-2">
+				{#each wowGuilds as g (g.id)}
+					<a href="/wow/guilds/{g.id}" class="pd-card flex flex-wrap items-center gap-x-4 gap-y-1 p-3 transition-colors hover:border-[var(--color-gold)]">
+						<span class="font-display font-semibold text-[var(--color-text)]">{g.name}</span>
+						<span class="text-sm text-[var(--color-muted)]">{g.realm}</span>
+						<span class="ml-auto text-sm text-[var(--color-cyan)]">{t('wowGuild.rosterCount', { count: g.roster_count })}</span>
+						<span class="text-sm text-[var(--color-brand-bright)]">{t('wowGuild.addonCount', { count: g.addon_count })}</span>
+					</a>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<!-- Recent players (last 7 days) -->
 	<h2 class="pd-heading mb-4 flex items-center gap-2 text-sm text-[var(--color-cyan)]">

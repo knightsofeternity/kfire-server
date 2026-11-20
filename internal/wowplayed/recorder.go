@@ -151,7 +151,17 @@ func judge(prev *store.WowPlayedPrevious, c store.WowPlayed) verdict {
 // the client tracks after the snapshot add up without being counted twice.
 // When a character comes back lower, the old total was wrong and is replaced
 // rather than kept as a floor.
+//
+// On Forever, the payload may also carry the KFireGuilde guild: it is
+// recorded after the /played, whatever the /played's fate, and never changes
+// what Record returns.
 func (r *Recorder) Record(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
+	err := r.recordPlayed(ctx, userID, gameID, raw)
+	r.recordGuild(ctx, userID, gameID, raw)
+	return err
+}
+
+func (r *Recorder) recordPlayed(ctx context.Context, userID, gameID string, raw json.RawMessage) error {
 	chars, err := accepted(raw, time.Now())
 	if err != nil {
 		return err

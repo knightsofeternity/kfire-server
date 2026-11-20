@@ -338,3 +338,27 @@ client's sessions after the snapshot add up without double counting. The
 member's WoW page shows each character's /played on its Battle.net card (realm
 compared without case, quotes or spaces) and cards for characters only the addon
 knows (Forever, Ascension).
+
+### KFireGuilde: the Forever guild (lot 5)
+
+On `world-of-warcraft-forever` only, the same `match_result` may carry an
+optional `guild` object written by the KFireGuilde addon (contract:
+kfire-client `wow-addon/docs/kfire-guilde-liaison.md`): roster snapshot, the
+members' addon profiles (pseudo, main, role, addon version), professions with
+their recipes, item names and hourly presence. `internal/wowplayed/guild.go`
+validates it line by line (an invalid line is dropped; an invalid or
+over-limit guild is logged and ignored) after the /played, and never changes
+what the recorder returns.
+
+A guild is keyed per edition by `lower(guild_name)` + `realm_norm`
+(`wow_guilds`). A strictly newer `snapshot_at` replaces `wow_guild_roster`
+whole; `wow_guild_members` and `wow_guild_professions` keep the newest
+`updated_at`; `wow_guild_presence` keeps the larger count of each hour;
+`wow_item_names` (per edition) takes the last reported name. A character
+("Name-Realm") links to the KFIRE member whose `wow_played` has it, at read time.
+
+Members read it at `GET /api/v1/wow/guilds` (list) and
+`GET /api/v1/wow/guilds/:id` (roster merged with profiles and members,
+professions with who knows each recipe, and a typical week: 7 x 24 averages
+over the last 8 weeks, Monday first, plus the 5 best slots). The web page is
+`/wow/guilds/:id`, linked from the WoW Forever game page.
